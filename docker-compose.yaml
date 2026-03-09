@@ -1,0 +1,60 @@
+services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-portfolioiq}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-portfolioiq}
+      POSTGRES_DB: ${POSTGRES_DB:-portfolioiq}
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+      - ./init.sql:/docker-entrypoint-initdb.d/init.sql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-portfolioiq}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  unified-api:
+    build:
+      context: .
+      dockerfile: unified-api/Dockerfile
+    restart: unless-stopped
+    ports:
+      - "${GATEWAY_PORT:-8000}:8000"
+    env_file:
+      - .env
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-portfolioiq}:${POSTGRES_PASSWORD:-portfolioiq}@postgres:5432/${POSTGRES_DB:-portfolioiq}
+    volumes:
+      - ./data/reports:/app/unified-api/reports
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://localhost:8000/health')"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: /api
+    restart: unless-stopped
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      - unified-api
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/health"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+
+volumes:
+  pgdata:

@@ -1,0 +1,296 @@
+Project ETF_IQ {
+  database_type: 'PostgreSQL'
+  Note: 'PortfolioIQ — ETF portfolio intelligence platform'
+}
+
+// ---------------------------------------------------------------------------
+//  User
+// ---------------------------------------------------------------------------
+
+Table users {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  auth0_id varchar(100) [unique, not null]
+  email varchar(255) [not null]
+  display_name varchar(100)
+  base_currency varchar(3) [default: 'EUR']
+  role varchar(20) [default: 'user']
+  notify_email boolean [default: true]
+  notify_digest boolean [default: true]
+  accepted_tos boolean [default: false]
+  created_at timestamptz [default: `now()`]
+}
+
+// ---------------------------------------------------------------------------
+//  Portfolio
+// ---------------------------------------------------------------------------
+
+Table portfolios {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  user_id uuid [not null, ref: > users.id]
+  name varchar(100) [not null]
+  description text
+  created_at timestamptz [default: `now()`]
+}
+
+Table portfolio_themes {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  portfolio_id uuid [not null, ref: > portfolios.id]
+  name varchar(100) [not null]
+  color varchar(7)
+  sort_order integer [default: 0]
+}
+
+Table portfolio_snapshots {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  portfolio_id uuid [not null, ref: > portfolios.id]
+  date date [not null]
+  total_value decimal(12,2)
+  total_pnl decimal(12,2)
+  total_pnl_pct decimal(8,4)
+  allocations jsonb
+
+  indexes {
+    (portfolio_id, date) [unique, name: 'uq_snapshot_portfolio_date']
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  ETF & Market Data
+// ---------------------------------------------------------------------------
+
+Table etfs {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  isin varchar(12) [unique, not null]
+  ticker_yf varchar(20)
+  name varchar(200) [not null]
+  currency varchar(3)
+  exchange varchar(20)
+  ter decimal(5,4)
+  aum_eur bigint
+  inception_date date
+  domicile varchar(50)
+  replication varchar(50)
+  distribution varchar(20)
+  description text
+  holdings_count integer
+  vol_1y decimal(6,2)
+  vol_3y decimal(6,2)
+  ret_risk_1y decimal(6,2)
+  max_dd_1y decimal(6,2)
+  last_scraped_at timestamptz
+}
+
+Table etf_holdings {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  etf_id uuid [not null, ref: > etfs.id]
+  holding_name varchar(200)
+  holding_isin varchar(12)
+  holding_ticker varchar(20)
+  weight decimal(6,4)
+  refreshed_at timestamptz [default: `now()`]
+}
+
+Table etf_allocations {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  etf_id uuid [not null, ref: > etfs.id]
+  allocation_type varchar(10) [not null, note: 'sector or country']
+  name varchar(100) [not null]
+  percentage decimal(6,2)
+  refreshed_at timestamptz [default: `now()`]
+}
+
+Table prices {
+  etf_id uuid [not null, ref: > etfs.id]
+  date date [not null]
+  open decimal(12,4)
+  high decimal(12,4)
+  low decimal(12,4)
+  close decimal(12,4) [not null]
+  volume bigint
+
+  indexes {
+    (etf_id, date) [pk, name: 'pk_prices']
+  }
+}
+
+// ---------------------------------------------------------------------------
+//  Positions & Transactions
+// ---------------------------------------------------------------------------
+
+Table positions {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  portfolio_id uuid [not null, ref: > portfolios.id]
+  etf_id uuid [not null, ref: > etfs.id]
+  theme_id uuid [ref: > portfolio_themes.id]
+  layer_label varchar(50)
+  target_allocation decimal(5,2)
+  entry_date date [not null]
+  entry_price decimal(12,4) [not null]
+  shares decimal(12,6) [not null]
+  invested_amount decimal(12,2) [not null]
+  is_active boolean [default: true]
+  created_at timestamptz [default: `now()`]
+}
+
+Table transactions {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  position_id uuid [not null, ref: > positions.id]
+  type varchar(20) [not null]
+  date date [not null]
+  price decimal(12,4) [not null]
+  shares decimal(12,6) [not null]
+  amount decimal(12,2) [not null]
+  notes text
+  created_at timestamptz [default: `now()`]
+}
+
+// ---------------------------------------------------------------------------
+//  Agent / AI System
+// ---------------------------------------------------------------------------
+
+Table agent_outputs {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  portfolio_id uuid [not null, ref: > portfolios.id]
+  agent_name varchar(50) [not null]
+  run_date date [not null]
+  run_type varchar(20) [not null]
+  summary text [not null]
+  structured_data jsonb [not null]
+  reflection text
+  predictions jsonb
+  judge_evaluation jsonb
+  judge_run_date date
+  judge_overall_score decimal(4,2)
+  research_mode varchar(20)
+  thinking_tokens_used integer
+  sources_cited jsonb
+  model_used varchar(50)
+  prompt_tokens integer
+  completion_tokens integer
+  latency_ms integer
+  created_at timestamptz [default: `now()`]
+
+  indexes {
+    (portfolio_id, agent_name, run_date, run_type) [unique, name: 'uq_agent_run']
+    (portfolio_id, agent_name, run_date) [name: 'idx_agent_scores', note: 'partial: WHERE judge_overall_score IS NOT NULL']
+  }
+}
+
+Table chart_events {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  portfolio_id uuid [not null, ref: > portfolios.id]
+  agent_output_id uuid [ref: > agent_outputs.id]
+  event_date date [not null]
+  headline varchar(200) [not null]
+  description text
+  source_url varchar(500)
+  tickers "varchar(10)[]" [not null]
+  themes "varchar(50)[]"
+  sentiment varchar(10)
+  importance integer [note: 'CHECK: 1..5']
+  source_agent varchar(50)
+  created_at timestamptz [default: `now()`]
+}
+
+// ---------------------------------------------------------------------------
+//  Alerts
+// ---------------------------------------------------------------------------
+
+Table alerts {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  portfolio_id uuid [not null, ref: > portfolios.id]
+  type varchar(20) [not null]
+  etf_id uuid [ref: > etfs.id]
+  threshold decimal(12,4) [not null]
+  is_active boolean [default: true]
+  last_triggered_at timestamptz
+  trigger_count integer [default: 0]
+  created_at timestamptz [default: `now()`]
+}
+
+Table alert_events {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  alert_id uuid [not null, ref: > alerts.id]
+  triggered_at timestamptz [default: `now()`]
+  actual_value decimal(12,4)
+  message text
+}
+
+// ---------------------------------------------------------------------------
+//  Reports
+// ---------------------------------------------------------------------------
+
+Table reports {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  portfolio_id uuid [not null, ref: > portfolios.id]
+  type varchar(20) [not null]
+  status varchar(20) [default: 'pending']
+  generated_at timestamptz [default: `now()`]
+  summary_sentence text
+  file_path varchar(500)
+  agent_output_ids "uuid[]"
+  schema_config jsonb
+  research_mode varchar(20)
+}
+
+// ---------------------------------------------------------------------------
+//  Chat
+// ---------------------------------------------------------------------------
+
+Table chat_sessions {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  portfolio_id uuid [not null, ref: > portfolios.id]
+  started_at timestamptz [default: `now()`]
+  last_message_at timestamptz
+}
+
+Table chat_messages {
+  id uuid [pk, default: `uuid_generate_v4()`]
+  session_id uuid [not null, ref: > chat_sessions.id]
+  role varchar(10) [not null]
+  content text [not null]
+  tools_used jsonb
+  created_at timestamptz [default: `now()`]
+}
+
+// ---------------------------------------------------------------------------
+//  Table Groups
+// ---------------------------------------------------------------------------
+
+TableGroup user_domain {
+  users
+}
+
+TableGroup portfolio_domain {
+  portfolios
+  portfolio_themes
+  portfolio_snapshots
+  positions
+  transactions
+}
+
+TableGroup etf_market {
+  etfs
+  etf_holdings
+  etf_allocations
+  prices
+}
+
+TableGroup agent_ai {
+  agent_outputs
+  chart_events
+}
+
+TableGroup alerts_domain {
+  alerts
+  alert_events
+}
+
+TableGroup reports_domain {
+  reports
+}
+
+TableGroup chat_domain {
+  chat_sessions
+  chat_messages
+}
