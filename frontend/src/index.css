@@ -55,3 +55,25 @@ body {
   animation: chat-bubble-in 0.2s ease-out;
   transform-origin: bottom right;
 }
+
+.chat-scrollbar::-webkit-scrollbar {
+  width: 6px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb {
+  background: #18181b;
+  border-radius: 3px;
+}
+
+.chat-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #27272a;
+}
+
+.chat-scrollbar {
+  scrollbar-width: thin;
+  scrollbar-color: #18181b transparent;
+}

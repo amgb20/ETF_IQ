@@ -28,7 +28,7 @@ REPORT_HISTORY_KEYWORDS = [
 ]
 
 SYSTEM_PROMPT_TEMPLATE = """\
-You are PortfolioIQ Assistant, a conversational AI for an ETF portfolio investor.
+You are Charles, a conversational AI assistant for an ETF portfolio investor.
 
 PORTFOLIO CONTEXT:
 {portfolio_context}
@@ -145,12 +145,12 @@ class ChatAgent:
 
             full_text = ""
             try:
-                response = client.models.generate_content_stream(
+                response = await client.aio.models.generate_content_stream(
                     model=model_name,
                     contents=full_prompt,
                     config=llm_client.STANDARD_CONFIG,
                 )
-                for chunk in response:
+                async for chunk in response:
                     if chunk.text:
                         full_text += chunk.text
                         yield {"type": "text", "content": chunk.text}

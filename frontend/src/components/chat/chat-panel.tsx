@@ -49,7 +49,7 @@ export function ChatPanel({ portfolioId, onClose }: Props) {
         )}
       </div>
 
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3">
+      <div ref={scrollRef} className="chat-scrollbar flex-1 overflow-y-auto p-4 space-y-3">
         {messages.length === 0 && (
           <div className="flex flex-col items-center justify-center text-center text-sm text-muted-foreground py-12">
             <div className="flex h-12 w-12 items-center justify-center rounded-full bg-muted mb-4">
