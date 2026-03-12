@@ -6,12 +6,6 @@ import { useUserContext } from "@/contexts/UserContext";
 import { usePortfolios } from "@/hooks/use-portfolios";
 import { useAlerts } from "@/hooks/use-alerts";
 
-const NAV_LINKS = [
-  { to: "/", label: "Dashboard" },
-  { to: "/analysis", label: "Analysis" },
-  { to: "/reports", label: "Reports" },
-];
-
 export function TopNav() {
   const location = useLocation();
   const navigate = useNavigate();
@@ -20,6 +14,13 @@ export function TopNav() {
   const { data: portfolios } = usePortfolios();
   const portfolioId = portfolios?.[0]?.id;
   const { data: alerts } = useAlerts(portfolioId);
+
+  const prefix = user ? `/${user.id}` : "";
+  const navLinks = [
+    { to: `${prefix}/dashboard`, label: "Dashboard" },
+    { to: `${prefix}/analysis`, label: "Analysis" },
+    { to: `${prefix}/reports`, label: "Reports" },
+  ];
 
   const unreadCount = (alerts ?? []).reduce((acc, a) => {
     const recent = a.events.filter((ev) => {
@@ -38,18 +39,18 @@ export function TopNav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 max-w-7xl items-center px-4">
-        <Link to="/" className="mr-8 text-lg font-bold tracking-tight">
+        <Link to={user ? `/${user.id}/dashboard` : "/"} className="mr-8 text-lg font-bold tracking-tight">
           PortfolioIQ
         </Link>
 
         <nav className="flex items-center gap-1">
-          {NAV_LINKS.map((link) => (
+          {navLinks.map((link) => (
             <Link
               key={link.to}
               to={link.to}
               className={cn(
                 "rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent",
-                location.pathname === link.to ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+                location.pathname.startsWith(link.to) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
               )}
             >
               {link.label}
@@ -58,7 +59,7 @@ export function TopNav() {
         </nav>
 
         <div className="ml-auto flex items-center gap-2">
-          <Link to="/analysis?tab=alerts" className="relative">
+          <Link to={`${prefix}/analysis/alerts`} className="relative">
             <Button variant="ghost" size="icon">
               <Bell className="h-4 w-4" />
             </Button>

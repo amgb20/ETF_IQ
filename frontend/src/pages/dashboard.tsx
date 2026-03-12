@@ -1,3 +1,4 @@
+import { useMemo } from "react";
 import { usePortfolios, usePortfolio } from "@/hooks/use-portfolios";
 import { Skeleton } from "@/components/ui/skeleton";
 import { HealthSummary } from "@/components/dashboard/health-summary";
@@ -16,6 +17,11 @@ export default function DashboardPage() {
   const loading = listLoading || detailLoading;
   const positions = portfolio?.positions ?? [];
 
+  const chartData = useMemo(() => {
+    if (!portfolio?.total_value || positions.length === 0) return [];
+    return [{ time: new Date().toISOString().split("T")[0], value: portfolio.total_value }];
+  }, [portfolio?.total_value, positions.length]);
+
   return (
     <div className="space-y-6">
       <HealthSummary
@@ -30,11 +36,19 @@ export default function DashboardPage() {
           <CardTitle className="text-base">Portfolio Value</CardTitle>
         </CardHeader>
         <CardContent>
-          <PortfolioValueChart data={[]} loading={loading} />
-          {!loading && positions.length === 0 && (
+          {!loading && positions.length === 0 ? (
             <p className="text-sm text-muted-foreground text-center py-8">
               No positions yet. Add positions to see the chart.
             </p>
+          ) : (
+            <>
+              <PortfolioValueChart data={chartData} loading={loading} />
+              {!loading && chartData.length <= 1 && positions.length > 0 && (
+                <p className="text-xs text-muted-foreground text-center mt-2">
+                  Price history will appear after the first data sync.
+                </p>
+              )}
+            </>
           )}
         </CardContent>
       </Card>

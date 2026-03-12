@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.agent import AgentOutput
 from app.schemas.agent_output import AgentOutputResponse
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 router = APIRouter(prefix="/agent-outputs", tags=["agent-outputs"])
 
@@ -25,8 +26,11 @@ class AgentScoreEntry(BaseModel):
 async def get_agent_scores(
     portfolio_id: uuid.UUID = Query(...),
     weeks: int = Query(12, ge=1, le=52),
+    user: RequireAuth = ...,
     db: AsyncSession = Depends(get_db),
 ):
+    await verify_portfolio_owner(portfolio_id, user, db)
+
     cutoff = date.today() - timedelta(weeks=weeks)
 
     result = await db.execute(
@@ -54,8 +58,11 @@ async def list_agent_outputs(
     portfolio_id: uuid.UUID = Query(...),
     agent: str | None = Query(None),
     weeks: int = Query(12, ge=1, le=52),
+    user: RequireAuth = ...,
     db: AsyncSession = Depends(get_db),
 ):
+    await verify_portfolio_owner(portfolio_id, user, db)
+
     cutoff = date.today() - timedelta(weeks=weeks)
 
     stmt = (

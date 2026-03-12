@@ -18,6 +18,7 @@ class PortfolioCreate(BaseModel):
 
 class PositionBrief(BaseModel):
     id: uuid.UUID
+    etf_id: uuid.UUID
     etf_isin: str
     etf_name: str
     ticker_yf: str | None

@@ -13,6 +13,7 @@ class ChatSession(Base):
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     portfolio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("portfolios.id", ondelete="CASCADE"))
+    title: Mapped[str | None] = mapped_column(String(120), nullable=True)
     started_at: Mapped[str] = mapped_column(server_default=func.now())
     last_message_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True), nullable=True)
 

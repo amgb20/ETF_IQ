@@ -1,6 +1,6 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Link } from "react-router-dom";
+import { Link, useParams } from "react-router-dom";
 import { Bell } from "lucide-react";
 import { useAlerts } from "@/hooks/use-alerts";
 
@@ -16,6 +16,7 @@ const TYPE_COLORS: Record<string, "destructive" | "warning" | "secondary"> = {
 };
 
 export function LatestAlerts({ portfolioId }: Props) {
+  const { userId } = useParams<{ userId: string }>();
   const { data: alerts } = useAlerts(portfolioId);
 
   const recentEvents = (alerts ?? [])
@@ -61,7 +62,7 @@ export function LatestAlerts({ portfolioId }: Props) {
         ) : (
           <p className="text-sm text-muted-foreground">
             No alerts triggered yet.{" "}
-            <Link to="/analysis?tab=alerts" className="underline hover:text-foreground">
+            <Link to={`/${userId}/analysis/alerts`} className="underline hover:text-foreground">
               Set up alerts
             </Link>
           </p>

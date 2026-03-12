@@ -1,4 +1,4 @@
-import { Routes, Route, Navigate } from "react-router-dom";
+import { Routes, Route, Navigate, useParams } from "react-router-dom";
 import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/contexts/UserContext";
@@ -15,14 +15,34 @@ import OnboardingPage from "@/pages/onboarding";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 
+function RedirectToUserHome() {
+  const { user, isLoading } = useUserContext();
+  if (isLoading) return null;
+  if (!user) return <Navigate to="/login" replace />;
+  return <Navigate to={`/${user.id}/dashboard`} replace />;
+}
+
+function UserRouteGuard({ children }: { children: React.ReactNode }) {
+  const { userId } = useParams<{ userId: string }>();
+  const { user, isLoading } = useUserContext();
+
+  if (isLoading) return null;
+
+  if (user && userId && userId !== user.id) {
+    return <Navigate to={`/${user.id}/dashboard`} replace />;
+  }
+
+  return <>{children}</>;
+}
+
 function OnboardingGuard({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated } = useUserContext();
+  const { user, isAuthenticated } = useUserContext();
   const { data: portfolios, isLoading: portfoliosLoading } = usePortfolios();
 
   if (isAuthenticated && portfoliosLoading) return null;
 
-  if (isAuthenticated && portfolios && portfolios.length === 0) {
-    return <Navigate to="/onboarding" replace />;
+  if (isAuthenticated && portfolios && portfolios.length === 0 && user) {
+    return <Navigate to={`/${user.id}/onboarding`} replace />;
   }
 
   return <>{children}</>;
@@ -59,18 +79,23 @@ export default function App() {
         <Route path="/privacy" element={<PrivacyPage />} />
 
         <Route element={<ProtectedRoute />}>
-          <Route path="/onboarding" element={<OnboardingPage />} />
+          <Route path="/:userId/onboarding" element={<UserRouteGuard><OnboardingPage /></UserRouteGuard>} />
           <Route
+            path="/:userId"
             element={
-              <OnboardingGuard>
-                <AppLayout />
-              </OnboardingGuard>
+              <UserRouteGuard>
+                <OnboardingGuard>
+                  <AppLayout />
+                </OnboardingGuard>
+              </UserRouteGuard>
             }
           >
-            <Route path="/" element={<DashboardPage />} />
-            <Route path="/analysis" element={<AnalysisPage />} />
-            <Route path="/reports" element={<ReportsPage />} />
+            <Route path="dashboard" element={<DashboardPage />} />
+            <Route path="analysis/*" element={<AnalysisPage />} />
+            <Route path="reports" element={<ReportsPage />} />
+            <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
+          <Route path="/" element={<RedirectToUserHome />} />
         </Route>
       </Routes>
     </TosGuard>

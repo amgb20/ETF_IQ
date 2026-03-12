@@ -76,3 +76,27 @@ def require_role(min_role: str):
 
 
 RequireAuth = Annotated[User, Depends(get_current_user)]
+
+
+async def verify_portfolio_owner(
+    portfolio_id,
+    user: User,
+    db: AsyncSession,
+):
+    """Load a portfolio and verify the current user owns it. Returns the portfolio or raises 403."""
+    import uuid
+    from app.models import Portfolio
+
+    pid = portfolio_id if isinstance(portfolio_id, uuid.UUID) else uuid.UUID(str(portfolio_id))
+    portfolio = await db.get(Portfolio, pid)
+    if not portfolio:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Portfolio not found",
+        )
+    if portfolio.user_id != user.id:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied",
+        )
+    return portfolio

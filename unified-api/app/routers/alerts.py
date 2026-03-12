@@ -10,6 +10,7 @@ from sqlalchemy.orm import selectinload
 from app.database import get_db
 from app.models.alert import Alert, AlertEvent
 from app.schemas.alert import AlertCreate, AlertResponse, AlertUpdate
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -17,8 +18,11 @@ router = APIRouter(prefix="/alerts", tags=["alerts"])
 @router.get("", response_model=list[AlertResponse])
 async def list_alerts(
     portfolio_id: uuid.UUID = Query(...),
+    user: RequireAuth = ...,
     db: AsyncSession = Depends(get_db),
 ):
+    await verify_portfolio_owner(portfolio_id, user, db)
+
     result = await db.execute(
         select(Alert)
         .options(selectinload(Alert.events))
@@ -32,8 +36,11 @@ async def list_alerts(
 @router.post("", response_model=AlertResponse, status_code=201)
 async def create_alert(
     body: AlertCreate,
+    user: RequireAuth = ...,
     db: AsyncSession = Depends(get_db),
 ):
+    await verify_portfolio_owner(body.portfolio_id, user, db)
+
     alert = Alert(
         portfolio_id=body.portfolio_id,
         etf_id=body.etf_id,
@@ -50,6 +57,7 @@ async def create_alert(
 async def update_alert(
     alert_id: uuid.UUID,
     body: AlertUpdate,
+    user: RequireAuth = ...,
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -58,6 +66,8 @@ async def update_alert(
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    await verify_portfolio_owner(alert.portfolio_id, user, db)
 
     if body.threshold is not None:
         alert.threshold = body.threshold
@@ -72,12 +82,15 @@ async def update_alert(
 @router.delete("/{alert_id}", status_code=204)
 async def delete_alert(
     alert_id: uuid.UUID,
+    user: RequireAuth = ...,
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(Alert).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")
+
+    await verify_portfolio_owner(alert.portfolio_id, user, db)
 
     alert.is_active = False
     await db.flush()

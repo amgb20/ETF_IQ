@@ -7,7 +7,7 @@ import { useUserContext } from "@/contexts/UserContext";
 
 export default function LoginPage() {
   const navigate = useNavigate();
-  const { isAuthenticated, refresh } = useUserContext();
+  const { isAuthenticated, user, refresh } = useUserContext();
   const [step, setStep] = useState<"email" | "code">("email");
   const [email, setEmail] = useState("");
   const [code, setCode] = useState(["", "", "", "", "", ""]);
@@ -16,8 +16,8 @@ export default function LoginPage() {
   const codeRefs = useRef<(HTMLInputElement | null)[]>([]);
 
   useEffect(() => {
-    if (isAuthenticated) navigate("/", { replace: true });
-  }, [isAuthenticated, navigate]);
+    if (isAuthenticated && user) navigate(`/${user.id}/dashboard`, { replace: true });
+  }, [isAuthenticated, user, navigate]);
 
   const handleSendCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +96,6 @@ export default function LoginPage() {
         throw new Error(body.detail || "Verification failed");
       }
       await refresh();
-      navigate("/", { replace: true });
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : "Verification failed");
       setCode(["", "", "", "", "", ""]);

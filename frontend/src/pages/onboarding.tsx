@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useUserContext } from "@/contexts/UserContext";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -29,6 +30,7 @@ const THEME_COLORS: Record<string, string> = {
 
 export default function OnboardingPage() {
   const navigate = useNavigate();
+  const { user } = useUserContext();
   const [step, setStep] = useState(1);
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
@@ -80,7 +82,7 @@ export default function OnboardingPage() {
           }),
         });
       }
-      navigate("/");
+      navigate(`/${user?.id}/dashboard`);
     } catch (err) {
       console.error("Onboarding failed:", err);
     } finally {

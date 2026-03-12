@@ -4,6 +4,7 @@ import { apiFetch } from "@/lib/api-client";
 
 export interface PositionBrief {
   id: string;
+  etf_id: string;
   etf_isin: string;
   etf_name: string;
   ticker_yf: string | null;

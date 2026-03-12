@@ -1,3 +1,4 @@
+import ReactMarkdown from "react-markdown";
 import { Badge } from "@/components/ui/badge";
 import { User, Bot } from "lucide-react";
 import type { ChatMessage as ChatMessageType } from "@/hooks/use-chat";
@@ -25,12 +26,16 @@ export function ChatMessage({ message }: Props) {
 
       <div
         className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-          isUser
-            ? "bg-primary text-primary-foreground"
-            : "bg-muted"
+          isUser ? "bg-primary text-primary-foreground" : "bg-muted"
         }`}
       >
-        <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        {isUser ? (
+          <div className="whitespace-pre-wrap break-words">{message.content}</div>
+        ) : (
+          <div className="chat-prose break-words">
+            <ReactMarkdown>{message.content}</ReactMarkdown>
+          </div>
+        )}
         {message.tools_used && message.tools_used.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {message.tools_used.map((t, i) => (

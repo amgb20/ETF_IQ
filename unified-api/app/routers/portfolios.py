@@ -18,7 +18,7 @@ from app.schemas.portfolio import (
     OverlapResponse,
 )
 from app.schemas.position import PositionCreate, PositionResponse
-from app.auth.dependencies import RequireAuth
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 
@@ -49,7 +49,7 @@ async def create_portfolio(body: PortfolioCreate, user: RequireAuth, db: AsyncSe
 
 
 @router.get("/{portfolio_id}", response_model=PortfolioResponse)
-async def get_portfolio(portfolio_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_portfolio(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSession = Depends(get_db)):
     result = await db.execute(
         select(Portfolio)
         .options(selectinload(Portfolio.positions).selectinload(Position.etf))
@@ -59,6 +59,8 @@ async def get_portfolio(portfolio_id: uuid.UUID, db: AsyncSession = Depends(get_
     portfolio = result.scalar_one_or_none()
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
+    if portfolio.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     position_briefs: list[PositionBrief] = []
     total_value = 0.0
@@ -68,34 +70,36 @@ async def get_portfolio(portfolio_id: uuid.UUID, db: AsyncSession = Depends(get_
         if not pos.is_active:
             continue
         latest_price = await _latest_price(db, pos.etf_id)
-        current_value = float(pos.shares) * latest_price if latest_price else None
-        pnl = (current_value - float(pos.invested_amount)) if current_value else None
-        pnl_pct = (pnl / float(pos.invested_amount) * 100) if pnl and float(pos.invested_amount) else None
+        effective_price = latest_price if latest_price is not None else float(pos.entry_price)
+        current_value = float(pos.shares) * effective_price
+        invested = float(pos.invested_amount)
+        pnl = current_value - invested if invested else None
+        pnl_pct = (pnl / invested * 100) if pnl and invested else None
 
-        if current_value:
-            total_value += current_value
-        total_invested += float(pos.invested_amount)
+        total_value += current_value
+        total_invested += invested
 
         position_briefs.append(
             PositionBrief(
                 id=pos.id,
+                etf_id=pos.etf_id,
                 etf_isin=pos.etf.isin,
                 etf_name=pos.etf.name,
                 ticker_yf=pos.etf.ticker_yf,
                 shares=float(pos.shares),
                 entry_price=float(pos.entry_price),
                 entry_date=pos.entry_date,
-                invested_amount=float(pos.invested_amount),
-                current_price=latest_price,
-                current_value=round(current_value, 2) if current_value else None,
-                pnl=round(pnl, 2) if pnl else None,
-                pnl_pct=round(pnl_pct, 2) if pnl_pct else None,
+                invested_amount=invested,
+                current_price=effective_price,
+                current_value=round(current_value, 2),
+                pnl=round(pnl, 2) if pnl is not None else None,
+                pnl_pct=round(pnl_pct, 2) if pnl_pct is not None else None,
                 target_allocation=float(pos.target_allocation) if pos.target_allocation else None,
                 theme_name=pos.theme.name if pos.theme else pos.layer_label,
             )
         )
 
-    total_pnl = total_value - total_invested if total_value else None
+    total_pnl = total_value - total_invested if total_invested else None
     total_pnl_pct = (total_pnl / total_invested * 100) if total_pnl and total_invested else None
 
     return PortfolioResponse(
@@ -105,16 +109,18 @@ async def get_portfolio(portfolio_id: uuid.UUID, db: AsyncSession = Depends(get_
         created_at=portfolio.created_at,
         positions=position_briefs,
         total_value=round(total_value, 2) if total_value else None,
-        total_pnl=round(total_pnl, 2) if total_pnl else None,
-        total_pnl_pct=round(total_pnl_pct, 2) if total_pnl_pct else None,
+        total_pnl=round(total_pnl, 2) if total_pnl is not None else None,
+        total_pnl_pct=round(total_pnl_pct, 2) if total_pnl_pct is not None else None,
     )
 
 
 @router.post("/{portfolio_id}/positions", response_model=PositionResponse, status_code=201)
-async def add_position(portfolio_id: uuid.UUID, body: PositionCreate, db: AsyncSession = Depends(get_db)):
+async def add_position(portfolio_id: uuid.UUID, body: PositionCreate, user: RequireAuth, db: AsyncSession = Depends(get_db)):
     portfolio = await db.get(Portfolio, portfolio_id)
     if not portfolio:
         raise HTTPException(status_code=404, detail="Portfolio not found")
+    if portfolio.user_id != user.id:
+        raise HTTPException(status_code=403, detail="Access denied")
 
     etf = await db.get(ETF, body.etf_id)
     if not etf:
@@ -138,7 +144,9 @@ async def add_position(portfolio_id: uuid.UUID, body: PositionCreate, db: AsyncS
 
 
 @router.get("/{portfolio_id}/snapshot", response_model=SnapshotResponse)
-async def get_snapshot(portfolio_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_snapshot(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSession = Depends(get_db)):
+    await verify_portfolio_owner(portfolio_id, user, db)
+
     result = await db.execute(
         select(PortfolioSnapshot)
         .where(PortfolioSnapshot.portfolio_id == portfolio_id)
@@ -152,8 +160,10 @@ async def get_snapshot(portfolio_id: uuid.UUID, db: AsyncSession = Depends(get_d
 
 
 @router.get("/{portfolio_id}/overlap", response_model=OverlapResponse)
-async def get_overlap(portfolio_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_overlap(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSession = Depends(get_db)):
     """Compute holding overlap matrix across all positions in the portfolio."""
+    await verify_portfolio_owner(portfolio_id, user, db)
+
     positions = (
         await db.execute(
             select(Position)

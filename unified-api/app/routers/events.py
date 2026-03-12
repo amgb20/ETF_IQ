@@ -10,6 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.database import get_db
 from app.models.agent import ChartEvent
 from app.schemas.event import ChartEventResponse
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -20,8 +21,11 @@ async def list_events(
     tickers: list[str] | None = Query(None),
     from_date: date | None = Query(None, alias="from"),
     to_date: date | None = Query(None, alias="to"),
+    user: RequireAuth = ...,
     db: AsyncSession = Depends(get_db),
 ):
+    await verify_portfolio_owner(portfolio_id, user, db)
+
     stmt = (
         select(ChartEvent)
         .where(ChartEvent.portfolio_id == portfolio_id)

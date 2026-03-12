@@ -99,6 +99,7 @@ async def passwordless_verify(
     response.set_cookie(key="access_token", value=token, httponly=True, **cookie_opts)
 
     js_payload = json.dumps({
+        "id": str(user.id),
         "email": user.email,
         "role": user.role,
         "username": user.display_name or user.email.split("@")[0],
@@ -108,6 +109,7 @@ async def passwordless_verify(
     return {
         "success": True,
         "user": {
+            "id": str(user.id),
             "email": user.email,
             "role": user.role,
             "username": user.display_name or user.email.split("@")[0],
@@ -119,6 +121,7 @@ async def passwordless_verify(
 async def get_auth_role(current_user: User = Depends(get_current_user)):
     """Return the authenticated user's info.  Used by UserContext on mount."""
     return {
+        "id": str(current_user.id),
         "email": current_user.email,
         "role": current_user.role,
         "username": current_user.display_name or current_user.email.split("@")[0],

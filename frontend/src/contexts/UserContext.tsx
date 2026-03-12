@@ -2,6 +2,7 @@ import { createContext, useContext, useState, useEffect, useCallback, type React
 import Cookies from "js-cookie";
 
 interface AuthUser {
+  id: string;
   email: string;
   role: string;
   username: string;

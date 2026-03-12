@@ -16,6 +16,7 @@ class ChatRequest(BaseModel):
 class ChatSessionResponse(BaseModel):
     id: uuid.UUID
     portfolio_id: uuid.UUID
+    title: str | None = None
     started_at: datetime | None = None
     last_message_at: datetime | None = None
 
