@@ -1,10 +1,13 @@
 from __future__ import annotations
 
+import html as html_mod
 import logging
+import re
 from collections import defaultdict
 from datetime import datetime
 from typing import Any
 
+import httpx
 import justetf_scraping
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,6 +26,12 @@ DEFAULT_ISINS = [
     "IE000JCW3DZ3",  # ARMG
 ]
 
+JUSTETF_PROFILE_URL = "https://www.justetf.com/en/etf-profile.html"
+JUSTETF_HEADERS = {
+    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
+    "Accept": "text/html,application/xhtml+xml",
+}
+
 
 class JustETFConnector(BaseConnector):
     name = "justetf"
@@ -32,30 +41,42 @@ class JustETFConnector(BaseConnector):
         isins = isins or DEFAULT_ISINS
         results: list[dict] = []
         for isin in isins:
+            overview: dict = {}
+            chart = None
             try:
                 overview = justetf_scraping.get_etf_overview(isin)
-                chart = justetf_scraping.load_chart(isin)
-                results.append({"isin": isin, "overview": overview, "chart": chart})
             except Exception:
-                logger.exception("Failed to fetch justETF data for %s", isin)
+                logger.warning("get_etf_overview failed for %s, continuing with profile scrape", isin)
+            try:
+                chart = justetf_scraping.load_chart(isin)
+            except Exception:
+                logger.warning("load_chart failed for %s", isin)
+            try:
+                profile_meta = await self._scrape_profile_metadata(isin)
+            except Exception:
+                logger.warning("profile scrape failed for %s", isin)
+                profile_meta = {}
+            results.append({
+                "isin": isin,
+                "overview": overview,
+                "chart": chart,
+                "profile_meta": profile_meta,
+            })
         return results
 
     async def normalize(self, raw: list[dict]) -> list[dict]:
-        """Normalize all raw fetches into a flat list of update dicts.
-
-        Each dict has a 'type' key: 'etf_update', 'holding', or 'allocation'.
-        """
         rows: list[dict] = []
         for item in raw:
             isin = item["isin"]
             overview = item.get("overview") or {}
+            profile_meta = item.get("profile_meta") or {}
 
-            rows.append(self._normalize_overview(isin, overview))
+            rows.append(self._normalize_overview(isin, overview, profile_meta))
 
-            for h in self._normalize_holdings(isin, overview):
+            for h in self._normalize_holdings(isin, overview, profile_meta):
                 rows.append(h)
 
-            for a in self._normalize_allocations(isin, overview):
+            for a in self._normalize_allocations(isin, overview, profile_meta):
                 rows.append(a)
         return rows
 
@@ -77,15 +98,83 @@ class JustETFConnector(BaseConnector):
         logger.info("justetf ingest: processed %d rows", len(rows))
 
     # ------------------------------------------------------------------
+    # Profile page scraper for fields not in get_etf_overview
+    # ------------------------------------------------------------------
+
+    @staticmethod
+    async def _scrape_profile_metadata(isin: str) -> dict:
+        """Scrape the justETF profile page via data-testid attributes."""
+        meta: dict[str, Any] = {}
+        try:
+            async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                resp = await client.get(
+                    JUSTETF_PROFILE_URL,
+                    params={"isin": isin},
+                    headers=JUSTETF_HEADERS,
+                )
+                resp.raise_for_status()
+                html = resp.text
+
+            testid_map = {
+                "fund-provider": "fund_provider",
+                "legal-structure": "legal_structure",
+                "strategy-risk": "strategy_risk",
+                "sustainable": "sustainability",
+                "fund-currency": "fund_currency",
+                "currency-hedge": "currency_risk",
+                "distribution-interval": "distribution_frequency",
+                "investment-focus": "investment_focus",
+                "index-name": "index_name",
+                "ter": "ter_raw",
+                "replication": "replication",
+                "launch-date": "inception_date_raw",
+                "distribution-policy": "distribution",
+                "domicile-country": "domicile",
+                "volatility": "volatility_raw",
+            }
+
+            for testid, key in testid_map.items():
+                pattern = re.compile(
+                    rf'data-testid="[^"]*_value_{re.escape(testid)}"[^>]*>([^<]+)<',
+                    re.IGNORECASE,
+                )
+                match = pattern.search(html)
+                if match:
+                    val = html_mod.unescape(match.group(1).strip())
+                    if val and val != "-":
+                        meta[key] = val
+
+            if "ter_raw" in meta:
+                m = re.search(r'([\d.]+)%', meta.pop("ter_raw"))
+                if m:
+                    meta["ter"] = float(m.group(1)) / 100
+
+            if "inception_date_raw" in meta:
+                raw = meta.pop("inception_date_raw")
+                try:
+                    meta["inception_date"] = datetime.strptime(raw, "%d %B %Y").date()
+                except ValueError:
+                    pass
+
+            if "volatility_raw" in meta:
+                m = re.search(r'([\d.]+)%', meta.pop("volatility_raw"))
+                if m:
+                    meta["vol_1y"] = float(m.group(1))
+
+            meta["_holdings"] = _extract_top_holdings(html)
+            meta["_countries"] = _extract_allocation_block(html, "countries")
+            meta["_sectors"] = _extract_allocation_block(html, "sectors")
+
+        except Exception:
+            logger.warning("Failed to scrape profile metadata for %s", isin, exc_info=True)
+        return meta
+
+    # ------------------------------------------------------------------
     # Overlap computation
     # ------------------------------------------------------------------
 
     @staticmethod
     async def compute_overlap(session: AsyncSession) -> dict[str, dict[str, list[str]]]:
-        """Cross-reference holding_isin across all ETFs to detect overlap.
-
-        Returns: { "ETF_A_isin": { "ETF_B_isin": ["shared_holding_isin", ...] } }
-        """
         result = await session.execute(
             text(
                 """
@@ -116,7 +205,6 @@ class JustETFConnector(BaseConnector):
 
     @staticmethod
     async def fetch_comparison_chart(isins: list[str] | None = None) -> dict:
-        """Fetch rebased comparison chart for all portfolio ETFs."""
         isins = isins or DEFAULT_ISINS
         charts = {}
         for isin in isins:
@@ -134,42 +222,80 @@ class JustETFConnector(BaseConnector):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _normalize_overview(isin: str, overview: dict) -> dict:
+    def _normalize_overview(isin: str, overview: dict, profile_meta: dict | None = None) -> dict:
+        profile_meta = profile_meta or {}
+
+        holdings = overview.get("top_holdings") or overview.get("holdings") or []
+        top10_weights = [_safe_decimal(h.get("weight") or h.get("share") or h.get("percentage")) for h in holdings[:10]]
+        if not top10_weights:
+            profile_holdings = profile_meta.get("_holdings") or []
+            top10_weights = [h.get("weight") for h in profile_holdings[:10] if h.get("weight") is not None]
+        top10_sum = sum(w for w in top10_weights if w is not None) or None
+        if top10_sum and top10_sum > 1:
+            top10_sum = top10_sum / 100
+
         return {
             "type": "etf_update",
             "isin": isin,
-            "ter": _safe_decimal(overview.get("ter")),
+            "ter": _safe_decimal(overview.get("ter")) or profile_meta.get("ter"),
             "aum_eur": _safe_int(overview.get("fund_size_eur") or overview.get("fund_size")),
             "description": overview.get("description"),
-            "domicile": overview.get("domicile"),
-            "replication": overview.get("replication"),
-            "distribution": overview.get("distribution_policy") or overview.get("distribution"),
+            "domicile": overview.get("fund_domicile") or overview.get("domicile") or profile_meta.get("domicile"),
+            "replication": overview.get("replication") or profile_meta.get("replication"),
+            "distribution": overview.get("distribution_policy") or overview.get("distribution") or profile_meta.get("distribution"),
             "holdings_count": _safe_int(overview.get("number_of_holdings")),
-            "inception_date": overview.get("inception_date"),
+            "inception_date": overview.get("inception_date") or profile_meta.get("inception_date"),
+            "index_name": overview.get("index") or profile_meta.get("index_name"),
+            "fund_currency": overview.get("fund_currency") or profile_meta.get("fund_currency"),
+            "top10_weight": top10_sum,
+            "vol_1y": profile_meta.get("vol_1y"),
+            "index_description": profile_meta.get("index_description"),
+            "investment_focus": profile_meta.get("investment_focus"),
+            "legal_structure": profile_meta.get("legal_structure"),
+            "strategy_risk": profile_meta.get("strategy_risk"),
+            "sustainability": profile_meta.get("sustainability"),
+            "currency_risk": profile_meta.get("currency_risk"),
+            "distribution_frequency": profile_meta.get("distribution_frequency"),
+            "fund_provider": profile_meta.get("fund_provider"),
         }
 
     @staticmethod
-    def _normalize_holdings(isin: str, overview: dict) -> list[dict]:
+    def _normalize_holdings(isin: str, overview: dict, profile_meta: dict | None = None) -> list[dict]:
         holdings = overview.get("top_holdings") or overview.get("holdings") or []
         rows: list[dict] = []
-        for h in holdings:
-            rows.append(
-                {
-                    "type": "holding",
-                    "etf_isin": isin,
-                    "holding_name": h.get("name"),
-                    "holding_isin": h.get("isin"),
-                    "holding_ticker": h.get("ticker"),
-                    "weight": _safe_decimal(h.get("weight") or h.get("share")),
-                }
-            )
+        if holdings:
+            for h in holdings:
+                rows.append(
+                    {
+                        "type": "holding",
+                        "etf_isin": isin,
+                        "holding_name": h.get("name"),
+                        "holding_isin": h.get("isin"),
+                        "holding_ticker": h.get("ticker"),
+                        "weight": _safe_decimal(h.get("weight") or h.get("share")),
+                    }
+                )
+        elif profile_meta:
+            for h in profile_meta.get("_holdings") or []:
+                rows.append(
+                    {
+                        "type": "holding",
+                        "etf_isin": isin,
+                        "holding_name": h.get("name"),
+                        "holding_isin": None,
+                        "holding_ticker": None,
+                        "weight": h.get("weight"),
+                    }
+                )
         return rows
 
     @staticmethod
-    def _normalize_allocations(isin: str, overview: dict) -> list[dict]:
+    def _normalize_allocations(isin: str, overview: dict, profile_meta: dict | None = None) -> list[dict]:
         rows: list[dict] = []
         for alloc_type, key in [("country", "countries"), ("sector", "sectors")]:
             items = overview.get(key) or []
+            if not items and profile_meta:
+                items = profile_meta.get(f"_{key}") or []
             for item in items:
                 name = item.get("name") or item.get("country") or item.get("sector") or ""
                 rows.append(
@@ -189,6 +315,8 @@ class JustETFConnector(BaseConnector):
 
     @staticmethod
     async def _upsert_etf(session: AsyncSession, row: dict, now: datetime) -> None:
+        params = {k: v for k, v in row.items() if k != "type" and not k.startswith("_")}
+        params["now"] = now
         await session.execute(
             text(
                 """
@@ -201,11 +329,23 @@ class JustETFConnector(BaseConnector):
                     distribution = COALESCE(:distribution, distribution),
                     holdings_count = COALESCE(:holdings_count, holdings_count),
                     inception_date = COALESCE(:inception_date, inception_date),
+                    index_name = COALESCE(:index_name, index_name),
+                    index_description = COALESCE(:index_description, index_description),
+                    investment_focus = COALESCE(:investment_focus, investment_focus),
+                    legal_structure = COALESCE(:legal_structure, legal_structure),
+                    strategy_risk = COALESCE(:strategy_risk, strategy_risk),
+                    sustainability = COALESCE(:sustainability, sustainability),
+                    fund_currency = COALESCE(:fund_currency, fund_currency),
+                    currency_risk = COALESCE(:currency_risk, currency_risk),
+                    distribution_frequency = COALESCE(:distribution_frequency, distribution_frequency),
+                    fund_provider = COALESCE(:fund_provider, fund_provider),
+                    top10_weight = COALESCE(:top10_weight, top10_weight),
+                    vol_1y = COALESCE(:vol_1y, vol_1y),
                     last_scraped_at = :now
                 WHERE isin = :isin
                 """
             ),
-            {**{k: v for k, v in row.items() if k != "type"}, "now": now},
+            params,
         )
 
     @staticmethod
@@ -254,6 +394,38 @@ class JustETFConnector(BaseConnector):
                 "now": now,
             },
         )
+
+
+def _extract_top_holdings(html: str) -> list[dict]:
+    """Extract top-10 holdings from profile page HTML using data-testid markers."""
+    names = re.findall(
+        r'data-testid="tl_etf-holdings_top-holdings_link_name"[^>]*title="([^"]+)"', html
+    )
+    pcts = re.findall(
+        r'data-testid="tl_etf-holdings_top-holdings_value_percentage"[^>]*>([^<]+)<', html
+    )
+    holdings = []
+    for i, name in enumerate(names):
+        weight = _safe_decimal(pcts[i].replace("%", "").strip()) if i < len(pcts) else None
+        if weight is not None:
+            weight /= 100
+        holdings.append({"name": html_mod.unescape(name.strip()), "weight": weight})
+    return holdings
+
+
+def _extract_allocation_block(html: str, block_type: str) -> list[dict]:
+    """Extract country or sector allocations from profile page HTML."""
+    names = re.findall(
+        rf'data-testid="tl_etf-holdings_{re.escape(block_type)}_value_name"[^>]*>([^<]+)<', html
+    )
+    pcts = re.findall(
+        rf'data-testid="tl_etf-holdings_{re.escape(block_type)}_value_percentage"[^>]*>([^<]+)<', html
+    )
+    items = []
+    for i, name in enumerate(names):
+        pct = _safe_decimal(pcts[i].replace("%", "").strip()) if i < len(pcts) else None
+        items.append({"name": html_mod.unescape(name.strip()), "percentage": pct})
+    return items
 
 
 def _safe_decimal(val: Any) -> float | None:

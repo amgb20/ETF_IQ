@@ -1,23 +1,29 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { usePortfolios, usePortfolio } from "@/hooks/use-portfolios";
 import { useOverlap } from "@/hooks/use-snapshot";
+import { apiFetch } from "@/lib/api-client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartWorkspace } from "@/components/analysis/chart-workspace";
 import { ETFDetailTab } from "@/components/analysis/etf-detail-tab";
 import { AgentReportsTab } from "@/components/analysis/agent-reports-tab";
 import { AlertsTab } from "@/components/analysis/alerts-tab";
+import { QuoteTab } from "@/components/analysis/quote-tab";
 import { AddPositionModal } from "@/components/analysis/add-position-modal";
+import { RefreshCw } from "lucide-react";
 import type { ETFListItem } from "@/hooks/use-etfs";
 
-const VALID_TABS = ["etf-detail", "agent-reports", "alerts"] as const;
+const VALID_TABS = ["quote", "etf-detail", "agent-reports", "alerts"] as const;
 type TabValue = (typeof VALID_TABS)[number];
 
 export default function AnalysisPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const { userId } = useParams<{ userId: string }>();
+  const qc = useQueryClient();
   const [selectedIsins, setSelectedIsins] = useState<string[]>([]);
   const [addModalOpen, setAddModalOpen] = useState(false);
 
@@ -25,11 +31,11 @@ export default function AnalysisPage() {
   const lastSegment = segments[segments.length - 1];
   const activeTab: TabValue = (VALID_TABS as readonly string[]).includes(lastSegment)
     ? (lastSegment as TabValue)
-    : "etf-detail";
+    : "quote";
 
   useEffect(() => {
     if (!(VALID_TABS as readonly string[]).includes(lastSegment)) {
-      navigate(`/${userId}/analysis/etf-detail`, { replace: true });
+      navigate(`/${userId}/analysis/quote`, { replace: true });
     }
   }, [lastSegment, navigate, userId]);
 
@@ -39,6 +45,8 @@ export default function AnalysisPage() {
   const { data: overlap } = useOverlap(portfolioId);
 
   const positions = portfolio?.positions ?? [];
+
+  console.log("[analysis] portfolioId=%s  positions=%d  portfolio=", portfolioId, positions.length, portfolio);
 
   const portfolioEtfs: ETFListItem[] = useMemo(
     () =>
@@ -53,19 +61,31 @@ export default function AnalysisPage() {
     [positions],
   );
 
+  console.log("[analysis] portfolioEtfs=", portfolioEtfs, " selectedIsins=", selectedIsins);
+
   useEffect(() => {
     if (portfolioEtfs.length > 0 && selectedIsins.length === 0) {
+      console.log("[analysis] pre-selecting all ETFs:", portfolioEtfs.map((e) => e.isin));
       setSelectedIsins(portfolioEtfs.map((e) => e.isin));
     }
   }, [portfolioEtfs.length]);
+
+  const syncMutation = useMutation({
+    mutationFn: () => apiFetch<{ status: string; tickers_synced: string[]; total_price_rows: number }>("/prices/sync", { method: "POST" }),
+    onSuccess: (data) => {
+      console.log("[analysis] price sync complete:", data);
+      qc.invalidateQueries({ queryKey: ["prices"] });
+    },
+    onError: (err) => {
+      console.error("[analysis] price sync failed:", err);
+    },
+  });
 
   const handleToggleETF = (isin: string) => {
     setSelectedIsins((prev) =>
       prev.includes(isin) ? prev.filter((i) => i !== isin) : [...prev, isin]
     );
   };
-
-  const lastSelected = selectedIsins[selectedIsins.length - 1];
 
   const handleTabChange = (value: string) => {
     navigate(`/${userId}/analysis/${value}`, { replace: true });
@@ -77,6 +97,31 @@ export default function AnalysisPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-center justify-between">
+        <h2 className="text-lg font-semibold">Analysis</h2>
+        <Button
+          variant="outline"
+          size="sm"
+          className="gap-1.5"
+          onClick={() => syncMutation.mutate()}
+          disabled={syncMutation.isPending}
+        >
+          <RefreshCw className={`h-3.5 w-3.5 ${syncMutation.isPending ? "animate-spin" : ""}`} />
+          {syncMutation.isPending ? "Syncing..." : "Sync Prices"}
+        </Button>
+      </div>
+
+      {syncMutation.isSuccess && (
+        <p className="text-sm text-green-600">
+          Synced {syncMutation.data.tickers_synced.join(", ")} — {syncMutation.data.total_price_rows} price rows available.
+        </p>
+      )}
+      {syncMutation.isError && (
+        <p className="text-sm text-destructive">
+          Sync failed: {syncMutation.error?.message}
+        </p>
+      )}
+
       <ChartWorkspace
         etfs={portfolioEtfs}
         selectedIsins={selectedIsins}
@@ -87,13 +132,21 @@ export default function AnalysisPage() {
 
       <Tabs value={activeTab} onValueChange={handleTabChange}>
         <TabsList>
+          <TabsTrigger value="quote">Quote</TabsTrigger>
           <TabsTrigger value="etf-detail">ETF Detail</TabsTrigger>
           <TabsTrigger value="agent-reports">Agent Reports</TabsTrigger>
           <TabsTrigger value="alerts">Alerts</TabsTrigger>
         </TabsList>
 
+        <TabsContent value="quote">
+          <QuoteTab etfs={selectedIsins.length > 0
+            ? portfolioEtfs.filter((e) => selectedIsins.includes(e.isin))
+            : portfolioEtfs}
+          />
+        </TabsContent>
+
         <TabsContent value="etf-detail">
-          <ETFDetailTab isin={lastSelected} overlap={overlap} />
+          <ETFDetailTab etfs={portfolioEtfs} overlap={overlap} />
         </TabsContent>
 
         <TabsContent value="agent-reports">

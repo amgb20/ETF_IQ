@@ -1,0 +1,8 @@
+{
+  "permissions": {
+    "allow": [
+      "WebFetch(domain:ai.google.dev)",
+      "Bash(find /c/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/unified-api/app/schemas -type f -name \"*.py\" | xargs grep -l \"user\\\\|User\" 2>/dev/null)"
+    ]
+  }
+}

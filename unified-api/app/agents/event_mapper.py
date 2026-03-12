@@ -17,10 +17,22 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import llm_client
 from app.agents.prompts.v1.agent6_events import SYSTEM_PROMPT
+from app.agents.tools import rag_store
 from app.database import async_session
 from app.models.agent import AgentOutput, ChartEvent
 
 logger = logging.getLogger(__name__)
+
+
+async def _embed_event(
+    portfolio_id: uuid.UUID,
+    event_id: uuid.UUID,
+    text: str,
+    metadata: dict,
+) -> None:
+    """Background task: embed a ChartEvent into the RAG store using its own session."""
+    async with async_session() as session:
+        await rag_store.upsert_chunk(session, portfolio_id, "chart_event", event_id, text, metadata)
 
 
 class EventMapperAgent:
@@ -78,6 +90,23 @@ class EventMapperAgent:
 
             await self._store_agent_output(session, portfolio_id, run_date, response, raw_events)
             await session.commit()
+
+            for event in chart_events:
+                text = event.headline
+                if event.description:
+                    text += f"\n{event.description}"
+                await _embed_event(
+                    portfolio_id=event.portfolio_id,
+                    event_id=event.id,
+                    text=text,
+                    metadata={
+                        "event_date": str(event.event_date),
+                        "tickers": event.tickers,
+                        "sentiment": event.sentiment,
+                        "importance": event.importance,
+                        "source_type": "chart_event",
+                    },
+                )
 
             logger.info("EventMapper extracted %d events for portfolio %s", len(chart_events), portfolio_id)
             return chart_events

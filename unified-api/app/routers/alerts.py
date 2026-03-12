@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models.alert import Alert, AlertEvent
+from app.models.notification import Notification
 from app.schemas.alert import AlertCreate, AlertResponse, AlertUpdate
 from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
@@ -50,6 +51,15 @@ async def create_alert(
     db.add(alert)
     await db.flush()
     await db.refresh(alert, attribute_names=["events"])
+
+    db.add(Notification(
+        user_id=user.id,
+        type="alert_configured",
+        title="Alert configured",
+        message=f"{body.type.replace('_', ' ').title()} alert set at {body.threshold}",
+        ref_id=alert.id,
+    ))
+
     return AlertResponse.model_validate(alert)
 
 

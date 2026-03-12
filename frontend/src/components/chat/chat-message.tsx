@@ -2,6 +2,7 @@ import ReactMarkdown from "react-markdown";
 import { Badge } from "@/components/ui/badge";
 import { User, Bot } from "lucide-react";
 import type { ChatMessage as ChatMessageType } from "@/hooks/use-chat";
+import { SourceChips } from "./source-chips";
 
 interface Props {
   message: ChatMessageType;
@@ -36,11 +37,14 @@ export function ChatMessage({ message }: Props) {
             <ReactMarkdown>{message.content}</ReactMarkdown>
           </div>
         )}
+        {!isUser && message.sources && message.sources.length > 0 && (
+          <SourceChips sources={message.sources} />
+        )}
         {message.tools_used && message.tools_used.length > 0 && (
           <div className="mt-1.5 flex flex-wrap gap-1">
             {message.tools_used.map((t, i) => (
               <Badge key={i} variant="secondary" className="text-[10px]">
-                {t.tool === "web_search" ? "Web Search" : "Report History"}
+                {t.tool === "web_search" ? "Web Search" : t.tool === "create_alert" ? "Create Alert" : "Report History"}
               </Badge>
             ))}
           </div>

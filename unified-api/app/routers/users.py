@@ -18,6 +18,7 @@ class UserProfileResponse(BaseModel):
     email: str
     display_name: str | None = None
     base_currency: str
+    theme: str
     role: str
     notify_email: bool
     notify_digest: bool
@@ -31,6 +32,8 @@ class PreferencesUpdate(BaseModel):
     notify_digest: bool | None = None
     accepted_tos: bool | None = None
     display_name: str | None = None
+    base_currency: str | None = None
+    theme: str | None = None
 
 
 @router.get("/me", response_model=UserProfileResponse)
@@ -42,6 +45,7 @@ async def get_profile(
         email=user.email,
         display_name=user.display_name,
         base_currency=user.base_currency,
+        theme=user.theme,
         role=user.role,
         notify_email=user.notify_email,
         notify_digest=user.notify_digest,
@@ -63,6 +67,10 @@ async def update_preferences(
         user.accepted_tos = body.accepted_tos
     if body.display_name is not None:
         user.display_name = body.display_name
+    if body.base_currency is not None:
+        user.base_currency = body.base_currency
+    if body.theme is not None:
+        user.theme = body.theme
 
     db.add(user)
     await db.flush()
@@ -73,6 +81,7 @@ async def update_preferences(
         email=user.email,
         display_name=user.display_name,
         base_currency=user.base_currency,
+        theme=user.theme,
         role=user.role,
         notify_email=user.notify_email,
         notify_digest=user.notify_digest,

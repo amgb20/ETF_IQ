@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, CheckCircle2, XCircle, Download } from "lucide-react";
+import { Loader2, CheckCircle2, XCircle, FileText } from "lucide-react";
 import { useReportStatus, downloadReportUrl } from "@/hooks/use-reports";
 
 interface Props {
@@ -61,9 +61,9 @@ export function ProgressIndicator({ reportId }: Props) {
         )}
 
         {isComplete && (
-          <Button size="sm" variant="outline" onClick={() => window.open(downloadReportUrl(reportId))}>
-            <Download className="h-3.5 w-3.5 mr-1" />
-            Download
+          <Button size="sm" variant="outline" onClick={() => window.open(downloadReportUrl(reportId), "_blank")}>
+            <FileText className="h-3.5 w-3.5 mr-1" />
+            View PDF
           </Button>
         )}
       </CardContent>

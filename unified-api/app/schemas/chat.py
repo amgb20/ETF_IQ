@@ -13,6 +13,10 @@ class ChatRequest(BaseModel):
     message: str
 
 
+class ChatSessionUpdate(BaseModel):
+    title: str
+
+
 class ChatSessionResponse(BaseModel):
     id: uuid.UUID
     portfolio_id: uuid.UUID

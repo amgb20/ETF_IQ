@@ -1,20 +1,33 @@
 import { useState, useRef, useEffect } from "react";
 import { Button } from "@/components/ui/button";
-import { Send, Loader2, RotateCcw, Search, BookOpen, Bot, X } from "lucide-react";
+import { Send, Globe, BookOpen, Bot, X, PanelLeft, Plus, Bell } from "lucide-react";
 import { ChatMessage } from "./chat-message";
-import { useChat } from "@/hooks/use-chat";
+import type { ChatMessage as ChatMessageType } from "@/hooks/use-chat";
 
 interface Props {
-  portfolioId: string | undefined;
+  messages: ChatMessageType[];
+  isStreaming: boolean;
+  currentTool: string | null;
+  onSend: (text: string) => void;
+  onNewSession: () => void;
+  onToggleSidebar: () => void;
   onClose?: () => void;
+  sidebarOpen: boolean;
 }
 
-export function ChatPanel({ portfolioId, onClose }: Props) {
+export function ChatPanel({
+  messages,
+  isStreaming,
+  currentTool,
+  onSend,
+  onNewSession,
+  onToggleSidebar,
+  onClose,
+  sidebarOpen,
+}: Props) {
   const [input, setInput] = useState("");
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const { messages, isStreaming, currentTool, sendMessage, newSession } =
-    useChat(portfolioId);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -25,13 +38,24 @@ export function ChatPanel({ portfolioId, onClose }: Props) {
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!input.trim() || isStreaming) return;
-    sendMessage(input);
+    onSend(input);
     setInput("");
   };
 
   return (
     <div className="flex h-full flex-col">
-      <div className="flex items-center gap-2.5 border-b border-border px-4 py-3">
+      <div className="flex items-center gap-2 border-b border-border px-3 py-3">
+        {!sidebarOpen && (
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 shrink-0"
+            onClick={onToggleSidebar}
+            title="Show conversations"
+          >
+            <PanelLeft className="h-4 w-4" />
+          </Button>
+        )}
         <div className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-primary">
           <Bot className="h-4 w-4 text-primary-foreground" />
         </div>
@@ -39,8 +63,14 @@ export function ChatPanel({ portfolioId, onClose }: Props) {
           <span className="text-sm font-semibold">Charles</span>
           <p className="text-[11px] text-muted-foreground leading-tight">Portfolio assistant</p>
         </div>
-        <Button variant="ghost" size="icon" className="h-7 w-7" onClick={newSession} title="New session">
-          <RotateCcw className="h-3.5 w-3.5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="h-7 w-7"
+          onClick={onNewSession}
+          title="New conversation"
+        >
+          <Plus className="h-3.5 w-3.5" />
         </Button>
         {onClose && (
           <Button variant="ghost" size="icon" className="h-7 w-7 sm:hidden" onClick={onClose} title="Close">
@@ -67,21 +97,31 @@ export function ChatPanel({ portfolioId, onClose }: Props) {
         ))}
 
         {currentTool && (
-          <div className="flex items-center gap-2 text-xs text-muted-foreground animate-pulse">
+          <div className="flex items-center gap-2 text-xs text-muted-foreground">
             {currentTool === "web_search" ? (
-              <Search className="h-3 w-3" />
+              <>
+                <Globe className="h-3 w-3 animate-pulse" />
+                <span>Searching the web...</span>
+              </>
+            ) : currentTool === "create_alert" ? (
+              <>
+                <Bell className="h-3 w-3 animate-pulse" />
+                <span>Creating alert...</span>
+              </>
             ) : (
-              <BookOpen className="h-3 w-3" />
+              <>
+                <BookOpen className="h-3 w-3 animate-pulse" />
+                <span>Searching past reports...</span>
+              </>
             )}
-            {currentTool === "web_search"
-              ? "Searching the web..."
-              : "Searching past reports..."}
           </div>
         )}
 
-        {isStreaming && !currentTool && messages[messages.length - 1]?.role === "assistant" && (
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <Loader2 className="h-3 w-3 animate-spin" />
+        {isStreaming && !currentTool && (
+          <div className="flex items-center gap-1 py-1">
+            <div className="typing-dots">
+              <span /><span /><span />
+            </div>
           </div>
         )}
       </div>

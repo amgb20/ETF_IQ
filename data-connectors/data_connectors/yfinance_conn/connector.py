@@ -75,18 +75,26 @@ class YFinanceConnector(BaseConnector):
         return rows
 
     async def ingest(self, session: AsyncSession, *, tickers: list[str] | None = None, period: str = "5d", **_: Any) -> None:
+        if not tickers:
+            tickers = await self._db_tickers(session)
+        logger.info("yfinance ingest: tickers=%s  period=%s", tickers, period)
+
         raw = await self.fetch(tickers=tickers, period=period)
         rows = await self.normalize(raw)
         if not rows:
-            logger.warning("yfinance ingest: no rows to insert")
+            logger.warning("yfinance ingest: no rows to insert (raw had %d items)", len(raw))
             return
 
+        logger.info("yfinance ingest: normalized %d price rows", len(rows))
         ticker_to_etf_id = await self._resolve_etf_ids(session)
+        logger.info("yfinance ingest: ticker->etf_id map = %s", ticker_to_etf_id)
 
         inserted = 0
+        skipped = 0
         for row in rows:
             etf_id = ticker_to_etf_id.get(row["ticker"])
             if etf_id is None:
+                skipped += 1
                 continue
             result = await session.execute(
                 text(
@@ -108,15 +116,24 @@ class YFinanceConnector(BaseConnector):
             )
             inserted += result.rowcount
         await session.commit()
-        logger.info("yfinance ingest: inserted %d price rows", inserted)
+        logger.info("yfinance ingest: inserted %d price rows, skipped %d (no etf_id match)", inserted, skipped)
 
     # ------------------------------------------------------------------
     # Helpers
     # ------------------------------------------------------------------
 
+    async def _db_tickers(self, session: AsyncSession) -> list[str]:
+        """Pull all ticker_yf values from the etfs table."""
+        result = await session.execute(text("SELECT ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL"))
+        tickers = [row[0] for row in result.all()]
+        logger.info("yfinance _db_tickers: found %d tickers in DB: %s", len(tickers), tickers)
+        if not tickers:
+            tickers = ["XAIX.L", "SMGB.L", "VPNG.L", "URNG.L", "AUCP.L", "SGLN.L", "ARMG.L"]
+            logger.info("yfinance _db_tickers: using hardcoded fallback tickers")
+        return tickers
+
     async def _default_tickers(self) -> list[str]:
-        """Fallback ticker list when none provided — reads from etfs table would
-        require a session, so we hard-code the portfolio tickers here."""
+        """Fallback when fetch() is called without a session — hardcoded tickers."""
         return [
             "XAIX.L", "SMGB.L", "VPNG.L", "URNG.L",
             "AUCP.L", "SGLN.L", "ARMG.L",

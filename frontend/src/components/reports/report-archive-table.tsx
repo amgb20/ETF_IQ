@@ -2,8 +2,19 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Download } from "lucide-react";
-import { useReports, downloadReportUrl } from "@/hooks/use-reports";
+import {
+  AlertDialog,
+  AlertDialogTrigger,
+  AlertDialogContent,
+  AlertDialogHeader,
+  AlertDialogFooter,
+  AlertDialogTitle,
+  AlertDialogDescription,
+  AlertDialogAction,
+  AlertDialogCancel,
+} from "@/components/ui/alert-dialog";
+import { FileText, Trash2, Loader2 } from "lucide-react";
+import { useReports, useDeleteReport, downloadReportUrl } from "@/hooks/use-reports";
 
 interface Props {
   portfolioId: string | undefined;
@@ -11,6 +22,7 @@ interface Props {
 
 export function ReportArchiveTable({ portfolioId }: Props) {
   const { data: reports, isLoading } = useReports(portfolioId);
+  const deleteReport = useDeleteReport();
 
   return (
     <Card>
@@ -66,17 +78,55 @@ export function ReportArchiveTable({ portfolioId }: Props) {
                     {r.status}
                   </Badge>
                 </TableCell>
-                <TableCell className="text-right">
+                <TableCell className="text-right flex items-center justify-end gap-1">
                   {r.status === "complete" && r.file_path && (
                     <Button
                       size="sm"
                       variant="ghost"
-                      onClick={() => window.open(downloadReportUrl(r.id))}
+                      onClick={() => window.open(downloadReportUrl(r.id), "_blank")}
                     >
-                      <Download className="h-3.5 w-3.5 mr-1" />
-                      Download
+                      <FileText className="h-3.5 w-3.5 mr-1" />
+                      View PDF
                     </Button>
                   )}
+                  <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                      <Button
+                        size="sm"
+                        variant="ghost"
+                        className="text-destructive hover:text-destructive hover:bg-destructive/10"
+                        disabled={deleteReport.isPending}
+                      >
+                        {deleteReport.isPending ? (
+                          <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                        ) : (
+                          <Trash2 className="h-3.5 w-3.5" />
+                        )}
+                      </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent>
+                      <AlertDialogHeader>
+                        <AlertDialogTitle>Delete report?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                          This will permanently delete this report and its generated file. This action cannot be undone.
+                        </AlertDialogDescription>
+                      </AlertDialogHeader>
+                      <AlertDialogFooter>
+                        <AlertDialogCancel>Cancel</AlertDialogCancel>
+                        <AlertDialogAction
+                          className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+                          onClick={() =>
+                            deleteReport.mutate({
+                              reportId: r.id,
+                              portfolioId: r.portfolio_id,
+                            })
+                          }
+                        >
+                          Delete
+                        </AlertDialogAction>
+                      </AlertDialogFooter>
+                    </AlertDialogContent>
+                  </AlertDialog>
                 </TableCell>
               </TableRow>
             ))}

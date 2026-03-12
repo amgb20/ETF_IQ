@@ -7,6 +7,8 @@ from app.models.agent import AgentOutput, ChartEvent
 from app.models.alert import Alert, AlertEvent
 from app.models.report import Report
 from app.models.chat import ChatSession, ChatMessage
+from app.models.notification import Notification
+from app.models.rag import RagChunk
 
 __all__ = [
     "User",
@@ -26,4 +28,6 @@ __all__ = [
     "Report",
     "ChatSession",
     "ChatMessage",
+    "Notification",
+    "RagChunk",
 ]

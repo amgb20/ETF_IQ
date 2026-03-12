@@ -36,12 +36,26 @@ STANDARD_CONFIG = GenerateContentConfig(
     tools=[Tool(google_search=GoogleSearch())],
 )
 
+
 DEEP_RESEARCH_CONFIG = GenerateContentConfig(
     temperature=0.2,
     max_output_tokens=16384,
     thinking_config=ThinkingConfig(thinking_budget=32768),
     tools=[Tool(google_search=GoogleSearch())],
 )
+
+
+def get_langchain_llm(temperature: float = 0.2, max_output_tokens: int = 4096):
+    """Return a ChatGoogleGenerativeAI instance for the LangChain chat agent."""
+    from langchain_google_genai import ChatGoogleGenerativeAI
+    settings = get_settings()
+    model_name = settings.GEMINI_MODEL.removeprefix("models/")
+    return ChatGoogleGenerativeAI(
+        model=model_name,
+        google_api_key=settings.GOOGLE_API_KEY,
+        temperature=temperature,
+        max_output_tokens=max_output_tokens,
+    )
 
 
 @dataclass

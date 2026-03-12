@@ -54,6 +54,17 @@ export function useGenerateReport() {
   });
 }
 
+export function useDeleteReport() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ reportId }: { reportId: string; portfolioId: string }) =>
+      apiFetch(`/reports/${reportId}`, { method: "DELETE" }),
+    onSuccess: (_, { portfolioId }) => {
+      qc.invalidateQueries({ queryKey: ["reports", portfolioId] });
+    },
+  });
+}
+
 export function downloadReportUrl(reportId: string): string {
   return `${API_BASE}/reports/${reportId}/download`;
 }

@@ -5,15 +5,15 @@ from __future__ import annotations
 import json
 import uuid
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import select, desc
+from sqlalchemy import delete, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat_agent import ChatAgent
 from app.database import get_db
 from app.models.chat import ChatSession, ChatMessage
-from app.schemas.chat import ChatRequest, ChatSessionResponse, ChatMessageResponse
+from app.schemas.chat import ChatRequest, ChatSessionResponse, ChatSessionUpdate, ChatMessageResponse
 from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 router = APIRouter(prefix="/chat", tags=["chat"])
@@ -62,6 +62,40 @@ async def list_sessions(
     )
     sessions = result.scalars().all()
     return [ChatSessionResponse.model_validate(s) for s in sessions]
+
+
+@router.patch("/sessions/{session_id}", response_model=ChatSessionResponse)
+async def update_session(
+    session_id: uuid.UUID,
+    body: ChatSessionUpdate,
+    user: RequireAuth = ...,
+    db: AsyncSession = Depends(get_db),
+):
+    session = await db.get(ChatSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await verify_portfolio_owner(session.portfolio_id, user, db)
+
+    session.title = body.title.strip()[:120]
+    await db.commit()
+    await db.refresh(session)
+    return ChatSessionResponse.model_validate(session)
+
+
+@router.delete("/sessions/{session_id}", status_code=204)
+async def delete_session(
+    session_id: uuid.UUID,
+    user: RequireAuth = ...,
+    db: AsyncSession = Depends(get_db),
+):
+    session = await db.get(ChatSession, session_id)
+    if not session:
+        raise HTTPException(status_code=404, detail="Session not found")
+    await verify_portfolio_owner(session.portfolio_id, user, db)
+
+    await db.execute(delete(ChatMessage).where(ChatMessage.session_id == session_id))
+    await db.execute(delete(ChatSession).where(ChatSession.id == session_id))
+    await db.commit()
 
 
 @router.get("/sessions/{session_id}/messages", response_model=list[ChatMessageResponse])

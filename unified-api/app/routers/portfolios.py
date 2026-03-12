@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import logging
 import uuid
 from collections import defaultdict
 
@@ -20,17 +21,22 @@ from app.schemas.portfolio import (
 from app.schemas.position import PositionCreate, PositionResponse
 from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/portfolios", tags=["portfolios"])
 
 
 @router.get("", response_model=list[PortfolioResponse])
 async def list_portfolios(user: RequireAuth, db: AsyncSession = Depends(get_db)):
+    logger.info("GET /portfolios  user=%s", user.id)
     result = await db.execute(
         select(Portfolio).where(Portfolio.user_id == user.id)
     )
+    portfolios = result.scalars().all()
+    logger.info("GET /portfolios  user=%s  returning %d portfolios", user.id, len(portfolios))
     return [
         PortfolioResponse(id=p.id, name=p.name, description=p.description, created_at=p.created_at)
-        for p in result.scalars().all()
+        for p in portfolios
     ]
 
 
@@ -50,6 +56,7 @@ async def create_portfolio(body: PortfolioCreate, user: RequireAuth, db: AsyncSe
 
 @router.get("/{portfolio_id}", response_model=PortfolioResponse)
 async def get_portfolio(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSession = Depends(get_db)):
+    logger.info("GET /portfolios/%s  user=%s", portfolio_id, user.id)
     result = await db.execute(
         select(Portfolio)
         .options(selectinload(Portfolio.positions).selectinload(Position.etf))
@@ -70,6 +77,10 @@ async def get_portfolio(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSes
         if not pos.is_active:
             continue
         latest_price = await _latest_price(db, pos.etf_id)
+        logger.info(
+            "  position etf_id=%s  isin=%s  ticker_yf=%s  latest_price=%s  entry_price=%s",
+            pos.etf_id, pos.etf.isin, pos.etf.ticker_yf, latest_price, pos.entry_price,
+        )
         effective_price = latest_price if latest_price is not None else float(pos.entry_price)
         current_value = float(pos.shares) * effective_price
         invested = float(pos.invested_amount)
@@ -102,6 +113,10 @@ async def get_portfolio(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSes
     total_pnl = total_value - total_invested if total_invested else None
     total_pnl_pct = (total_pnl / total_invested * 100) if total_pnl and total_invested else None
 
+    logger.info(
+        "GET /portfolios/%s  positions=%d  total_value=%.2f  total_invested=%.2f",
+        portfolio_id, len(position_briefs), total_value, total_invested,
+    )
     return PortfolioResponse(
         id=portfolio.id,
         name=portfolio.name,

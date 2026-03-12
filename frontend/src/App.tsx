@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate, useParams } from "react-router-dom";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useUserContext } from "@/contexts/UserContext";
 import { AppLayout } from "@/components/layout/app-layout";
@@ -7,6 +7,7 @@ import { ProtectedRoute } from "@/components/ProtectedRoute";
 import { usePortfolios } from "@/hooks/use-portfolios";
 import { useUser } from "@/hooks/use-user";
 import { TosModal } from "@/components/legal/tos-modal";
+import { useTheme, type Theme } from "@/contexts/ThemeContext";
 import LoginPage from "@/pages/login";
 import DashboardPage from "@/pages/dashboard";
 import AnalysisPage from "@/pages/analysis";
@@ -14,6 +15,7 @@ import ReportsPage from "@/pages/reports";
 import OnboardingPage from "@/pages/onboarding";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
+import SettingsPage from "@/pages/settings";
 
 function RedirectToUserHome() {
   const { user, isLoading } = useUserContext();
@@ -48,6 +50,15 @@ function OnboardingGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ThemeSync() {
+  const { data: userProfile } = useUser();
+  const { setTheme } = useTheme();
+  useEffect(() => {
+    if (userProfile?.theme) setTheme(userProfile.theme as Theme);
+  }, [userProfile?.theme, setTheme]);
+  return null;
+}
+
 function TosGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useUserContext();
   const { data: user } = useUser();
@@ -73,6 +84,7 @@ function TosGuard({ children }: { children: React.ReactNode }) {
 export default function App() {
   return (
     <TosGuard>
+      <ThemeSync />
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/terms" element={<TermsPage />} />
@@ -93,6 +105,7 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="analysis/*" element={<AnalysisPage />} />
             <Route path="reports" element={<ReportsPage />} />
+            <Route path="settings" element={<SettingsPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
           <Route path="/" element={<RedirectToUserHome />} />

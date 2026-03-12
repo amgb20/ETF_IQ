@@ -13,6 +13,8 @@ from app.agents.orchestrator import WeeklyOrchestrator
 from app.agents.report_writer import ReportWriter
 from app.database import async_session
 from app.models.agent import AgentOutput
+from app.models.notification import Notification
+from app.models.portfolio import Portfolio
 from app.models.report import Report
 
 logger = logging.getLogger(__name__)
@@ -60,7 +62,7 @@ class ReportOrchestrator:
                 )
                 agent_outputs = list(agent_result.scalars().all())
 
-                filepath = ReportWriter.build_docx(
+                filepath = ReportWriter.build_pdf(
                     portfolio_name=ctx.portfolio_name,
                     agent_outputs=agent_outputs,
                     sections=sections,
@@ -94,6 +96,20 @@ class ReportOrchestrator:
                     )
                 )
                 await session.commit()
+
+                try:
+                    portfolio = await session.get(Portfolio, portfolio_id)
+                    if portfolio:
+                        session.add(Notification(
+                            user_id=portfolio.user_id,
+                            type="report_ready",
+                            title="Report ready",
+                            message=summary or f"Your {report_type} report is ready to download.",
+                            ref_id=report_id,
+                        ))
+                        await session.commit()
+                except Exception:
+                    logger.debug("Failed to create report-ready notification", exc_info=True)
 
             logger.info("ReportOrchestrator complete: report=%s", report_id)
 

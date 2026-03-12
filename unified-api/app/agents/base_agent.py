@@ -12,6 +12,7 @@ from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import llm_client
+from app.agents.tools import rag_store
 from app.agents.context_builder import (
     PortfolioContext,
     build,
@@ -24,6 +25,18 @@ from app.database import async_session
 from app.models.agent import AgentOutput
 
 logger = logging.getLogger(__name__)
+
+
+async def _embed_output(
+    portfolio_id: uuid.UUID,
+    output_id: uuid.UUID,
+    text: str,
+    metadata: dict,
+) -> None:
+    """Background task: embed an AgentOutput into the RAG store using its own session."""
+    async with async_session() as session:
+        await rag_store.upsert_chunk(session, portfolio_id, "agent_output", output_id, text, metadata)
+
 
 REFLECTION_TEMPLATE = """
 REFLECTION ON PAST PERFORMANCE:
@@ -184,7 +197,21 @@ class BaseAgent(ABC):
         )
         result = await session.execute(stmt)
         await session.commit()
-        return result.scalar_one()
+        output = result.scalar_one()
+
+        # Fire-and-forget: embed the output for RAG (uses its own session)
+        text = output.summary
+        if output.reflection:
+            text += f"\n\n{output.reflection}"
+        metadata = {
+            "agent_name": output.agent_name,
+            "run_date": str(output.run_date),
+            "judge_overall_score": float(output.judge_overall_score) if getattr(output, "judge_overall_score", None) else None,
+            "source_type": "agent_output",
+        }
+        await _embed_output(output.portfolio_id, output.id, text, metadata)
+
+        return output
 
     async def load_past_output(
         self,

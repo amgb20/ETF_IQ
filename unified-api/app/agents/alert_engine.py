@@ -14,6 +14,7 @@ from sqlalchemy import select, desc, update, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert, AlertEvent
+from app.models.notification import Notification
 from app.models.price import Price
 from app.models.user import User
 
@@ -65,6 +66,13 @@ class AlertEngine:
                                     alert_id=alert.id,
                                     actual_value=actual_value,
                                     message=message,
+                                ))
+                                session.add(Notification(
+                                    user_id=user.id,
+                                    type="alert_triggered",
+                                    title="Alert triggered",
+                                    message=message,
+                                    ref_id=alert.id,
                                 ))
                     except Exception:
                         logger.exception("Failed to send alert email for alert %s", alert.id)
