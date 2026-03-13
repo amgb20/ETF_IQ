@@ -220,6 +220,8 @@ class ChatAgent:
                     ref_id=new_alert.id,
                 ))
 
+            await db_session.commit()
+
             label = etf.ticker_yf or etf.name
             return (
                 f"Alert created: {alert_type.replace('_', ' ')} at {threshold} for {label}. "

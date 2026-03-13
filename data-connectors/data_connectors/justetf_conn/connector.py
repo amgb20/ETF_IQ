@@ -45,8 +45,8 @@ class JustETFConnector(BaseConnector):
             chart = None
             try:
                 overview = justetf_scraping.get_etf_overview(isin)
-            except Exception:
-                logger.warning("get_etf_overview failed for %s, continuing with profile scrape", isin)
+            except Exception as e:
+                logger.warning("get_etf_overview failed for %s (%s), continuing with profile scrape", isin, e)
             try:
                 chart = justetf_scraping.load_chart(isin)
             except Exception:
@@ -161,6 +161,36 @@ class JustETFConnector(BaseConnector):
                 if m:
                     meta["vol_1y"] = float(m.group(1))
 
+            # holdings_count — "etf-profile-header_holdings-value" → "36"
+            m = re.search(
+                r'data-testid="etf-profile-header_holdings-value"[^>]*>([^<]+)<',
+                html, re.IGNORECASE,
+            )
+            if m:
+                val = m.group(1).strip()
+                if val and val != "-":
+                    meta["holdings_count"] = _safe_int(val)
+
+            # aum_eur — "etf-profile-header_fund-size-value" → "€123m" (when present)
+            m = re.search(
+                r'data-testid="etf-profile-header_fund-size-value"[^>]*>([^<]+)<',
+                html, re.IGNORECASE,
+            )
+            if m:
+                raw_size = html_mod.unescape(m.group(1).strip())
+                # formats seen: "€123m", "€1.2b", "123,456,789"
+                num = re.sub(r'[€$,\s]', '', raw_size.lower())
+                multiplier = 1
+                if num.endswith('b'):
+                    multiplier = 1_000_000_000
+                    num = num[:-1]
+                elif num.endswith('m'):
+                    multiplier = 1_000_000
+                    num = num[:-1]
+                aum = _safe_decimal(num)
+                if aum is not None:
+                    meta["aum_eur"] = int(aum * multiplier)
+
             meta["_holdings"] = _extract_top_holdings(html)
             meta["_countries"] = _extract_allocation_block(html, "countries")
             meta["_sectors"] = _extract_allocation_block(html, "sectors")
@@ -238,12 +268,12 @@ class JustETFConnector(BaseConnector):
             "type": "etf_update",
             "isin": isin,
             "ter": _safe_decimal(overview.get("ter")) or profile_meta.get("ter"),
-            "aum_eur": _safe_int(overview.get("fund_size_eur") or overview.get("fund_size")),
+            "aum_eur": _safe_int(overview.get("fund_size_eur") or overview.get("fund_size")) or profile_meta.get("aum_eur"),
             "description": overview.get("description"),
             "domicile": overview.get("fund_domicile") or overview.get("domicile") or profile_meta.get("domicile"),
             "replication": overview.get("replication") or profile_meta.get("replication"),
             "distribution": overview.get("distribution_policy") or overview.get("distribution") or profile_meta.get("distribution"),
-            "holdings_count": _safe_int(overview.get("number_of_holdings")),
+            "holdings_count": _safe_int(overview.get("number_of_holdings")) or profile_meta.get("holdings_count"),
             "inception_date": overview.get("inception_date") or profile_meta.get("inception_date"),
             "index_name": overview.get("index") or profile_meta.get("index_name"),
             "fund_currency": overview.get("fund_currency") or profile_meta.get("fund_currency"),

@@ -1,4 +1,5 @@
 import { useState, useCallback, useEffect, useRef } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { API_BASE, apiFetch } from "@/lib/api-client";
 
 export interface ChatSource {
@@ -40,6 +41,8 @@ export function useChat(portfolioId: string | undefined) {
   );
   const [sessions, setSessions] = useState<ChatSession[]>([]);
   const abortRef = useRef<AbortController | null>(null);
+  const toolsUsedRef = useRef<Set<string>>(new Set());
+  const qc = useQueryClient();
 
   useEffect(() => {
     if (sessionId) {
@@ -88,6 +91,7 @@ export function useChat(portfolioId: string | undefined) {
       setMessages((prev) => [...prev, userMsg]);
       setIsStreaming(true);
       setCurrentTool(null);
+      toolsUsedRef.current.clear();
 
       const assistantMsg: ChatMessage = { role: "assistant", content: "" };
       setMessages((prev) => [...prev, assistantMsg]);
@@ -142,6 +146,7 @@ export function useChat(portfolioId: string | undefined) {
                 });
               } else if (event.type === "tool") {
                 setCurrentTool(event.name ?? null);
+                if (event.name) toolsUsedRef.current.add(event.name);
               } else if (event.type === "tool_result") {
                 setCurrentTool(null);
               } else if (event.type === "sources" && event.sources?.length) {
@@ -185,9 +190,13 @@ export function useChat(portfolioId: string | undefined) {
         setCurrentTool(null);
         abortRef.current = null;
         refreshSessions();
+        if (toolsUsedRef.current.has("create_alert")) {
+          qc.invalidateQueries({ queryKey: ["alerts"] });
+          qc.invalidateQueries({ queryKey: ["notifications"] });
+        }
       }
     },
-    [portfolioId, sessionId, isStreaming, refreshSessions],
+    [portfolioId, sessionId, isStreaming, refreshSessions, qc],
   );
 
   const newSession = useCallback(() => {
