@@ -27,7 +27,7 @@ export function ChatMessage({ message }: Props) {
 
       <div
         className={`max-w-[85%] rounded-lg px-3 py-2 text-sm ${
-          isUser ? "bg-primary text-primary-foreground" : "bg-muted"
+          isUser ? "bg-primary text-primary-foreground" : "bg-card border-l-2 border-accent/60"
         }`}
       >
         {isUser ? (

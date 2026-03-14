@@ -55,6 +55,22 @@ async def run_agents(body: AgentRunRequest, _user=Depends(require_role("admin"))
     return {"status": "ok", "results": results}
 
 
+@router.post("/etfs/enrich")
+async def enrich_etfs(
+    _user=Depends(require_role("admin")),
+    db: AsyncSession = Depends(get_db),
+):
+    """Run yfinance metadata enrichment + risk field computation on all ETFs."""
+    registry = get_registry()
+    yf_conn = registry.get("yfinance")
+    if not yf_conn:
+        raise HTTPException(status_code=500, detail="yfinance connector not available")
+
+    meta_count = await yf_conn.enrich_metadata(db)
+    risk_count = await yf_conn.compute_risk_fields(db)
+    return {"status": "ok", "metadata_enriched": meta_count, "risk_computed": risk_count}
+
+
 @router.get("/costs")
 async def get_costs(
     month: date | None = Query(None, description="First day of month, e.g. 2026-03-01"),

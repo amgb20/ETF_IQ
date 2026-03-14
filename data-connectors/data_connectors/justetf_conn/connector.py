@@ -322,12 +322,17 @@ class JustETFConnector(BaseConnector):
     @staticmethod
     def _normalize_allocations(isin: str, overview: dict, profile_meta: dict | None = None) -> list[dict]:
         rows: list[dict] = []
+        seen: set[tuple[str, str]] = set()
         for alloc_type, key in [("country", "countries"), ("sector", "sectors")]:
             items = overview.get(key) or []
             if not items and profile_meta:
                 items = profile_meta.get(f"_{key}") or []
             for item in items:
                 name = item.get("name") or item.get("country") or item.get("sector") or ""
+                dedup_key = (alloc_type, name)
+                if dedup_key in seen:
+                    continue
+                seen.add(dedup_key)
                 rows.append(
                     {
                         "type": "allocation",
@@ -413,7 +418,8 @@ class JustETFConnector(BaseConnector):
                 """
                 INSERT INTO etf_allocations (etf_id, allocation_type, name, percentage, refreshed_at)
                 VALUES (:etf_id, :allocation_type, :name, :percentage, :now)
-                ON CONFLICT DO NOTHING
+                ON CONFLICT (etf_id, allocation_type, name)
+                DO UPDATE SET percentage = EXCLUDED.percentage, refreshed_at = EXCLUDED.refreshed_at
                 """
             ),
             {

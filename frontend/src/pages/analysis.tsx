@@ -112,7 +112,7 @@ export default function AnalysisPage() {
       </div>
 
       {syncMutation.isSuccess && (
-        <p className="text-sm text-green-600">
+        <p className="text-sm text-positive">
           Synced {syncMutation.data.tickers_synced.join(", ")} — {syncMutation.data.total_price_rows} price rows available.
         </p>
       )}

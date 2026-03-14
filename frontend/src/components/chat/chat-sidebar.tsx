@@ -144,7 +144,7 @@ export function ChatSidebar({
         >
           <ChevronLeft className="h-4 w-4" />
         </Button>
-        <span className="text-xs font-semibold uppercase tracking-wider text-muted-foreground flex-1">
+        <span className="text-xs font-semibold uppercase tracking-wider flex-1" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#C9A84C' }}>
           Conversations
         </span>
         <Button

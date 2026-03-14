@@ -41,7 +41,7 @@ export function ProgressIndicator({ reportId }: Props) {
     <Card>
       <CardContent className="py-4 flex items-center gap-4">
         {isActive && <Loader2 className="h-5 w-5 animate-spin text-primary" />}
-        {isComplete && <CheckCircle2 className="h-5 w-5 text-green-500" />}
+        {isComplete && <CheckCircle2 className="h-5 w-5 text-positive" />}
         {isFailed && <XCircle className="h-5 w-5 text-destructive" />}
 
         <div className="flex-1">

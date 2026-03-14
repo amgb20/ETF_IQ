@@ -1,26 +1,26 @@
 @import "tailwindcss";
 
 @theme {
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-card: #09090b;
-  --color-card-foreground: #fafafa;
-  --color-popover: #09090b;
-  --color-popover-foreground: #fafafa;
-  --color-primary: #fafafa;
-  --color-primary-foreground: #18181b;
-  --color-secondary: #27272a;
-  --color-secondary-foreground: #fafafa;
-  --color-muted: #27272a;
-  --color-muted-foreground: #a1a1aa;
-  --color-accent: #27272a;
-  --color-accent-foreground: #fafafa;
+  --color-background: #0A0A0F;
+  --color-foreground: #f0ede6;
+  --color-card: #0d0d12;
+  --color-card-foreground: #f0ede6;
+  --color-popover: #0d0d12;
+  --color-popover-foreground: #f0ede6;
+  --color-primary: #C9A84C;
+  --color-primary-foreground: #0A0A0F;
+  --color-secondary: #14141a;
+  --color-secondary-foreground: #f0ede6;
+  --color-muted: #14141a;
+  --color-muted-foreground: #8a8a9a;
+  --color-accent: #00D4FF;
+  --color-accent-foreground: #0A0A0F;
   --color-destructive: #7f1d1d;
-  --color-destructive-foreground: #fafafa;
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-ring: #d4d4d8;
-  --radius: 0.5rem;
+  --color-destructive-foreground: #f0ede6;
+  --color-border: #23201a;
+  --color-input: #17171d;
+  --color-ring: #C9A84C;
+  --radius: 0.375rem;
 
   --color-positive: #22c55e;
   --color-negative: #ef4444;
@@ -43,45 +43,50 @@ html.light {
   --color-card-foreground: #09090b;
   --color-popover: #ffffff;
   --color-popover-foreground: #09090b;
-  --color-primary: #18181b;
-  --color-primary-foreground: #fafafa;
+  --color-primary: #C9A84C;
+  --color-primary-foreground: #0A0A0F;
   --color-secondary: #f4f4f5;
   --color-secondary-foreground: #18181b;
   --color-muted: #f4f4f5;
   --color-muted-foreground: #71717a;
-  --color-accent: #f4f4f5;
-  --color-accent-foreground: #18181b;
+  --color-accent: #00D4FF;
+  --color-accent-foreground: #0A0A0F;
   --color-destructive: #ef4444;
   --color-destructive-foreground: #fafafa;
   --color-border: #e4e4e7;
   --color-input: #e4e4e7;
-  --color-ring: #18181b;
+  --color-ring: #C9A84C;
 }
 
 html.dark {
-  --color-background: #09090b;
-  --color-foreground: #fafafa;
-  --color-card: #09090b;
-  --color-card-foreground: #fafafa;
-  --color-popover: #09090b;
-  --color-popover-foreground: #fafafa;
-  --color-primary: #fafafa;
-  --color-primary-foreground: #18181b;
-  --color-secondary: #27272a;
-  --color-secondary-foreground: #fafafa;
-  --color-muted: #27272a;
-  --color-muted-foreground: #a1a1aa;
-  --color-accent: #27272a;
-  --color-accent-foreground: #fafafa;
+  --color-background: #0A0A0F;
+  --color-foreground: #f0ede6;
+  --color-card: #0d0d12;
+  --color-card-foreground: #f0ede6;
+  --color-popover: #0d0d12;
+  --color-popover-foreground: #f0ede6;
+  --color-primary: #C9A84C;
+  --color-primary-foreground: #0A0A0F;
+  --color-secondary: #14141a;
+  --color-secondary-foreground: #f0ede6;
+  --color-muted: #14141a;
+  --color-muted-foreground: #8a8a9a;
+  --color-accent: #00D4FF;
+  --color-accent-foreground: #0A0A0F;
   --color-destructive: #7f1d1d;
-  --color-destructive-foreground: #fafafa;
-  --color-border: #27272a;
-  --color-input: #27272a;
-  --color-ring: #d4d4d8;
+  --color-destructive-foreground: #f0ede6;
+  --color-border: #23201a;
+  --color-input: #17171d;
+  --color-ring: #C9A84C;
 }
 
 body {
   @apply bg-background text-foreground antialiased;
+  font-family: 'JetBrains Mono', monospace;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: 'Cormorant Garamond', serif;
 }
 
 @keyframes chat-bubble-in {
@@ -109,17 +114,17 @@ body {
 }
 
 .chat-scrollbar::-webkit-scrollbar-thumb {
-  background: #18181b;
+  background: rgba(201,168,76,0.3);
   border-radius: 3px;
 }
 
 .chat-scrollbar::-webkit-scrollbar-thumb:hover {
-  background: #27272a;
+  background: rgba(201,168,76,0.5);
 }
 
 .chat-scrollbar {
   scrollbar-width: thin;
-  scrollbar-color: #18181b transparent;
+  scrollbar-color: rgba(201,168,76,0.3) transparent;
 }
 
 .chat-prose {
@@ -140,19 +145,19 @@ body {
 
 .chat-prose strong {
   font-weight: 600;
-  color: #fafafa;
+  color: #f0ede6;
 }
 
 .chat-prose em {
   font-style: italic;
-  color: #a1a1aa;
+  color: #8a8a9a;
 }
 
 .chat-prose h1,
 .chat-prose h2,
 .chat-prose h3 {
   font-weight: 600;
-  color: #fafafa;
+  color: #C9A84C;
   margin: 0.75em 0 0.35em;
 }
 
@@ -180,29 +185,29 @@ body {
 
 .chat-prose hr {
   border: none;
-  border-top: 1px solid #27272a;
+  border-top: 1px solid #23201a;
   margin: 0.75em 0;
 }
 
 .chat-prose a {
-  color: #6366f1;
+  color: #00D4FF;
   text-decoration: underline;
   text-underline-offset: 2px;
 }
 
 .chat-prose a:hover {
-  color: #818cf8;
+  color: #33ddff;
 }
 
 .chat-prose code {
   font-size: 0.85em;
-  background: #18181b;
+  background: #14141a;
   padding: 0.15em 0.35em;
   border-radius: 4px;
 }
 
 .chat-prose pre {
-  background: #18181b;
+  background: #14141a;
   padding: 0.75em;
   border-radius: 6px;
   overflow-x: auto;
@@ -215,10 +220,10 @@ body {
 }
 
 .chat-prose blockquote {
-  border-left: 2px solid #3f3f46;
+  border-left: 2px solid rgba(201,168,76,0.3);
   padding-left: 0.75em;
   margin: 0.5em 0;
-  color: #a1a1aa;
+  color: #8a8a9a;
 }
 
 .typing-dots {
@@ -232,7 +237,7 @@ body {
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #a1a1aa;
+  background: rgba(201,168,76,0.6);
   animation: typing-bounce 1.2s ease-in-out infinite;
 }
 

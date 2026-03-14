@@ -85,8 +85,8 @@ export function AgentReportsTab({ portfolioId }: Props) {
 
   return (
     <div className="space-y-4">
-      <div className="rounded-md border border-amber-500/30 bg-amber-500/10 px-4 py-2.5">
-        <p className="text-xs text-amber-200">
+      <div className="rounded-md border border-warning/30 bg-warning/10 px-4 py-2.5">
+        <p className="text-xs text-warning">
           <strong>DISCLAIMER:</strong> Agent analyses and recommendations are AI-generated
           and for informational purposes only. They do not constitute financial advice.
         </p>
@@ -125,10 +125,10 @@ export function AgentReportsTab({ portfolioId }: Props) {
                     <span
                       className={
                         latest.judge_overall_score >= 7
-                          ? "text-green-400"
+                          ? "text-positive"
                           : latest.judge_overall_score >= 5
-                            ? "text-amber-400"
-                            : "text-red-400"
+                            ? "text-warning"
+                            : "text-negative"
                       }
                     >
                       {latest.judge_overall_score.toFixed(1)}/10
@@ -167,27 +167,27 @@ export function AgentReportsTab({ portfolioId }: Props) {
           {chartData.length > 0 ? (
             <ResponsiveContainer width="100%" height={260}>
               <LineChart data={chartData}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
+                <CartesianGrid strokeDasharray="3 3" stroke="rgba(201,168,76,0.08)" />
                 <XAxis
                   dataKey="week"
-                  tick={{ fontSize: 11, fill: "#a1a1aa" }}
+                  tick={{ fontSize: 11, fill: "#8a8a9a" }}
                   tickFormatter={(v: string) => v.slice(5)}
                 />
                 <YAxis
                   domain={[0, 10]}
-                  tick={{ fontSize: 11, fill: "#a1a1aa" }}
+                  tick={{ fontSize: 11, fill: "#8a8a9a" }}
                   label={{
                     value: "Score",
                     angle: -90,
                     position: "insideLeft",
-                    fill: "#a1a1aa",
+                    fill: "#8a8a9a",
                     fontSize: 11,
                   }}
                 />
                 <Tooltip
                   contentStyle={{
-                    backgroundColor: "#18181b",
-                    border: "1px solid #27272a",
+                    backgroundColor: "#0d0d12",
+                    border: "1px solid rgba(201,168,76,0.2)",
                     borderRadius: 8,
                     fontSize: 12,
                   }}
@@ -213,11 +213,11 @@ export function AgentReportsTab({ portfolioId }: Props) {
             <>
               <ResponsiveContainer width="100%" height={200}>
                 <LineChart data={[]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="#27272a" />
-                  <XAxis tick={{ fontSize: 11, fill: "#a1a1aa" }} />
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(201,168,76,0.08)" />
+                  <XAxis tick={{ fontSize: 11, fill: "#8a8a9a" }} />
                   <YAxis
                     domain={[0, 10]}
-                    tick={{ fontSize: 11, fill: "#a1a1aa" }}
+                    tick={{ fontSize: 11, fill: "#8a8a9a" }}
                   />
                 </LineChart>
               </ResponsiveContainer>

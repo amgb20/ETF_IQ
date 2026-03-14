@@ -38,7 +38,7 @@ export function ChatbotBar() {
     <div className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3">
       {isOpen && (
         <div
-          className="chat-bubble-in flex overflow-hidden rounded-2xl border border-border bg-card shadow-2xl
+          className="chat-bubble-in flex overflow-hidden rounded-2xl border border-primary/30 bg-card shadow-2xl shadow-[0_0_40px_rgba(201,168,76,0.08)]
             w-[calc(100vw-2rem)] h-[calc(100vh-6rem)]
             sm:w-[420px] sm:h-[560px]"
         >

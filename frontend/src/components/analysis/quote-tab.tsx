@@ -27,13 +27,13 @@ function W52Bar({ low, high, current }: { low: number | null; high: number | nul
         <span>52-Week Range</span>
         <span>{formatPrice(high)}</span>
       </div>
-      <div className="relative h-2 rounded-full bg-zinc-800">
+      <div className="relative h-2 rounded-full bg-secondary">
         <div
-          className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-red-500 via-yellow-500 to-green-500"
+          className="absolute top-0 left-0 h-full rounded-full bg-gradient-to-r from-negative via-warning to-positive"
           style={{ width: "100%" }}
         />
         <div
-          className="absolute top-1/2 -translate-y-1/2 h-3.5 w-1 rounded-full bg-white shadow"
+          className="absolute top-1/2 -translate-y-1/2 h-3.5 w-1 rounded-full bg-primary shadow"
           style={{ left: `${pct}%` }}
         />
       </div>
@@ -90,7 +90,7 @@ export function QuoteTab({ etfs }: Props) {
                   {formatPrice(quote?.last_close ?? null)}
                 </span>
                 {quote?.day_change != null && (
-                  <span className={`text-sm font-medium ${positive ? "text-green-500" : "text-red-500"}`}>
+                  <span className={`text-sm font-medium ${positive ? "text-positive" : "text-negative"}`}>
                     {positive ? "+" : ""}{quote.day_change.toFixed(2)}
                     {" "}({positive ? "+" : ""}{quote.day_change_pct?.toFixed(2) ?? "—"}%)
                   </span>

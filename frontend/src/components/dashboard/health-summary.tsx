@@ -54,10 +54,10 @@ export function HealthSummary({ totalValue, pnlPct, loading, portfolioId }: Prop
     average == null
       ? "text-muted-foreground"
       : average >= 7
-        ? "text-green-400"
+        ? "text-positive"
         : average >= 5
-          ? "text-amber-400"
-          : "text-red-400";
+          ? "text-warning"
+          : "text-negative";
 
   return (
     <Card>
@@ -94,7 +94,7 @@ export function HealthSummary({ totalValue, pnlPct, loading, portfolioId }: Prop
                         <span>{b.agent}</span>
                         <span
                           className={
-                            b.avg >= 7 ? "text-green-400" : b.avg >= 5 ? "text-amber-400" : "text-red-400"
+                            b.avg >= 7 ? "text-positive" : b.avg >= 5 ? "text-warning" : "text-negative"
                           }
                         >
                           {b.avg.toFixed(1)}

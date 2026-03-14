@@ -4,6 +4,7 @@ import logging
 from datetime import date, datetime
 from typing import Any
 
+import numpy as np
 import pandas as pd
 import yfinance as yf
 from sqlalchemy import select, text
@@ -14,6 +15,7 @@ from data_connectors.base import BaseConnector
 logger = logging.getLogger(__name__)
 
 EURUSD_TICKER = "EURUSD=X"
+TRADING_DAYS_PER_YEAR = 252
 
 
 class YFinanceConnector(BaseConnector):
@@ -117,6 +119,139 @@ class YFinanceConnector(BaseConnector):
             inserted += result.rowcount
         await session.commit()
         logger.info("yfinance ingest: inserted %d price rows, skipped %d (no etf_id match)", inserted, skipped)
+
+    # ------------------------------------------------------------------
+    # Metadata enrichment from yf.Ticker.info
+    # ------------------------------------------------------------------
+
+    async def enrich_metadata(self, session: AsyncSession) -> int:
+        """Fill null ETF fields using yf.Ticker(...).info.
+
+        Only updates columns that are currently NULL in the DB so that
+        data already scraped from justETF is preserved.
+        Returns the number of ETFs updated.
+        """
+        result = await session.execute(
+            text("SELECT isin, ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL")
+        )
+        rows = result.all()
+        updated = 0
+
+        for isin, ticker_yf in rows:
+            try:
+                info = yf.Ticker(ticker_yf).info or {}
+            except Exception:
+                logger.warning("yf.Ticker(%s).info failed", ticker_yf, exc_info=True)
+                continue
+
+            sets: list[str] = []
+            params: dict[str, Any] = {"isin": isin}
+
+            field_map: dict[str, tuple[str, Any]] = {
+                "aum_eur": ("totalAssets", lambda v: int(v) if v else None),
+                "description": ("longBusinessSummary", lambda v: v),
+                "holdings_count": ("holdings", lambda v: len(v) if isinstance(v, list) else None),
+            }
+
+            for col, (info_key, transform) in field_map.items():
+                raw = info.get(info_key)
+                if raw is not None:
+                    val = transform(raw)
+                    if val is not None:
+                        sets.append(f"{col} = COALESCE({col}, :{col})")
+                        params[col] = val
+
+            if not sets:
+                continue
+
+            sql = f"UPDATE etfs SET {', '.join(sets)} WHERE isin = :isin"
+            await session.execute(text(sql), params)
+            updated += 1
+
+        await session.commit()
+        logger.info("yfinance enrich_metadata: updated %d ETFs", updated)
+        return updated
+
+    # ------------------------------------------------------------------
+    # Compute risk fields from stored price data
+    # ------------------------------------------------------------------
+
+    async def compute_risk_fields(self, session: AsyncSession) -> int:
+        """Calculate vol, return/risk, and max drawdown for 1y/3y/5y/inception
+        from the prices table and write them back to the etfs table.
+        Returns the number of ETFs updated.
+        """
+        result = await session.execute(
+            text("SELECT id, isin FROM etfs WHERE ticker_yf IS NOT NULL")
+        )
+        etfs = result.all()
+        updated = 0
+
+        for etf_id, isin in etfs:
+            prices_result = await session.execute(
+                text(
+                    "SELECT date, close FROM prices "
+                    "WHERE etf_id = :eid ORDER BY date"
+                ),
+                {"eid": str(etf_id)},
+            )
+            rows = prices_result.all()
+            if len(rows) < 10:
+                continue
+
+            dates = [r[0] for r in rows]
+            closes = np.array([float(r[1]) for r in rows], dtype=np.float64)
+            daily_ret = np.diff(closes) / closes[:-1]
+            last_date = dates[-1]
+
+            params: dict[str, Any] = {"isin": isin}
+            sets: list[str] = []
+
+            for label, days in [("1y", 200), ("3y", 600), ("5y", 1000)]:
+                vol_col = f"vol_{label}"
+                rr_col = f"ret_risk_{label}"
+                dd_col = f"max_dd_{label}"
+
+                if len(daily_ret) < days:
+                    sets.append(f"{vol_col} = NULL")
+                    sets.append(f"{rr_col} = NULL")
+                    sets.append(f"{dd_col} = NULL")
+                    continue
+
+                window_ret = daily_ret[-days:]
+                window_closes = closes[-(days + 1):]
+
+                vol = float(np.std(window_ret, ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR))
+                ann_ret = float((1 + np.mean(window_ret)) ** TRADING_DAYS_PER_YEAR - 1)
+                ret_risk = round(ann_ret / vol, 2) if vol > 0 else None
+
+                cummax = np.maximum.accumulate(window_closes)
+                drawdowns = (window_closes - cummax) / cummax
+                max_dd = float(np.min(drawdowns))
+
+                sets.append(f"{vol_col} = :v_{label}")
+                params[f"v_{label}"] = round(vol * 100, 2)
+
+                sets.append(f"{rr_col} = :rr_{label}")
+                params[f"rr_{label}"] = ret_risk
+
+                sets.append(f"{dd_col} = :dd_{label}")
+                params[f"dd_{label}"] = round(max_dd * 100, 2)
+
+            # Max drawdown since inception (all data)
+            cummax_all = np.maximum.accumulate(closes)
+            dd_all = (closes - cummax_all) / cummax_all
+            sets.append("max_dd_inception = :dd_inc")
+            params["dd_inc"] = round(float(np.min(dd_all)) * 100, 2)
+
+            if sets:
+                sql = f"UPDATE etfs SET {', '.join(sets)} WHERE isin = :isin"
+                await session.execute(text(sql), params)
+                updated += 1
+
+        await session.commit()
+        logger.info("yfinance compute_risk_fields: updated %d ETFs", updated)
+        return updated
 
     # ------------------------------------------------------------------
     # Helpers

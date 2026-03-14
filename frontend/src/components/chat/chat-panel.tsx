@@ -60,7 +60,7 @@ export function ChatPanel({
           <Bot className="h-4 w-4 text-primary-foreground" />
         </div>
         <div className="flex-1 min-w-0">
-          <span className="text-sm font-semibold">Charles</span>
+          <span className="text-sm font-semibold" style={{ fontFamily: "'Cormorant Garamond', serif", color: '#C9A84C' }}>Charles</span>
           <p className="text-[11px] text-muted-foreground leading-tight">Portfolio assistant</p>
         </div>
         <Button
@@ -133,7 +133,7 @@ export function ChatPanel({
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Ask Charles..."
-          className="flex-1 rounded-full border border-input bg-background px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-ring"
+          className="flex-1 rounded-full border border-input bg-input px-4 py-2 text-sm outline-none focus:ring-1 focus:ring-ring focus:border-primary"
           disabled={isStreaming}
         />
         <Button type="submit" size="icon" className="h-9 w-9 rounded-full" disabled={isStreaming || !input.trim()}>

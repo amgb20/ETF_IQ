@@ -64,8 +64,12 @@ export function TopNav() {
   return (
     <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container mx-auto flex h-14 max-w-7xl items-center px-4">
-        <Link to={user ? `/${user.id}/dashboard` : "/"} className="mr-8 text-lg font-bold tracking-tight">
-          PortfolioIQ
+        <Link
+          to={user ? `/${user.id}/dashboard` : "/"}
+          className="mr-8 text-lg tracking-tight"
+          style={{ fontFamily: "'Cormorant Garamond', serif", color: '#C9A84C', fontWeight: 600 }}
+        >
+          ETF IQ
         </Link>
 
         <nav className="flex items-center gap-1">
@@ -74,8 +78,10 @@ export function TopNav() {
               key={link.to}
               to={link.to}
               className={cn(
-                "rounded-md px-3 py-1.5 text-sm font-medium transition-colors hover:bg-accent",
-                location.pathname.startsWith(link.to) ? "bg-accent text-accent-foreground" : "text-muted-foreground"
+                "px-3 py-1.5 text-sm font-medium transition-colors",
+                location.pathname.startsWith(link.to)
+                  ? "text-primary border-b-2 border-primary"
+                  : "text-muted-foreground hover:text-foreground"
               )}
             >
               {link.label}
