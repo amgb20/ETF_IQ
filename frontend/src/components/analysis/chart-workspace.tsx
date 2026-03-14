@@ -58,9 +58,14 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
     [selectedEtfs],
   );
 
+  const eventTickers = useMemo(
+    () => selectedEtfs.map((e) => e.ticker_yf).filter(Boolean) as string[],
+    [selectedEtfs],
+  );
+
   const { data: events } = useEvents(
     showEvents ? portfolioId : undefined,
-    selectedTickers.length > 0 ? selectedTickers : undefined,
+    eventTickers.length > 0 ? eventTickers : undefined,
   );
 
   const { data: riskMetrics, isLoading: riskLoading } = useRiskMetrics(

@@ -1,0 +1,123 @@
+.lp-display { font-family: 'Cormorant Garamond', serif; }
+.lp-mono    { font-family: 'JetBrains Mono', monospace; }
+
+/* ── Keyframes ─────────────────────────────────────────────────── */
+@keyframes lp-draw-chart {
+  from { stroke-dashoffset: 2400; }
+  to   { stroke-dashoffset: 0; }
+}
+@keyframes lp-ticker {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-50%); }
+}
+@keyframes lp-rise {
+  from { opacity: 0; transform: translateY(24px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes lp-blink {
+  0%, 100% { opacity: 1; }
+  50%       { opacity: 0; }
+}
+@keyframes lp-pulse-gold {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(201,168,76,0.45); }
+  50%       { box-shadow: 0 0 24px 8px rgba(201,168,76,0.12); }
+}
+@keyframes lp-pulse-cyan {
+  0%, 100% { box-shadow: 0 0 0 0 rgba(0,212,255,0.45); }
+  50%       { box-shadow: 0 0 24px 8px rgba(0,212,255,0.12); }
+}
+@keyframes lp-bell {
+  0%,100%{ transform: rotate(0); }
+  15%    { transform: rotate(-18deg); }
+  30%    { transform: rotate(18deg); }
+  45%    { transform: rotate(-10deg); }
+  60%    { transform: rotate(10deg); }
+  75%    { transform: rotate(0); }
+}
+
+/* ── Chart ─────────────────────────────────────────────────────── */
+.lp-chart-line {
+  stroke-dasharray: 2400;
+  stroke-dashoffset: 2400;
+  animation: lp-draw-chart 6s ease-out 0.4s forwards;
+}
+
+/* ── Ticker ─────────────────────────────────────────────────────── */
+.lp-ticker { animation: lp-ticker 40s linear infinite; }
+
+/* ── Hero entry ─────────────────────────────────────────────────── */
+.lp-hero-content { animation: lp-rise 1s ease-out 0.2s both; }
+
+/* ── Typing cursor ──────────────────────────────────────────────── */
+.lp-blink::after {
+  content: '|';
+  color: #00D4FF;
+  animation: lp-blink 0.9s step-end infinite;
+}
+
+/* ── Feature card hover ─────────────────────────────────────────── */
+.lp-feature-card {
+  transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+}
+.lp-feature-card:hover {
+  transform: translateY(-5px);
+  box-shadow: 0 0 32px rgba(0,212,255,0.1);
+  border-color: rgba(0,212,255,0.45) !important;
+}
+
+/* ── Navigation glass ───────────────────────────────────────────── */
+.lp-nav {
+  background: rgba(10,10,15,0.88);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
+  border-bottom: 1px solid rgba(201,168,76,0.12);
+}
+
+/* ── Glass card ─────────────────────────────────────────────────── */
+.lp-glass {
+  background: rgba(255,255,255,0.03);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid rgba(201,168,76,0.22);
+  border-radius: 10px;
+}
+
+/* ── Background patterns ────────────────────────────────────────── */
+.lp-grid {
+  background-image:
+    linear-gradient(rgba(201,168,76,0.05) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,168,76,0.05) 1px, transparent 1px);
+  background-size: 80px 80px;
+}
+.lp-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  opacity: 0.038;
+  pointer-events: none;
+}
+
+/* ── Buttons ────────────────────────────────────────────────────── */
+.lp-btn-gold {
+  background: #C9A84C;
+  color: #0A0A0F;
+  font-weight: 500;
+  transition: opacity 0.15s;
+}
+.lp-btn-gold:hover { opacity: 0.82; }
+
+.lp-btn-cyan {
+  border: 1px solid #00D4FF;
+  color: #00D4FF;
+  transition: background 0.15s;
+}
+.lp-btn-cyan:hover { background: rgba(0,212,255,0.1); }
+
+/* ── Glows ──────────────────────────────────────────────────────── */
+.lp-glow-gold { animation: lp-pulse-gold 2s ease-in-out infinite; }
+.lp-glow-cyan { animation: lp-pulse-cyan 1.6s ease-in-out infinite; }
+.lp-bell      { animation: lp-bell 1.2s ease-in-out; }
+
+/* ── Scrollbar ──────────────────────────────────────────────────── */
+.lp-scrollbar::-webkit-scrollbar       { width: 4px; }
+.lp-scrollbar::-webkit-scrollbar-track { background: transparent; }
+.lp-scrollbar::-webkit-scrollbar-thumb { background: rgba(201,168,76,0.3); border-radius: 2px; }

@@ -119,7 +119,7 @@ export function AgentReportsTab({ portfolioId }: Props) {
                     No reports yet
                   </p>
                 )}
-                {latest?.judge_overall_score != null && (
+                {latest?.judge_overall_score != null ? (
                   <p className="text-xs mt-1">
                     Score:{" "}
                     <span
@@ -134,6 +134,24 @@ export function AgentReportsTab({ portfolioId }: Props) {
                       {latest.judge_overall_score.toFixed(1)}/10
                     </span>
                   </p>
+                ) : latest ? (
+                  <p className="text-[10px] text-muted-foreground mt-1 italic">
+                    Score pending &mdash; next report run
+                  </p>
+                ) : null}
+                {latest?.predictions && Array.isArray(latest.predictions) && latest.predictions.length > 0 && (
+                  <div className="mt-2 space-y-1 border-t border-border pt-1.5">
+                    {latest.predictions.slice(0, 2).map((p, pi) => (
+                      <div key={pi} className="flex items-start gap-1.5">
+                        <Badge variant="outline" className="shrink-0 text-[9px] px-1 py-0">
+                          {String(p.confidence ?? "?")}/10
+                        </Badge>
+                        <p className="text-[10px] text-muted-foreground line-clamp-2 leading-tight">
+                          {String(p.prediction ?? "")}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
                 )}
               </CardContent>
             </Card>
@@ -204,7 +222,9 @@ export function AgentReportsTab({ portfolioId }: Props) {
                 </LineChart>
               </ResponsiveContainer>
               <p className="text-xs text-muted-foreground text-center mt-2 italic">
-                Score data will appear after agents run and the Judge evaluates them
+                {Object.keys(latestByAgent).length > 0
+                  ? "Accuracy scores will appear after the second report \u2014 the Judge needs a prior run to evaluate predictions."
+                  : "Score data will appear after agents run and the Judge evaluates them"}
               </p>
             </>
           )}

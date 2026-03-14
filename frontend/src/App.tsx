@@ -9,6 +9,7 @@ import { useUser } from "@/hooks/use-user";
 import { TosModal } from "@/components/legal/tos-modal";
 import { useTheme, type Theme } from "@/contexts/ThemeContext";
 import LoginPage from "@/pages/login";
+import LandingPage from "@/pages/landing";
 import DashboardPage from "@/pages/dashboard";
 import AnalysisPage from "@/pages/analysis";
 import ReportsPage from "@/pages/reports";
@@ -17,11 +18,11 @@ import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 import SettingsPage from "@/pages/settings";
 
-function RedirectToUserHome() {
+function RootPage() {
   const { user, isLoading } = useUserContext();
-  if (isLoading) return null;
-  if (!user) return <Navigate to="/login" replace />;
-  return <Navigate to={`/${user.id}/dashboard`} replace />;
+  if (isLoading) return <div style={{ background: "#0A0A0F", minHeight: "100vh" }} />;
+  if (user) return <Navigate to={`/${user.id}/dashboard`} replace />;
+  return <LandingPage />;
 }
 
 function UserRouteGuard({ children }: { children: React.ReactNode }) {
@@ -86,6 +87,7 @@ export default function App() {
     <TosGuard>
       <ThemeSync />
       <Routes>
+        <Route path="/" element={<RootPage />} />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
@@ -108,7 +110,6 @@ export default function App() {
             <Route path="settings" element={<SettingsPage />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
-          <Route path="/" element={<RedirectToUserHome />} />
         </Route>
       </Routes>
     </TosGuard>

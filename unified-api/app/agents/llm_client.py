@@ -36,6 +36,11 @@ STANDARD_CONFIG = GenerateContentConfig(
     tools=[Tool(google_search=GoogleSearch())],
 )
 
+STRUCTURED_OUTPUT_CONFIG = GenerateContentConfig(
+    temperature=0.2,
+    max_output_tokens=8192,
+)
+
 
 DEEP_RESEARCH_CONFIG = GenerateContentConfig(
     temperature=0.2,
