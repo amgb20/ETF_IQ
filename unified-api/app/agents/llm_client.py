@@ -84,6 +84,9 @@ async def generate(
     model_name = model or settings.GEMINI_MODEL
     cfg = config or STANDARD_CONFIG
 
+    prompt_len = len(prompt)
+    logger.info("LLM call starting: model=%s prompt_chars=%d", model_name, prompt_len)
+
     t0 = time.perf_counter()
     response = client.models.generate_content(
         model=model_name,
@@ -110,7 +113,7 @@ async def generate(
                     sources.append({"url": web.uri or "", "title": web.title or ""})
 
     logger.info(
-        "LLM call: model=%s prompt_tokens=%d completion_tokens=%d latency=%dms sources=%d",
+        "LLM call complete: model=%s prompt_tokens=%d completion_tokens=%d latency=%dms sources=%d",
         model_name, prompt_tokens, completion_tokens, latency_ms, len(sources),
     )
 

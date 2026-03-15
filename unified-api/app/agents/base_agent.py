@@ -94,11 +94,21 @@ class BaseAgent(ABC):
         run_type: str = "standard",
     ) -> AgentOutput:
         """Execute the full agent cycle: context -> reflect -> generate -> parse -> store."""
+        import time as _time
+
+        t0 = _time.perf_counter()
+        logger.info(
+            "Agent %s starting for portfolio %s (run_date=%s, run_type=%s)",
+            self.agent_name, portfolio_id, run_date, run_type,
+        )
+
         async with async_session() as session:
+            logger.debug("Agent %s: building context...", self.agent_name)
             ctx = await build(portfolio_id, session)
             market = await build_market_summary(session)
             market_str = market_data_to_prompt(market)
 
+            logger.debug("Agent %s: loading past output...", self.agent_name)
             past_output = await self.load_past_output(session, portfolio_id, run_date)
             judge_eval = None
             if past_output and past_output.judge_evaluation:
@@ -111,6 +121,7 @@ class BaseAgent(ABC):
                 if run_type == "deep_research"
                 else llm_client.STANDARD_CONFIG
             )
+            logger.info("Agent %s: calling LLM...", self.agent_name)
             response = await llm_client.generate(prompt, config=config)
 
             predictions = parse_predictions(response.text)
@@ -119,6 +130,7 @@ class BaseAgent(ABC):
             if past_output and judge_eval:
                 reflection_text = f"Reflected on Week {past_output.run_date} evaluation."
 
+            logger.debug("Agent %s: storing output...", self.agent_name)
             output = await self.store_output(
                 session=session,
                 portfolio_id=portfolio_id,
@@ -135,9 +147,10 @@ class BaseAgent(ABC):
                 sources_cited=response.sources_cited,
             )
 
+            elapsed_ms = int((_time.perf_counter() - t0) * 1000)
             logger.info(
-                "Agent %s completed for portfolio %s (run_date=%s, predictions=%d)",
-                self.agent_name, portfolio_id, run_date, len(predictions),
+                "Agent %s completed for portfolio %s (run_date=%s, predictions=%d, elapsed=%dms)",
+                self.agent_name, portfolio_id, run_date, len(predictions), elapsed_ms,
             )
             return output
 

@@ -41,11 +41,17 @@ function UserRouteGuard({ children }: { children: React.ReactNode }) {
 function OnboardingGuard({ children }: { children: React.ReactNode }) {
   const { user, isAuthenticated } = useUserContext();
   const { data: portfolios, isLoading: portfoliosLoading } = usePortfolios();
+  const { data: userProfile, isLoading: profileLoading } = useUser();
 
-  if (isAuthenticated && portfoliosLoading) return null;
+  if (isAuthenticated && (portfoliosLoading || profileLoading)) return null;
 
-  if (isAuthenticated && portfolios && portfolios.length === 0 && user) {
-    return <Navigate to={`/${user.id}/onboarding`} replace />;
+  if (isAuthenticated && user) {
+    const needsOnboarding =
+      (portfolios && portfolios.length === 0) ||
+      (userProfile && !userProfile.is_onboarded);
+    if (needsOnboarding) {
+      return <Navigate to={`/${user.id}/onboarding`} replace />;
+    }
   }
 
   return <>{children}</>;

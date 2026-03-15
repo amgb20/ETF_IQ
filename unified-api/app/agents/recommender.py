@@ -66,7 +66,16 @@ class RecommenderAgent(BaseAgent):
         risk_output: AgentOutput | None = None,
     ) -> AgentOutput:
         """Run the recommender with full context from prior agents."""
+        import time as _time
+
+        t0 = _time.perf_counter()
+        logger.info(
+            "RecommenderAgent starting for portfolio %s (run_date=%s, run_type=%s)",
+            portfolio_id, run_date, run_type,
+        )
+
         async with async_session() as session:
+            logger.debug("RecommenderAgent: building context...")
             ctx = await build(portfolio_id, session)
             market = await build_market_summary(session)
             market_str = market_data_to_prompt(market)
@@ -91,6 +100,7 @@ class RecommenderAgent(BaseAgent):
                 risk_summary=risk_str,
             )
 
+            logger.info("RecommenderAgent: calling LLM...")
             config = llm_client.DEEP_RESEARCH_CONFIG if run_type == "deep_research" else llm_client.STANDARD_CONFIG
             response = await llm_client.generate(prompt, config=config)
             predictions = parse_predictions(response.text)
@@ -99,6 +109,7 @@ class RecommenderAgent(BaseAgent):
             if DISCLAIMER not in summary:
                 summary = f"{DISCLAIMER}\n\n{summary}"
 
+            logger.debug("RecommenderAgent: storing output...")
             output = await self.store_output(
                 session=session,
                 portfolio_id=portfolio_id,
@@ -114,5 +125,10 @@ class RecommenderAgent(BaseAgent):
                 latency_ms=response.latency_ms,
                 sources_cited=response.sources_cited,
             )
-            logger.info("RecommenderAgent completed for portfolio %s", portfolio_id)
+
+            elapsed_ms = int((_time.perf_counter() - t0) * 1000)
+            logger.info(
+                "RecommenderAgent completed for portfolio %s (predictions=%d, elapsed=%dms)",
+                portfolio_id, len(predictions), elapsed_ms,
+            )
             return output

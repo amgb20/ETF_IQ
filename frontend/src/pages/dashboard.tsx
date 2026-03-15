@@ -24,6 +24,11 @@ export default function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-end justify-between">
+        <h1 className="text-3xl font-semibold text-foreground/90">Dashboard</h1>
+        <p className="text-xs text-muted-foreground pb-1 tracking-wider">Portfolio overview</p>
+      </div>
+
       <HealthSummary
         totalValue={portfolio?.total_value}
         pnlPct={portfolio?.total_pnl_pct}
@@ -31,29 +36,34 @@ export default function DashboardPage() {
         portfolioId={firstId}
       />
 
-      <Card>
-        <CardHeader className="pb-2">
-          <CardTitle className="text-base">Portfolio Value</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {!loading && positions.length === 0 ? (
-            <p className="text-sm text-muted-foreground text-center py-8">
-              No positions yet. Add positions to see the chart.
-            </p>
-          ) : (
-            <>
-              <PortfolioValueChart data={chartData} loading={loading} />
-              {!loading && chartData.length <= 1 && positions.length > 0 && (
-                <p className="text-xs text-muted-foreground text-center mt-2">
-                  Price history will appear after the first data sync.
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4">
+        <div className="lg:col-span-3">
+          <Card>
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base">Portfolio Value</CardTitle>
+            </CardHeader>
+            <CardContent>
+              {!loading && positions.length === 0 ? (
+                <p className="text-sm text-muted-foreground text-center py-8">
+                  No positions yet. Add positions to see the chart.
                 </p>
+              ) : (
+                <>
+                  <PortfolioValueChart data={chartData} loading={loading} />
+                  {!loading && chartData.length <= 1 && positions.length > 0 && (
+                    <p className="text-xs text-muted-foreground text-center mt-2">
+                      Price history will appear after the first data sync.
+                    </p>
+                  )}
+                </>
               )}
-            </>
-          )}
-        </CardContent>
-      </Card>
-
-      <ThemeCards positions={positions} />
+            </CardContent>
+          </Card>
+        </div>
+        <div className="lg:col-span-2 space-y-4">
+          <ThemeCards positions={positions} />
+        </div>
+      </div>
 
       <AllocationSection positions={positions} totalValue={portfolio?.total_value} />
 

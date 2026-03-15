@@ -68,11 +68,21 @@ class RiskAssessorAgent(BaseAgent):
         research_outputs: list[AgentOutput] | None = None,
     ) -> AgentOutput:
         """Run the risk assessor with local quantitative computations + LLM synthesis."""
+        import time as _time
+
+        t0 = _time.perf_counter()
+        logger.info(
+            "RiskAssessorAgent starting for portfolio %s (run_date=%s, run_type=%s)",
+            portfolio_id, run_date, run_type,
+        )
+
         async with async_session() as session:
+            logger.debug("RiskAssessorAgent: building context...")
             ctx = await build(portfolio_id, session)
             market = await build_market_summary(session)
             market_str = market_data_to_prompt(market)
 
+            logger.debug("RiskAssessorAgent: computing quant metrics (correlation, drift, volatility)...")
             corr_str = await self._compute_correlation(session, days=90)
             drift_str = self._compute_drift(ctx)
             vol_str = await self._compute_volatility(session, days=20)
@@ -95,10 +105,12 @@ class RiskAssessorAgent(BaseAgent):
                 research_summaries=research_str,
             )
 
+            logger.info("RiskAssessorAgent: calling LLM...")
             config = llm_client.DEEP_RESEARCH_CONFIG if run_type == "deep_research" else llm_client.STANDARD_CONFIG
             response = await llm_client.generate(prompt, config=config)
             predictions = parse_predictions(response.text)
 
+            logger.debug("RiskAssessorAgent: storing output...")
             output = await self.store_output(
                 session=session,
                 portfolio_id=portfolio_id,
@@ -114,7 +126,12 @@ class RiskAssessorAgent(BaseAgent):
                 latency_ms=response.latency_ms,
                 sources_cited=response.sources_cited,
             )
-            logger.info("RiskAssessorAgent completed for portfolio %s", portfolio_id)
+
+            elapsed_ms = int((_time.perf_counter() - t0) * 1000)
+            logger.info(
+                "RiskAssessorAgent completed for portfolio %s (predictions=%d, elapsed=%dms)",
+                portfolio_id, len(predictions), elapsed_ms,
+            )
             return output
 
     async def _compute_correlation(self, session: AsyncSession, days: int = 90) -> str:

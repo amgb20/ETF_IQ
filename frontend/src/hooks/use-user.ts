@@ -11,6 +11,7 @@ interface UserProfile {
   notify_email: boolean;
   notify_digest: boolean;
   accepted_tos: boolean;
+  is_onboarded: boolean;
   theme: string;
 }
 

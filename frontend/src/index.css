@@ -259,3 +259,53 @@ h1, h2, h3, h4, h5, h6 {
     opacity: 1;
   }
 }
+
+/* App grain/grid overlay */
+.app-grain {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='256' height='256'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
+  background-size: 160px 160px;
+  opacity: 0.025;
+  pointer-events: none;
+}
+
+.app-grid {
+  background-image:
+    linear-gradient(rgba(201,168,76,0.04) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(201,168,76,0.04) 1px, transparent 1px);
+  background-size: 80px 80px;
+  pointer-events: none;
+}
+
+/* Skeleton shimmer */
+@keyframes skeleton-shimmer {
+  0%   { background-position: -400px 0; }
+  100% { background-position: 400px 0; }
+}
+
+.skeleton-shimmer {
+  background: linear-gradient(
+    90deg,
+    #14141a 0px,
+    rgba(201,168,76,0.06) 80px,
+    rgba(201,168,76,0.10) 160px,
+    rgba(201,168,76,0.06) 240px,
+    #14141a 320px
+  );
+  background-size: 800px 100%;
+  animation: skeleton-shimmer 1.8s ease-in-out infinite;
+}
+
+/* Globe meridian animation (login page) */
+@keyframes globe-meridian-spin {
+  0%   { transform: scaleX(0.02); }
+  25%  { transform: scaleX(1); }
+  50%  { transform: scaleX(0.02); }
+  75%  { transform: scaleX(-1); }
+  100% { transform: scaleX(0.02); }
+}
+
+.globe-meridian {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: globe-meridian-spin 20s linear infinite;
+}

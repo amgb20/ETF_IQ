@@ -1,9 +1,9 @@
 import { useState, useRef, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, Mail, KeyRound, ArrowLeft } from "lucide-react";
+import { Loader2, ArrowLeft } from "lucide-react";
 import { useUserContext } from "@/contexts/UserContext";
+import { GlobeCanvas } from "@/components/globe/globe-canvas";
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -48,15 +48,9 @@ export default function LoginPage() {
     const next = [...code];
     next[index] = value.slice(-1);
     setCode(next);
-
-    if (value && index < 5) {
-      codeRefs.current[index + 1]?.focus();
-    }
-
+    if (value && index < 5) codeRefs.current[index + 1]?.focus();
     const fullCode = next.join("");
-    if (fullCode.length === 6) {
-      submitCode(fullCode);
-    }
+    if (fullCode.length === 6) submitCode(fullCode);
   };
 
   const handleCodeKeyDown = (index: number, e: React.KeyboardEvent) => {
@@ -70,15 +64,10 @@ export default function LoginPage() {
     const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6);
     if (!pasted) return;
     const next = [...code];
-    for (let i = 0; i < pasted.length; i++) {
-      next[i] = pasted[i];
-    }
+    for (let i = 0; i < pasted.length; i++) next[i] = pasted[i];
     setCode(next);
-    if (pasted.length === 6) {
-      submitCode(pasted);
-    } else {
-      codeRefs.current[pasted.length]?.focus();
-    }
+    if (pasted.length === 6) submitCode(pasted);
+    else codeRefs.current[pasted.length]?.focus();
   };
 
   const submitCode = async (fullCode: string) => {
@@ -106,22 +95,34 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-background p-4">
-      <div className="w-full max-w-sm space-y-6">
-        <div className="text-center">
-          <h1 className="text-2xl font-bold tracking-tight">PortfolioIQ</h1>
-          <p className="text-muted-foreground mt-1">Sign in to your account</p>
-        </div>
+    <div className="relative min-h-screen w-full overflow-hidden bg-[#060608]">
+      {/* Full-screen globe background */}
+      <GlobeCanvas className="absolute inset-0 w-full h-full" />
 
-        <Card>
-          {step === "email" ? (
-            <form onSubmit={handleSendCode}>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <Mail className="h-4 w-4" /> Enter your email
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
+      {/* Subtle grid + grain overlays */}
+      <div className="absolute inset-0 app-grid opacity-20 pointer-events-none" />
+      <div className="absolute inset-0 app-grain pointer-events-none" />
+
+      {/* Bottom-left label */}
+      <div className="absolute bottom-10 left-10 z-10">
+        <p className="text-xs tracking-[0.3em] text-zinc-500 uppercase">
+          Portfolio Intelligence
+        </p>
+      </div>
+
+      {/* Floating sign-in card */}
+      <div className="absolute inset-0 flex items-center justify-center z-20 pointer-events-none">
+        <div className="pointer-events-auto w-full max-w-sm">
+          <div className="rounded-2xl border border-white/[0.06] bg-black/60 backdrop-blur-xl p-10 shadow-2xl shadow-black/50">
+            <div className="mb-8">
+              <h1 className="text-4xl font-semibold text-primary">ETF IQ</h1>
+              <p className="text-xs tracking-widest text-zinc-500 uppercase mt-1.5">
+                {step === "email" ? "Enter your email to continue" : "Enter verification code"}
+              </p>
+            </div>
+
+            {step === "email" ? (
+              <form onSubmit={handleSendCode} className="space-y-4">
                 <input
                   type="email"
                   value={email}
@@ -129,24 +130,22 @@ export default function LoginPage() {
                   placeholder="you@example.com"
                   autoFocus
                   required
-                  className="w-full rounded-md border border-input bg-background px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-ring"
+                  className="w-full rounded-lg border border-white/10 bg-white/[0.04] px-3.5 py-2.5 text-sm text-white placeholder:text-zinc-600 focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-colors"
                 />
                 {error && <p className="text-sm text-destructive">{error}</p>}
-                <Button type="submit" className="w-full" disabled={loading || !email.trim()}>
-                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "Send Code"}
+                <Button
+                  type="submit"
+                  className="w-full tracking-[0.15em]"
+                  disabled={loading || !email.trim()}
+                >
+                  {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "ACCESS TERMINAL"}
                 </Button>
-              </CardContent>
-            </form>
-          ) : (
-            <>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-base">
-                  <KeyRound className="h-4 w-4" /> Enter verification code
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <p className="text-sm text-muted-foreground">
-                  A 6-digit code was sent to <span className="font-medium text-foreground">{email}</span>
+              </form>
+            ) : (
+              <div className="space-y-6">
+                <p className="text-sm text-zinc-400">
+                  A 6-digit code was sent to{" "}
+                  <span className="font-medium text-white">{email}</span>
                 </p>
 
                 <div className="flex justify-center gap-2" onPaste={handleCodePaste}>
@@ -160,7 +159,8 @@ export default function LoginPage() {
                       value={digit}
                       onChange={(e) => handleCodeChange(i, e.target.value)}
                       onKeyDown={(e) => handleCodeKeyDown(i, e)}
-                      className="h-12 w-10 rounded-md border border-input bg-background text-center text-lg font-mono focus:outline-none focus:ring-1 focus:ring-ring"
+                      className="h-14 w-12 rounded-lg border border-white/10 bg-white/[0.04] text-center text-xl font-semibold text-white focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-colors"
+                      style={{ fontFamily: "'Cormorant Garamond', serif" }}
                     />
                   ))}
                 </div>
@@ -169,26 +169,37 @@ export default function LoginPage() {
 
                 {loading && (
                   <div className="flex justify-center">
-                    <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />
+                    <Loader2 className="h-5 w-5 animate-spin text-zinc-500" />
                   </div>
                 )}
 
                 <Button
-                  variant="ghost"
-                  size="sm"
-                  className="w-full"
+                  type="button"
+                  className="w-full tracking-[0.15em]"
+                  onClick={() => {
+                    const fullCode = code.join("");
+                    if (fullCode.length === 6) submitCode(fullCode);
+                  }}
+                  disabled={loading || code.join("").length < 6}
+                >
+                  VERIFY CODE
+                </Button>
+
+                <button
+                  type="button"
+                  className="w-full flex items-center justify-center gap-1.5 text-xs text-zinc-500 hover:text-white transition-colors"
                   onClick={() => {
                     setStep("email");
                     setCode(["", "", "", "", "", ""]);
                     setError("");
                   }}
                 >
-                  <ArrowLeft className="h-4 w-4 mr-1" /> Use a different email
-                </Button>
-              </CardContent>
-            </>
-          )}
-        </Card>
+                  <ArrowLeft className="h-3.5 w-3.5" /> Use a different email
+                </button>
+              </div>
+            )}
+          </div>
+        </div>
       </div>
     </div>
   );

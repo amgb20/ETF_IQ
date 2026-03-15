@@ -15,7 +15,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.agents.report_orchestrator import ReportOrchestrator
 from app.agents.tools import rag_store
 from app.database import get_db
-from app.models.agent import AgentOutput
+from app.models.agent import AgentOutput, ChartEvent
 from app.models.report import Report
 from app.schemas.report import ReportCreate, ReportResponse, ReportStatusResponse
 from app.auth.dependencies import RequireAuth, verify_portfolio_owner
@@ -127,8 +127,26 @@ async def delete_report(
     await verify_portfolio_owner(report.portfolio_id, user, db)
 
     if report.agent_output_ids:
+        # 1. Find chart events linked to these agent outputs
+        ce_result = await db.execute(
+            select(ChartEvent.id).where(
+                ChartEvent.agent_output_id.in_(report.agent_output_ids)
+            )
+        )
+        chart_event_ids = [row[0] for row in ce_result.all()]
+
+        # 2. Delete chart event RAG embeddings + rows
+        if chart_event_ids:
+            ce_deleted = await rag_store.delete_chunks(db, "chart_event", chart_event_ids)
+            logger.info("Deleted %d chart_event rag_chunks for report %s", ce_deleted, report_id)
+            await db.execute(
+                delete(ChartEvent).where(ChartEvent.id.in_(chart_event_ids))
+            )
+            logger.info("Deleted %d chart_events for report %s", len(chart_event_ids), report_id)
+
+        # 3. Delete agent output RAG embeddings + rows
         deleted = await rag_store.delete_chunks(db, "agent_output", report.agent_output_ids)
-        logger.info("Deleted %d rag_chunks for report %s", deleted, report_id)
+        logger.info("Deleted %d agent_output rag_chunks for report %s", deleted, report_id)
 
         await db.execute(
             delete(AgentOutput).where(AgentOutput.id.in_(report.agent_output_ids))

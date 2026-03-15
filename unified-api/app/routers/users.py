@@ -23,6 +23,7 @@ class UserProfileResponse(BaseModel):
     notify_email: bool
     notify_digest: bool
     accepted_tos: bool
+    is_onboarded: bool
 
     model_config = {"from_attributes": True}
 
@@ -50,6 +51,7 @@ async def get_profile(
         notify_email=user.notify_email,
         notify_digest=user.notify_digest,
         accepted_tos=user.accepted_tos,
+        is_onboarded=user.is_onboarded,
     )
 
 
@@ -86,4 +88,5 @@ async def update_preferences(
         notify_email=user.notify_email,
         notify_digest=user.notify_digest,
         accepted_tos=user.accepted_tos,
+        is_onboarded=user.is_onboarded,
     )

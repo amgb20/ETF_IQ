@@ -25,16 +25,16 @@ export function PortfolioValueChart({ data, loading, entryDate, entryPrice }: Pr
     const chart = createChart(containerRef.current, {
       layout: {
         background: { type: ColorType.Solid, color: "transparent" },
-        textColor: "#a1a1aa",
+        textColor: "#8a8a9a",
       },
       grid: {
-        vertLines: { color: "#27272a" },
-        horzLines: { color: "#27272a" },
+        vertLines: { color: "#23201a" },
+        horzLines: { color: "#23201a" },
       },
       width: containerRef.current.clientWidth,
       height: 350,
-      timeScale: { borderColor: "#27272a" },
-      rightPriceScale: { borderColor: "#27272a" },
+      timeScale: { borderColor: "#23201a" },
+      rightPriceScale: { borderColor: "#23201a" },
     });
 
     const series = chart.addSeries(AreaSeries, {

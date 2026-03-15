@@ -98,7 +98,7 @@ export default function AnalysisPage() {
   return (
     <div className="space-y-6">
       <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">Analysis</h2>
+        <h1 className="text-3xl font-semibold">Analysis</h1>
         <Button
           variant="outline"
           size="sm"

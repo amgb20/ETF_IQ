@@ -70,7 +70,7 @@ async def sync_prices(
     if not connector:
         raise HTTPException(status_code=500, detail="yfinance connector not available")
 
-    await connector.ingest(db, tickers=tickers, period="1y")
+    await connector.ingest(db, tickers=tickers, period="max")
 
     count_result = await db.execute(
         select(Price.etf_id, Price.date)

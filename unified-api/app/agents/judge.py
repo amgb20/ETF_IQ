@@ -34,6 +34,11 @@ class JudgeAgent:
         run_date: date,
     ) -> list[dict]:
         """Evaluate all unevaluated predictions from the previous week."""
+        import time as _time
+
+        t0 = _time.perf_counter()
+        logger.info("Judge starting evaluation for portfolio %s (run_date=%s)", portfolio_id, run_date)
+
         async with async_session() as session:
             previous_outputs = await self._load_unevaluated(session, portfolio_id, run_date)
 
@@ -41,15 +46,18 @@ class JudgeAgent:
                 logger.info("Judge: no unevaluated outputs found for portfolio %s — cold start or already evaluated", portfolio_id)
                 return []
 
+            logger.info("Judge: found %d unevaluated outputs, building context...", len(previous_outputs))
             ctx = await build(portfolio_id, session)
             market = await build_market_summary(session, days=14)
             market_str = market_data_to_prompt(market)
 
             prompt = self._build_prompt(previous_outputs, ctx.to_prompt_string(), market_str)
 
+            logger.info("Judge: calling LLM...")
             response = await llm_client.generate(prompt, config=llm_client.STANDARD_CONFIG)
 
             evaluations = self._parse_evaluations(response.text)
+            logger.info("Judge: parsed %d evaluations, writing back scores...", len(evaluations))
 
             await self._write_evaluations(session, evaluations, run_date)
 
@@ -62,9 +70,10 @@ class JudgeAgent:
                 response=response,
             )
 
+            elapsed_ms = int((_time.perf_counter() - t0) * 1000)
             logger.info(
-                "Judge evaluated %d agent outputs for portfolio %s",
-                len(evaluations), portfolio_id,
+                "Judge completed: evaluated %d agent outputs for portfolio %s (elapsed=%dms)",
+                len(evaluations), portfolio_id, elapsed_ms,
             )
             return evaluations
 

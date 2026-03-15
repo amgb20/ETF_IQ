@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useGenerateReport } from "@/hooks/use-reports";
+import { cn } from "@/lib/utils";
 
 const REPORT_TYPES = ["Weekly Health", "Monthly Deep Research"] as const;
 const SECTIONS = ["Exec Summary", "AI Stack", "Gold", "Defence", "Macro", "Risk", "Recommendations"];
@@ -46,16 +47,24 @@ export function GenerateReportForm({ portfolioId, onGenerated }: Props) {
       <CardContent className="space-y-4">
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div>
-            <label className="text-xs text-muted-foreground block mb-1">Report Type</label>
-            <select
-              className="rounded-md border border-input bg-background px-3 py-1.5 text-sm w-full"
-              value={reportType}
-              onChange={(e) => setReportType(e.target.value)}
-            >
+            <label className="text-xs text-muted-foreground block mb-2">Report Type</label>
+            <div className="flex gap-2">
               {REPORT_TYPES.map((t) => (
-                <option key={t} value={t}>{t}</option>
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setReportType(t)}
+                  className={cn(
+                    "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors",
+                    reportType === t
+                      ? "bg-primary/20 text-primary border-primary/40"
+                      : "bg-secondary text-muted-foreground border-border hover:border-primary/30 hover:text-foreground"
+                  )}
+                >
+                  {t === "Weekly Health" ? "Weekly" : "Monthly"}
+                </button>
               ))}
-            </select>
+            </div>
           </div>
 
           <div>
@@ -88,15 +97,19 @@ export function GenerateReportForm({ portfolioId, onGenerated }: Props) {
           <label className="text-xs text-muted-foreground block mb-2">Sections</label>
           <div className="flex flex-wrap gap-2">
             {SECTIONS.map((s) => (
-              <label key={s} className="flex items-center gap-1.5 text-sm">
-                <input
-                  type="checkbox"
-                  checked={checkedSections.includes(s)}
-                  onChange={() => toggleSection(s)}
-                  className="rounded border-input"
-                />
+              <button
+                key={s}
+                type="button"
+                onClick={() => toggleSection(s)}
+                className={cn(
+                  "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors",
+                  checkedSections.includes(s)
+                    ? "bg-primary/20 text-primary border-primary/40"
+                    : "bg-secondary text-muted-foreground border-border hover:border-primary/30 hover:text-foreground"
+                )}
+              >
                 {s}
-              </label>
+              </button>
             ))}
           </div>
         </div>
@@ -108,12 +121,12 @@ export function GenerateReportForm({ portfolioId, onGenerated }: Props) {
         </div>
 
         <Button
-          className="w-full sm:w-auto"
+          className="w-full sm:w-auto tracking-[0.15em]"
           onClick={handleGenerate}
           disabled={!portfolioId || generateReport.isPending}
         >
           {generateReport.isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-          Generate Report
+          GENERATE REPORT
         </Button>
       </CardContent>
     </Card>

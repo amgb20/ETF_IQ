@@ -205,6 +205,13 @@ class ReportWriter:
         report_type: str,
         run_date: date,
     ) -> str:
+        import time as _time
+
+        t0 = _time.perf_counter()
+        logger.info(
+            "ReportWriter.build_pdf starting: portfolio=%s type=%s sections=%d agent_outputs=%d",
+            portfolio_name, report_type, len(sections), len(agent_outputs),
+        )
         os.makedirs(REPORTS_DIR, exist_ok=True)
         styles = _build_styles()
 
@@ -347,5 +354,6 @@ class ReportWriter:
         story.append(Paragraph(_esc(DISCLAIMER_TEXT), styles["disclaimer_body"]))
 
         doc.build(story)
-        logger.info("PDF report written: %s", filepath)
+        elapsed_ms = int((_time.perf_counter() - t0) * 1000)
+        logger.info("ReportWriter.build_pdf complete: %s (elapsed=%dms)", filepath, elapsed_ms)
         return filepath

@@ -390,24 +390,37 @@ class ChatAgent:
             if msg_count != 2:
                 return
 
-            title = first_msg.strip()[:100]
-            if len(title) > 50:
-                from google.genai.types import GenerateContentConfig
-                client = llm_client.get_client()
-                settings = get_settings()
-                resp = await client.aio.models.generate_content(
-                    model=settings.GEMINI_MODEL,
-                    contents=(
-                        "Summarize the following user question into a short chat title "
-                        "(max 6 words, no quotes, no punctuation at the end):\n\n"
-                        f"{first_msg}"
-                    ),
-                    config=GenerateContentConfig(
-                        temperature=0.0,
-                        max_output_tokens=30,
-                    ),
-                )
-                title = (resp.text or title).strip().strip('"').strip("'")[:120]
+            from google.genai.types import GenerateContentConfig
+            client = llm_client.get_client()
+            settings = get_settings()
+            resp = await client.aio.models.generate_content(
+                model=settings.GEMINI_FLASH_MODEL,
+                contents=(
+                    "Rephrase the following user message as a concise chat title "
+                    "(3-6 words) that captures the main topic and intent. "
+                    "Do not extract a single keyword.\n\n"
+                    "Examples:\n"
+                    'User: "hello"\n'
+                    "Title: New Conversation\n"
+                    'User: "AU"\n'
+                    "Title: AU ETF Discussion\n"
+                    'User: "What happened to my portfolio last Friday?"\n'
+                    "Title: Portfolio Changes Last Friday\n"
+                    'User: "Can you compare my ETF performance over 6 months?"\n'
+                    "Title: ETF Performance 6-Month Comparison\n\n"
+                    f"User: \"{first_msg}\"\nTitle:"
+                ),
+                config=GenerateContentConfig(
+                    temperature=0.0,
+                    max_output_tokens=30,
+                ),
+            )
+            title = (resp.text or first_msg.strip()[:100]).strip().strip('"').strip("'")[:120]
+
+            logger.info(
+                "Title generated for session %s: %r (from: %r)",
+                self.session_id, title, first_msg[:80],
+            )
 
             await session.execute(
                 update(ChatSession)
@@ -416,7 +429,7 @@ class ChatAgent:
             )
             await session.commit()
         except Exception:
-            logger.debug("Title generation failed, skipping", exc_info=True)
+            logger.warning("Title generation failed for session %s", self.session_id, exc_info=True)
 
     async def _load_history(self, session: AsyncSession) -> list[ChatMessage]:
         result = await session.execute(

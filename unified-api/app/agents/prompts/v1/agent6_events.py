@@ -44,9 +44,13 @@ Fields:
 - themes: array of theme tags (optional)
 - sentiment: "positive", "negative", or "neutral" (required)
 - importance: 1-5, where 5 is most important (required)
-- source_agent: which analyst agent mentioned this (optional)
-- source_url: if a URL was cited (optional)
+- source_agent: which analyst agent mentioned this (required)
+- source_url: REQUIRED — the URL from SOURCES CITED that best supports this event. \
+You MUST include a source_url for every event. Pick the most relevant URL from the \
+SOURCES CITED blocks. If no exact match exists, use the most relevant URL from the \
+same agent's SOURCES CITED block. Never leave this field empty or null.
 
 Extract between 3 and 15 events. Prioritise higher-importance events.
 Do NOT fabricate events — only extract what is explicitly mentioned in the agent summaries.
+Do NOT fabricate URLs — only use URLs that appear in the SOURCES CITED blocks.
 """

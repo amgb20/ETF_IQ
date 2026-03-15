@@ -18,6 +18,7 @@ class Settings(BaseSettings):
     # Gemini
     GOOGLE_API_KEY: str = ""
     GEMINI_MODEL: str = "models/gemini-3.1-pro-preview"
+    GEMINI_FLASH_MODEL: str = "models/gemini-2.5-flash"
     GEMINI_EMBEDDING_MODEL: str = "models/gemini-embedding-2-preview"
 
     # Email (Resend)

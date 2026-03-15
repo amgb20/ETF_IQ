@@ -2,7 +2,10 @@
   "permissions": {
     "allow": [
       "WebFetch(domain:ai.google.dev)",
-      "Bash(find /c/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/unified-api/app/schemas -type f -name \"*.py\" | xargs grep -l \"user\\\\|User\" 2>/dev/null)"
+      "Bash(find /c/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/unified-api/app/schemas -type f -name \"*.py\" | xargs grep -l \"user\\\\|User\" 2>/dev/null)",
+      "Bash(npx tsc:*)",
+      "Bash(ls C:/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/.venv/Scripts/*.exe)",
+      "Bash(\"C:/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/.venv/Scripts/python.exe\" -m pip install alembic)"
     ]
   }
 }

@@ -45,9 +45,14 @@ class EventMapperAgent:
         research_outputs: list[AgentOutput],
     ) -> list[ChartEvent]:
         """Extract timeline events from research outputs and store them."""
+        import time as _time
 
-        # Pre-extract data from (potentially detached) SQLAlchemy objects
-        # into plain Python structures before opening a new session.
+        t0 = _time.perf_counter()
+        logger.info(
+            "EventMapper starting for portfolio %s (run_date=%s, research_outputs=%d)",
+            portfolio_id, run_date, len(research_outputs),
+        )
+
         summaries: list[str] = []
         output_ids: dict[str, uuid.UUID] = {}
         for o in research_outputs:
@@ -56,7 +61,10 @@ class EventMapperAgent:
                 rd = o.run_date
                 summary = o.summary[:2000]
                 oid = o.id
-                summaries.append(f"--- {name} (run_date: {rd}) ---\n{summary}")
+                block = f"--- {name} (run_date: {rd}) ---\n{summary}"
+                if o.sources_cited:
+                    block += "\nSOURCES CITED:\n" + self._format_sources(o.sources_cited)
+                summaries.append(block)
                 output_ids[name] = oid
             except Exception:
                 logger.exception("EventMapper: failed to read research output attrs")
@@ -72,14 +80,37 @@ class EventMapperAgent:
         llm_error: str | None = None
 
         try:
+            logger.info("EventMapper: calling LLM...")
             response = await llm_client.generate(
                 prompt, config=llm_client.STRUCTURED_OUTPUT_CONFIG,
             )
             raw_events = self._parse_events(response.text)
-            logger.info("EventMapper LLM returned %d parsed events", len(raw_events))
+            logger.info("EventMapper: LLM returned %d parsed events", len(raw_events))
         except Exception as exc:
             logger.exception("EventMapper: LLM call failed: %s", exc)
             llm_error = str(exc)
+
+        # Backfill source_url from agent's sources_cited when LLM omitted it
+        sources_by_agent: dict[str, list] = {}
+        for o in research_outputs:
+            try:
+                if o.sources_cited:
+                    items = o.sources_cited if isinstance(o.sources_cited, list) else [o.sources_cited]
+                    sources_by_agent[o.agent_name] = items
+            except Exception:
+                pass
+
+        for ev in raw_events:
+            if not isinstance(ev, dict):
+                continue
+            if not ev.get("source_url") and ev.get("source_agent"):
+                agent_sources = sources_by_agent.get(ev["source_agent"], [])
+                for item in agent_sources:
+                    if isinstance(item, dict):
+                        url = item.get("url") or item.get("uri") or item.get("link")
+                        if url:
+                            ev["source_url"] = url
+                            break
 
         chart_events: list[ChartEvent] = []
 
@@ -149,10 +180,29 @@ class EventMapperAgent:
             except Exception:
                 logger.exception("EventMapper: failed to embed event %s", event.id)
 
+        elapsed_ms = int((_time.perf_counter() - t0) * 1000)
         logger.info(
-            "EventMapper extracted %d events for portfolio %s", len(chart_events), portfolio_id
+            "EventMapper completed: extracted %d events for portfolio %s (elapsed=%dms)",
+            len(chart_events), portfolio_id, elapsed_ms,
         )
         return chart_events
+
+    @staticmethod
+    def _format_sources(sources_cited: dict | list | None) -> str:
+        """Flatten sources_cited (JSONB) into a readable list of URLs for the prompt."""
+        if not sources_cited:
+            return ""
+        lines: list[str] = []
+        items = sources_cited if isinstance(sources_cited, list) else [sources_cited]
+        for item in items:
+            if isinstance(item, dict):
+                url = item.get("url") or item.get("uri") or item.get("link", "")
+                title = item.get("title", "")
+                if url:
+                    lines.append(f"  - {title}: {url}" if title else f"  - {url}")
+            elif isinstance(item, str):
+                lines.append(f"  - {item}")
+        return "\n".join(lines) if lines else json.dumps(sources_cited)[:500]
 
     def _build_prompt(self, concatenated_summaries: str) -> str:
         return f"{SYSTEM_PROMPT}\n\nRESEARCH AGENT SUMMARIES:\n{concatenated_summaries}"
@@ -170,8 +220,9 @@ class EventMapperAgent:
                     continue
                 if not isinstance(data, list) or len(data) == 0:
                     continue
-                if all(isinstance(item, dict) for item in data):
-                    return data
+                events = [item for item in data if isinstance(item, dict)]
+                if events:
+                    return events
 
         # Fallback: the JSON array may be truncated (model hit token limit).
         # Try to recover complete objects before the truncation point.

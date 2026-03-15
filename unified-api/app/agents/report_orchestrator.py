@@ -1,8 +1,9 @@
-"""Report Generation Orchestrator -- triggers agent cycle and builds docx."""
+"""Report Generation Orchestrator -- triggers agent cycle and builds PDF."""
 
 from __future__ import annotations
 
 import logging
+import time as _time
 import uuid
 from datetime import date
 
@@ -33,6 +34,7 @@ class ReportOrchestrator:
         sections = sections or DEFAULT_SECTIONS
         run_type = "deep_research" if report_type == "monthly" else "standard"
         run_date = date.today()
+        t0 = _time.perf_counter()
 
         try:
             async with async_session() as session:
@@ -44,13 +46,19 @@ class ReportOrchestrator:
                 await session.commit()
 
             logger.info(
-                "ReportOrchestrator starting: report=%s portfolio=%s type=%s",
-                report_id, portfolio_id, report_type,
+                "ReportOrchestrator starting: report=%s portfolio=%s type=%s sections=%s",
+                report_id, portfolio_id, report_type, sections,
             )
 
+            logger.info("ReportOrchestrator: running agent pipeline...")
             result = await WeeklyOrchestrator.run(portfolio_id, run_date, run_type)
+            logger.info(
+                "ReportOrchestrator: agent pipeline finished (succeeded=%s, failed=%s)",
+                result.get("agents_succeeded"), result.get("agents_failed"),
+            )
 
             async with async_session() as session:
+                logger.info("ReportOrchestrator: building PDF...")
                 ctx = await build_context(portfolio_id, session)
 
                 agent_result = await session.execute(
@@ -61,6 +69,7 @@ class ReportOrchestrator:
                     )
                 )
                 agent_outputs = list(agent_result.scalars().all())
+                logger.info("ReportOrchestrator: found %d agent outputs for PDF", len(agent_outputs))
 
                 filepath = ReportWriter.build_pdf(
                     portfolio_name=ctx.portfolio_name,
@@ -111,10 +120,12 @@ class ReportOrchestrator:
                 except Exception:
                     logger.debug("Failed to create report-ready notification", exc_info=True)
 
-            logger.info("ReportOrchestrator complete: report=%s", report_id)
+            elapsed_ms = int((_time.perf_counter() - t0) * 1000)
+            logger.info("ReportOrchestrator complete: report=%s (elapsed=%dms)", report_id, elapsed_ms)
 
         except Exception:
-            logger.exception("ReportOrchestrator failed: report=%s", report_id)
+            elapsed_ms = int((_time.perf_counter() - t0) * 1000)
+            logger.exception("ReportOrchestrator failed: report=%s (elapsed=%dms)", report_id, elapsed_ms)
             try:
                 async with async_session() as session:
                     await session.execute(

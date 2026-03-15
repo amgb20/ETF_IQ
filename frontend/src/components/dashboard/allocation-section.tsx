@@ -1,5 +1,5 @@
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { AllocationBar } from "@/components/charts/allocation-bar";
+import { AllocationPie } from "@/components/charts/allocation-pie";
 import { tickerLabel } from "@/lib/constants";
 import type { PositionBrief } from "@/hooks/use-portfolios";
 
@@ -23,7 +23,7 @@ export function AllocationSection({ positions, totalValue }: Props) {
         <CardTitle className="text-base">Allocation</CardTitle>
       </CardHeader>
       <CardContent>
-        <AllocationBar items={items} />
+        <AllocationPie items={items} />
       </CardContent>
     </Card>
   );

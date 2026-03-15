@@ -20,5 +20,6 @@ class User(Base):
     notify_email: Mapped[bool] = mapped_column(Boolean, default=True)
     notify_digest: Mapped[bool] = mapped_column(Boolean, default=True)
     accepted_tos: Mapped[bool] = mapped_column(Boolean, default=False)
+    is_onboarded: Mapped[bool] = mapped_column(Boolean, default=False, server_default="false")
     theme: Mapped[str] = mapped_column(String(10), default="dark", server_default="dark")
     created_at: Mapped[str] = mapped_column(server_default=func.now())

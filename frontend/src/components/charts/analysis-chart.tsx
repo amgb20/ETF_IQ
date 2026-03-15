@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import {
   createChart,
   LineSeries,
@@ -13,7 +13,7 @@ import {
 } from "lightweight-charts";
 import { CHART_COLORS } from "@/lib/constants";
 import { Skeleton } from "@/components/ui/skeleton";
-import { EventTooltip } from "@/components/analysis/event-tooltip";
+import { EventPinnedCard } from "@/components/analysis/event-tooltip";
 import type { ChartEvent } from "@/hooks/use-events";
 
 interface SeriesData {
@@ -28,24 +28,35 @@ interface Props {
   events?: ChartEvent[];
 }
 
-function eventToMarker(event: ChartEvent): SeriesMarker<Time> {
-  const isPositive = event.sentiment === "positive";
-  const isNegative = event.sentiment === "negative";
-  return {
-    time: event.event_date as Time,
-    position: isNegative ? "belowBar" : "aboveBar",
-    color: isPositive ? "#22c55e" : isNegative ? "#ef4444" : "#a1a1aa",
-    shape: isPositive ? "arrowUp" : isNegative ? "arrowDown" : "circle",
-    text: event.headline.length > 30 ? event.headline.slice(0, 27) + "..." : event.headline,
-  };
-}
+const CHART_HEIGHT = 400;
 
 export function AnalysisChart({ series, loading, chartType = "line", events }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRefs = useRef<ISeriesApi<any>[]>([]);
-  const [tooltip, setTooltip] = useState<{ event: ChartEvent; x: number; y: number } | null>(null);
 
+  const [pinnedCard, setPinnedCard] = useState<{
+    events: ChartEvent[];
+    x: number;
+    y: number;
+  } | null>(null);
+
+  const eventsByDate = useMemo(() => {
+    const map = new Map<string, ChartEvent[]>();
+    if (!events?.length) return map;
+    for (const ev of events) {
+      const existing = map.get(ev.event_date) ?? [];
+      existing.push(ev);
+      map.set(ev.event_date, existing);
+    }
+    return map;
+  }, [events]);
+
+  // Maps the visual (possibly snapped) marker date → events, so clicks resolve correctly
+  // even when event dates are beyond the price data range.
+  const clickMapRef = useRef(new Map<string, ChartEvent[]>());
+
+  // ── Create chart ────────────────────────────────────────────────────────
   useEffect(() => {
     if (!containerRef.current) return;
 
@@ -59,11 +70,9 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
         horzLines: { color: "#27272a" },
       },
       width: containerRef.current.clientWidth,
-      height: 400,
+      height: CHART_HEIGHT,
       timeScale: { borderColor: "#27272a" },
-      rightPriceScale: {
-        borderColor: "#27272a",
-      },
+      rightPriceScale: { borderColor: "#27272a" },
     });
     chartRef.current = chart;
 
@@ -81,6 +90,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
     };
   }, []);
 
+  // ── Populate series + consolidated markers (one per date/series/sentiment) ─
   useEffect(() => {
     const chart = chartRef.current;
     if (!chart) return;
@@ -89,6 +99,9 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
       try { chart.removeSeries(s); } catch { /* already gone */ }
     }
     seriesRefs.current = [];
+
+    const placedGroups = new Set<string>();
+    const clickMap = new Map<string, ChartEvent[]>();
 
     series.forEach((s, i) => {
       const color = CHART_COLORS[i % CHART_COLORS.length];
@@ -118,16 +131,58 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
       seriesApi.setData(s.data as any);
 
       if (events?.length && chartType !== "bar") {
-        const seriesLabel = s.label;
-        const relevantEvents = events.filter((ev) =>
-          ev.tickers.some(
-            (t) => t === seriesLabel || t.replace(".L", "") === seriesLabel,
-          ),
-        );
-        if (relevantEvents.length > 0) {
-          const markers = relevantEvents
-            .map(eventToMarker)
-            .sort((a, b) => (a.time as string).localeCompare(b.time as string));
+        const lastDataDate = s.data.length > 0 ? s.data[s.data.length - 1].time : null;
+        const firstDataDate = s.data.length > 0 ? s.data[0].time : null;
+        const markers: SeriesMarker<Time>[] = [];
+
+        for (const [date, dateEvents] of eventsByDate) {
+          const matching = dateEvents.filter((ev) =>
+            ev.tickers.some(
+              (t) => t === s.label || t.replace(".L", "") === s.label,
+            ),
+          );
+          if (matching.length === 0) continue;
+
+          // Snap dates outside the series data range to the nearest edge
+          let visualDate = date;
+          if (lastDataDate && date > lastDataDate) visualDate = lastDataDate;
+          else if (firstDataDate && date < firstDataDate) visualDate = firstDataDate;
+
+          const bySentiment = new Map<string, ChartEvent[]>();
+          for (const ev of matching) {
+            const sent = ev.sentiment ?? "neutral";
+            const arr = bySentiment.get(sent) ?? [];
+            arr.push(ev);
+            bySentiment.set(sent, arr);
+          }
+
+          for (const [sentiment, group] of bySentiment) {
+            const key = `${date}|${s.label}|${sentiment}`;
+            if (placedGroups.has(key)) continue;
+            placedGroups.add(key);
+
+            const isPositive = sentiment === "positive";
+            const isNegative = sentiment === "negative";
+
+            markers.push({
+              time: visualDate as Time,
+              position: "aboveBar",
+              color: isPositive ? "#22c55e" : isNegative ? "#ef4444" : "#a1a1aa",
+              shape: isPositive ? "arrowUp" : isNegative ? "arrowDown" : "circle",
+              text: group.length > 1 ? `${group.length}` : "",
+            });
+
+            // Register events under the visual date for click resolution
+            const existing = clickMap.get(visualDate) ?? [];
+            for (const ev of group) {
+              if (!existing.some((e) => e.id === ev.id)) existing.push(ev);
+            }
+            clickMap.set(visualDate, existing);
+          }
+        }
+
+        if (markers.length > 0) {
+          markers.sort((a, b) => (a.time as string).localeCompare(b.time as string));
           createSeriesMarkers(seriesApi, markers);
         }
       }
@@ -135,51 +190,40 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
       seriesRefs.current.push(seriesApi);
     });
 
+    clickMapRef.current = clickMap;
     chart.timeScale().fitContent();
-  }, [series, chartType, events]);
+  }, [series, chartType, events, eventsByDate]);
 
-  const handleClick = useCallback(
-    (e: React.MouseEvent<HTMLDivElement>) => {
-      if (!events?.length || !chartRef.current || !containerRef.current) {
-        setTooltip(null);
+  // ── Click → pin / dismiss card ──────────────────────────────────────────
+  useEffect(() => {
+    const chart = chartRef.current;
+    if (!chart) return;
+
+    const handler = (param: any) => {
+      if (!param.time || !param.point || !events?.length) {
+        setPinnedCard(null);
         return;
       }
-
-      const chart = chartRef.current;
-      const rect = containerRef.current.getBoundingClientRect();
-      const x = e.clientX - rect.left;
-      const param = chart.timeScale().coordinateToLogical(x);
-      if (param == null) { setTooltip(null); return; }
-
-      const closest = events.reduce<ChartEvent | null>((best, ev) => {
-        const evCoord = chart.timeScale().timeToCoordinate(ev.event_date as Time);
-        if (evCoord == null) return best;
-        const dist = Math.abs(evCoord - x);
-        if (dist < 20) {
-          if (!best) return ev;
-          const bestCoord = chart.timeScale().timeToCoordinate(best.event_date as Time);
-          if (bestCoord == null) return ev;
-          return dist < Math.abs(bestCoord - x) ? ev : best;
-        }
-        return best;
-      }, null);
-
-      if (closest) {
-        setTooltip({ event: closest, x: e.clientX - rect.left, y: e.clientY - rect.top });
+      const timeStr = param.time as string;
+      // Check snapped click map first (handles future-date markers),
+      // then fall back to the original eventsByDate for exact matches.
+      const matched = clickMapRef.current.get(timeStr) ?? eventsByDate.get(timeStr);
+      if (matched?.length) {
+        setPinnedCard({ events: matched, x: param.point.x, y: param.point.y });
       } else {
-        setTooltip(null);
+        setPinnedCard(null);
       }
-    },
-    [events],
-  );
+    };
+
+    chart.subscribeClick(handler);
+    return () => chart.unsubscribeClick(handler);
+  }, [events, eventsByDate]);
 
   const hasData = series.length > 0;
-
-  const yLabel =
-    chartType === "drawdown" ? "Drawdown (%)" : "Growth (%)";
+  const yLabel = chartType === "drawdown" ? "Drawdown (%)" : "Growth (%)";
 
   return (
-    <div className="relative w-full rounded-xl" onClick={handleClick}>
+    <div className="relative w-full rounded-xl">
       {!loading && hasData && (
         <div className="absolute top-2 left-2 z-10 text-[11px] text-muted-foreground font-medium pointer-events-none">
           {yLabel}
@@ -205,13 +249,15 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
         </div>
       )}
 
-      {tooltip && (
-        <div
-          className="absolute z-50"
-          style={{ left: tooltip.x, top: tooltip.y - 10, transform: "translateX(-50%) translateY(-100%)" }}
-        >
-          <EventTooltip event={tooltip.event} />
-        </div>
+      {pinnedCard && (
+        <EventPinnedCard
+          events={pinnedCard.events}
+          x={pinnedCard.x}
+          y={pinnedCard.y}
+          containerWidth={containerRef.current?.clientWidth ?? 600}
+          containerHeight={CHART_HEIGHT}
+          onClose={() => setPinnedCard(null)}
+        />
       )}
     </div>
   );

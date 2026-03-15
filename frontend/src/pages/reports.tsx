@@ -12,6 +12,10 @@ export default function ReportsPage() {
 
   return (
     <div className="space-y-6">
+      <div className="flex items-end justify-between">
+        <h1 className="text-3xl font-semibold">Reports</h1>
+        <p className="text-xs text-muted-foreground pb-1 tracking-wider">AI-generated analysis</p>
+      </div>
       <GenerateReportForm
         portfolioId={portfolioId}
         onGenerated={(id) => setActiveReportId(id)}

@@ -52,7 +52,7 @@ export function ThemeCards({ positions }: Props) {
               </div>
             </CardHeader>
             <CardContent className="space-y-1">
-              <p className="text-sm font-medium">{formatCurrency(value)}</p>
+              <p className="text-sm font-medium text-foreground tabular-nums">{formatCurrency(value)}</p>
               <p className="text-xs text-muted-foreground">
                 {theme.positions.map((p) => tickerLabel(p.ticker_yf, p.etf_isin)).join(", ")}
               </p>
