@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { apiFetch } from "@/lib/api-client";
 
-interface ETFResult {
+export interface ETFResult {
   id: string;
   isin: string;
   ticker_yf: string | null;
@@ -11,6 +11,9 @@ interface ETFResult {
   exchange: string | null;
 }
 
+/**
+ * Search the local DB only (fast, but limited to already-ingested ETFs).
+ */
 export function useETFSearch(query: string) {
   const [debouncedQuery, setDebouncedQuery] = useState(query);
 
@@ -28,6 +31,10 @@ export function useETFSearch(query: string) {
   });
 }
 
+/**
+ * Search the full justETF universe (slower, but finds any ETF).
+ * Results are auto-ingested into the local DB with valid IDs.
+ */
 export function useETFDiscover(query: string) {
   const [debouncedQuery, setDebouncedQuery] = useState(query);
 

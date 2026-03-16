@@ -46,22 +46,59 @@ async def search_etfs(
     return [ETFListItem.model_validate(e) for e in etfs]
 
 
-@router.get("/discover", response_model=list[ETFDiscoverItem])
+@router.get("/discover", response_model=list[ETFListItem])
 async def discover_etfs(
     q: str = Query("", min_length=0),
     asset_class: str | None = None,
     country: str | None = None,
+    db: AsyncSession = Depends(get_db),
 ):
-    """Search the justETF universe for ETFs to add to a portfolio."""
+    """Search the justETF universe and auto-ingest results into the local DB."""
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
     from data_connectors.registry import get_registry
 
     connector = get_registry().get("justetf_discovery")
     if not connector:
+        logger.warning("justetf_discovery connector not registered")
         return []
 
-    raw = await connector.fetch(query=q, asset_class=asset_class, country=country)
-    normalized = await connector.normalize(raw)
-    return [ETFDiscoverItem(**item) for item in normalized]
+    try:
+        raw = await connector.fetch(query=q, asset_class=asset_class, country=country)
+        normalized = await connector.normalize(raw)
+    except Exception:
+        logger.exception("ETF discover fetch/normalize failed for q=%r", q)
+        return []
+
+    if not normalized:
+        return []
+
+    try:
+        for item in normalized:
+            stmt = pg_insert(ETF.__table__).values(
+                isin=item["isin"],
+                name=item["name"],
+                ticker_yf=item.get("ticker_yf"),
+                currency=item.get("currency"),
+                exchange=item.get("exchange"),
+                ter=item.get("ter"),
+                aum_eur=item.get("aum_eur"),
+                domicile=item.get("domicile"),
+            ).on_conflict_do_update(
+                index_elements=["isin"],
+                set_={"name": item["name"]},
+            )
+            await db.execute(stmt)
+        await db.commit()
+    except Exception:
+        logger.exception("ETF discover ingest failed")
+        await db.rollback()
+
+    isins = [item["isin"] for item in normalized]
+    result = await db.execute(
+        select(ETF).where(ETF.isin.in_(isins)).order_by(ETF.name)
+    )
+    etfs = result.scalars().all()
+    return [ETFListItem.model_validate(e) for e in etfs]
 
 
 @router.get("/{isin}/quote", response_model=QuoteResponse)

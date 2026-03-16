@@ -1,19 +1,10 @@
 import { useState } from "react";
-import { Search, Plus, X, Loader2, ArrowRight, Sparkles } from "lucide-react";
+import { Search, Plus, X, Loader2, ArrowRight } from "lucide-react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { useETFSearch } from "@/hooks/use-etf-search";
+import { useETFDiscover } from "@/hooks/use-etf-search";
 import type { DraftETF } from "@/types/onboarding";
-
-// Demo ETFs — ISINs that are likely in the DB for testing
-const DEMO_ETFS: DraftETF[] = [
-  { id: "", isin: "IE00B4L5Y983", name: "iShares Core MSCI World", ticker_yf: "IWDA.L" },
-  { id: "", isin: "IE00B4L5YC18", name: "iShares MSCI EM", ticker_yf: "IEMA.L" },
-  { id: "", isin: "IE00B579F325", name: "Invesco Physical Gold", ticker_yf: "SGLD.L" },
-  { id: "", isin: "IE00BFMXXD54", name: "Vanguard S&P 500", ticker_yf: "VUSA.L" },
-  { id: "", isin: "IE00BGL86Z12", name: "iShares Automation & Robotics", ticker_yf: "RBOT.L" },
-];
 
 interface StepAddEtfsProps {
   etfs: DraftETF[];
@@ -24,7 +15,7 @@ interface StepAddEtfsProps {
 
 export function StepAddEtfs({ etfs, setEtfs, onAnalyze, isAnalyzing }: StepAddEtfsProps) {
   const [searchQuery, setSearchQuery] = useState("");
-  const { data: searchResults, isLoading: searching } = useETFSearch(searchQuery);
+  const { data: searchResults, isLoading: searching } = useETFDiscover(searchQuery);
 
   const addETF = (etf: { id: string; isin: string; name: string; ticker_yf: string | null }) => {
     if (etfs.some((e) => e.isin === etf.isin)) return;
@@ -33,11 +24,6 @@ export function StepAddEtfs({ etfs, setEtfs, onAnalyze, isAnalyzing }: StepAddEt
   };
 
   const removeETF = (isin: string) => setEtfs((prev) => prev.filter((e) => e.isin !== isin));
-
-  const loadDemo = () => {
-    const newEtfs = DEMO_ETFS.filter((d) => !etfs.some((e) => e.isin === d.isin));
-    setEtfs((prev) => [...prev, ...newEtfs]);
-  };
 
   return (
     <div className="max-w-2xl mx-auto space-y-6">
@@ -56,7 +42,7 @@ export function StepAddEtfs({ etfs, setEtfs, onAnalyze, isAnalyzing }: StepAddEt
               type="text"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Search by name, ISIN, or ticker..."
+              placeholder="Search all ETFs by name, ISIN, or ticker..."
               className="w-full rounded-lg border border-input bg-background pl-9 pr-3 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-primary/50 focus:border-primary/40 transition-colors"
             />
           </div>
@@ -115,14 +101,8 @@ export function StepAddEtfs({ etfs, setEtfs, onAnalyze, isAnalyzing }: StepAddEt
             </div>
           )}
 
-          {/* Demo portfolio link */}
-          {etfs.length === 0 && (
-            <button
-              onClick={loadDemo}
-              className="text-xs text-primary hover:text-primary/80 transition-colors flex items-center gap-1"
-            >
-              <Sparkles className="h-3 w-3" /> Load demo portfolio for testing
-            </button>
+          {searchQuery.length >= 2 && !searching && searchResults?.length === 0 && (
+            <p className="text-sm text-muted-foreground">No ETFs found. Try a different name, ISIN, or ticker.</p>
           )}
         </CardContent>
       </Card>

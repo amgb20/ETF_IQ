@@ -10,7 +10,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus, X, Loader2, ArrowLeft, ArrowRight, Check } from "lucide-react";
-import { useETFSearch } from "@/hooks/use-etf-search";
+import { useETFDiscover } from "@/hooks/use-etf-search";
 import { useAddPosition } from "@/hooks/use-positions";
 
 interface DraftETF {
@@ -43,7 +43,7 @@ export function AddPositionModal({ open, onOpenChange, portfolioId, existingIsin
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const { data: results, isLoading: searching } = useETFSearch(searchQuery);
+  const { data: results, isLoading: searching } = useETFDiscover(searchQuery);
 
   const allExisting = [...existingIsins, ...drafts.map((d) => d.isin)];
 
@@ -126,7 +126,7 @@ export function AddPositionModal({ open, onOpenChange, portfolioId, existingIsin
                 type="text"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Search by name or ISIN..."
+                placeholder="Search all ETFs by name or ISIN..."
                 className="w-full rounded-md border border-input bg-background pl-9 pr-3 py-2 text-sm"
                 autoFocus
               />
