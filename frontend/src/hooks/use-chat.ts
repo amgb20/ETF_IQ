@@ -3,7 +3,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import { API_BASE, apiFetch } from "@/lib/api-client";
 
 export interface ChatSource {
-  uri: string;
+  url: string;
+  /** @deprecated Use `url` instead. Kept for backward compat with older SSE payloads. */
+  uri?: string;
   title?: string;
 }
 

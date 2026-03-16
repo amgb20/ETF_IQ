@@ -26,11 +26,12 @@ interface Props {
   loading?: boolean;
   chartType?: "line" | "bar" | "drawdown";
   events?: ChartEvent[];
+  isIntraday?: boolean;
 }
 
 const CHART_HEIGHT = 400;
 
-export function AnalysisChart({ series, loading, chartType = "line", events }: Props) {
+export function AnalysisChart({ series, loading, chartType = "line", events, isIntraday = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRefs = useRef<ISeriesApi<any>[]>([]);
@@ -71,7 +72,11 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
       },
       width: containerRef.current.clientWidth,
       height: CHART_HEIGHT,
-      timeScale: { borderColor: "#27272a" },
+      timeScale: {
+        borderColor: "#27272a",
+        timeVisible: isIntraday,
+        secondsVisible: false,
+      },
       rightPriceScale: { borderColor: "#27272a" },
     });
     chartRef.current = chart;
@@ -88,7 +93,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
       chart.remove();
       chartRef.current = null;
     };
-  }, []);
+  }, [isIntraday]);
 
   // ── Populate series + consolidated markers (one per date/series/sentiment) ─
   useEffect(() => {
@@ -128,7 +133,14 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
         });
       }
 
-      seriesApi.setData(s.data as any);
+      // For intraday, convert ISO timestamps to Unix seconds for lightweight-charts
+      const chartData = isIntraday
+        ? s.data.map((d) => ({
+            time: Math.floor(new Date(d.time).getTime() / 1000) as unknown as Time,
+            value: d.value,
+          }))
+        : (s.data as any);
+      seriesApi.setData(chartData);
 
       if (events?.length && chartType !== "bar") {
         const lastDataDate = s.data.length > 0 ? s.data[s.data.length - 1].time : null;
@@ -192,7 +204,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
 
     clickMapRef.current = clickMap;
     chart.timeScale().fitContent();
-  }, [series, chartType, events, eventsByDate]);
+  }, [series, chartType, events, eventsByDate, isIntraday]);
 
   // ── Click → pin / dismiss card ──────────────────────────────────────────
   useEffect(() => {
@@ -244,7 +256,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events }: P
       {!loading && !hasData && (
         <div className="flex h-[400px] w-full items-center justify-center rounded-xl border border-dashed border-border">
           <p className="text-sm text-muted-foreground">
-            No price data available. Click <strong>Sync Prices</strong> to fetch historical data.
+            No price data available. Prices will sync automatically.
           </p>
         </div>
       )}

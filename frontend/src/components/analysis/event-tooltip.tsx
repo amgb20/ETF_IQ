@@ -1,7 +1,18 @@
 import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import { Badge } from "@/components/ui/badge";
 import { ExternalLink, Calendar, X } from "lucide-react";
+import { apiFetch } from "@/lib/api-client";
 import type { ChartEvent } from "@/hooks/use-events";
+
+interface OGData {
+  url: string;
+  title: string | null;
+  description: string | null;
+  image: string | null;
+  site_name: string | null;
+  favicon: string | null;
+}
 
 function getDomain(url: string): string {
   try {
@@ -25,11 +36,20 @@ function formatDate(dateStr: string): string {
   });
 }
 
-// ── Link preview with thumbnail + favicon ──────────────────────────────────
+// ── Link preview with OG image + favicon ──────────────────────────────────
 function LinkPreview({ url }: { url: string }) {
-  const [thumbFailed, setThumbFailed] = useState(false);
+  const [imgFailed, setImgFailed] = useState(false);
   const domain = getDomain(url);
-  const thumbUrl = `https://image.thum.io/get/width/280/crop/150/noanimate/${url}`;
+
+  const { data: og } = useQuery<OGData>({
+    queryKey: ["og-meta", url],
+    queryFn: () => apiFetch(`/meta/og?url=${encodeURIComponent(url)}`),
+    staleTime: 60 * 60_000, // 1 hour
+    retry: false,
+  });
+
+  const ogImage = og?.image ?? null;
+  const faviconSrc = og?.favicon ?? `https://www.google.com/s2/favicons?domain=${domain}&sz=32`;
 
   return (
     <a
@@ -39,21 +59,19 @@ function LinkPreview({ url }: { url: string }) {
       className="group/link block rounded-md border border-border/60 overflow-hidden hover:border-border transition-colors"
       onClick={(e) => e.stopPropagation()}
     >
-      {!thumbFailed && (
+      {ogImage && !imgFailed && (
         <img
-          src={thumbUrl}
+          src={ogImage}
           alt=""
           className="w-full h-[90px] object-cover object-top bg-muted/50"
           loading="lazy"
-          onError={() => {
-            console.warn("[EventCard] thumbnail failed for:", url);
-            setThumbFailed(true);
-          }}
+          referrerPolicy="no-referrer"
+          onError={() => setImgFailed(true)}
         />
       )}
       <div className="flex items-center gap-1.5 px-2 py-1.5">
         <img
-          src={`https://www.google.com/s2/favicons?domain=${domain}&sz=16`}
+          src={faviconSrc}
           alt=""
           className="h-3.5 w-3.5 rounded-sm shrink-0"
           referrerPolicy="no-referrer"
@@ -61,7 +79,9 @@ function LinkPreview({ url }: { url: string }) {
             (e.currentTarget as HTMLImageElement).style.display = "none";
           }}
         />
-        <span className="text-[11px] text-muted-foreground truncate">{domain}</span>
+        <span className="text-[11px] text-muted-foreground truncate">
+          {og?.site_name || domain}
+        </span>
         <ExternalLink className="h-3 w-3 shrink-0 text-muted-foreground opacity-0 group-hover/link:opacity-100 transition-opacity ml-auto" />
       </div>
     </a>

@@ -21,7 +21,7 @@ TRADING_DAYS_PER_YEAR = 252
 class YFinanceConnector(BaseConnector):
     name = "yfinance"
 
-    async def fetch(self, *, tickers: list[str] | None = None, period: str = "5d", **_: Any) -> list[dict]:
+    async def fetch(self, *, tickers: list[str] | None = None, period: str = "5d", interval: str = "1d", **_: Any) -> list[dict]:
         """Download OHLCV data for given tickers via yfinance.
 
         Returns a list of dicts, one per ticker, each containing the ticker
@@ -34,8 +34,8 @@ class YFinanceConnector(BaseConnector):
         if EURUSD_TICKER not in all_tickers:
             all_tickers.append(EURUSD_TICKER)
 
-        logger.info("yfinance fetch: tickers=%s period=%s", all_tickers, period)
-        df = yf.download(all_tickers, period=period, group_by="ticker", threads=True)
+        logger.info("yfinance fetch: tickers=%s period=%s interval=%s", all_tickers, period, interval)
+        df = yf.download(all_tickers, period=period, interval=interval, group_by="ticker", threads=True)
 
         results: list[dict] = []
         if len(all_tickers) == 1:
@@ -119,6 +119,41 @@ class YFinanceConnector(BaseConnector):
             inserted += result.rowcount
         await session.commit()
         logger.info("yfinance ingest: inserted %d price rows, skipped %d (no etf_id match)", inserted, skipped)
+
+    # ------------------------------------------------------------------
+    # On-demand intraday fetch (no DB persistence)
+    # ------------------------------------------------------------------
+
+    async def fetch_intraday(
+        self, *, tickers: list[str], period: str = "1d", interval: str = "5m",
+    ) -> list[dict]:
+        """Fetch intraday OHLCV data and return normalized rows (not persisted).
+
+        Unlike ``ingest``, this returns data directly for the API to serve.
+        Each row contains a full ISO-8601 timestamp rather than a date.
+        """
+        raw = await self.fetch(tickers=tickers, period=period, interval=interval)
+        rows: list[dict] = []
+        for item in raw:
+            ticker = item["ticker"]
+            df_item: pd.DataFrame = item["df"]
+            if df_item.empty:
+                continue
+            for idx, row in df_item.iterrows():
+                ts = idx.isoformat() if hasattr(idx, "isoformat") else str(idx)
+                rows.append(
+                    {
+                        "ticker": ticker,
+                        "timestamp": ts,
+                        "open": _safe_float(row.get("Open")),
+                        "high": _safe_float(row.get("High")),
+                        "low": _safe_float(row.get("Low")),
+                        "close": _safe_float(row.get("Close")),
+                        "volume": _safe_int(row.get("Volume")),
+                    }
+                )
+        logger.info("yfinance fetch_intraday: %d rows for %s (%s/%s)", len(rows), tickers, period, interval)
+        return rows
 
     # ------------------------------------------------------------------
     # Metadata enrichment from yf.Ticker.info

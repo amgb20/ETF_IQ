@@ -1,7 +1,8 @@
 """JustETF Discovery Connector -- search across the full justETF universe.
 
-Uses justETF's internal Wicket AJAX search endpoint to discover ETFs
-by name, ISIN, asset class, or other filters.
+Uses justETF's Wicket AJAX endpoint: first GET the search page to
+establish a session and extract the dynamic counter, then POST for
+JSON ETF data.
 """
 
 from __future__ import annotations
@@ -9,6 +10,7 @@ from __future__ import annotations
 import logging
 import re
 from typing import Any
+from urllib.parse import quote as url_quote
 
 import httpx
 from sqlalchemy import select
@@ -19,79 +21,100 @@ from data_connectors.base import BaseConnector
 
 logger = logging.getLogger(__name__)
 
-JUSTETF_SEARCH_URL = "https://www.justetf.com/api/etfs/search"
+JUSTETF_BASE_URL = "https://www.justetf.com/en/search.html"
 JUSTETF_HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-    "Accept": "application/json",
-    "Referer": "https://www.justetf.com/en/find-etf.html",
+    "Referer": "https://www.justetf.com/en/search.html?search=ETFS",
 }
+
+WICKET_PANEL_PATTERN = re.compile(
+    r"(\d)-1\.0-container-tabsContentContainer-tabsContentRepeater-"
+    r"1-container-content-etfsTablePanel"
+)
 
 
 class JustETFDiscoveryConnector(BaseConnector):
     name = "justetf_discovery"
 
-    async def fetch(self, **params) -> list[dict]:
-        query = params.get("query", "")
-        asset_class = params.get("asset_class")
-        country = params.get("country")
+    async def _wicket_search(self, client: httpx.AsyncClient, query: str) -> list[dict]:
+        """Two-step Wicket AJAX search: GET page → POST for JSON data."""
+        page_resp = await client.get(
+            JUSTETF_BASE_URL,
+            params={"search": "ETFS"},
+            headers=JUSTETF_HEADERS,
+            follow_redirects=True,
+        )
+        page_resp.raise_for_status()
 
-        if not query and not asset_class:
-            return []
+        match = WICKET_PANEL_PATTERN.search(page_resp.text)
+        counter = int(match.group(1)) if match else 0
 
-        search_params: dict[str, Any] = {
-            "search": query,
-            "groupField": "none",
-            "sortField": "fundSize",
-            "sortOrder": "desc",
-            "from": 0,
-            "size": 30,
-            "locale": "en",
+        wicket_url = (
+            f"{JUSTETF_BASE_URL}?{counter}-1.0-container-tabsContentContainer-"
+            f"tabsContentRepeater-1-container-content-etfsTablePanel"
+            f"&search=ETFS&_wicket=1"
+        )
+
+        payload = {
+            "draw": "1",
+            "start": "0",
+            "length": "30",
+            "lang": "en",
+            "country": "DE",
+            "universeType": "private",
+            "defaultCurrency": "EUR",
+            "etfsParams": f"search=ETFS&query={url_quote(query)}",
         }
 
-        if asset_class:
-            search_params["assetClass"] = asset_class
-        if country:
-            search_params["country"] = country
+        data_resp = await client.post(
+            wicket_url,
+            data=payload,
+            headers={
+                **JUSTETF_HEADERS,
+                "Accept": "application/json",
+                "Wicket-Ajax": "true",
+                "Wicket-Ajax-BaseURL": "en/search.html?search=ETFS",
+                "X-Requested-With": "XMLHttpRequest",
+                "Content-Type": "application/x-www-form-urlencoded; charset=UTF-8",
+            },
+            follow_redirects=True,
+        )
+        data_resp.raise_for_status()
+        return data_resp.json().get("data", [])
 
-        try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                response = await client.get(
-                    JUSTETF_SEARCH_URL,
-                    params=search_params,
-                    headers=JUSTETF_HEADERS,
-                )
-                response.raise_for_status()
-                data = response.json()
-        except httpx.HTTPStatusError:
-            logger.warning("justETF search returned non-200; falling back to scrape-based search")
-            return await self._fallback_search(query)
-        except Exception:
-            logger.exception("justETF search failed")
-            return await self._fallback_search(query)
-
-        etfs = data.get("data", data.get("etfs", []))
-        if isinstance(etfs, list):
-            return etfs
-        return []
-
-    async def _fallback_search(self, query: str) -> list[dict]:
-        """Fallback: scrape the justETF search results page."""
-        url = f"https://www.justetf.com/en/find-etf.html?query={query}"
-        try:
-            async with httpx.AsyncClient(timeout=15.0) as client:
-                resp = await client.get(url, headers=JUSTETF_HEADERS)
-                resp.raise_for_status()
-                text = resp.text
-
-            results = []
-            isin_pattern = re.compile(r"([A-Z]{2}[A-Z0-9]{10})")
-            isins_found = set(isin_pattern.findall(text))
-            for isin in list(isins_found)[:20]:
-                results.append({"isin": isin, "name": isin})
-            return results
-        except Exception:
-            logger.exception("Fallback justETF search failed")
+    async def fetch(self, **params) -> list[dict]:
+        query = params.get("query", "")
+        if not query:
             return []
+
+        try:
+            async with httpx.AsyncClient(timeout=20.0) as client:
+                return await self._wicket_search(client, query)
+        except Exception:
+            logger.exception("justETF Wicket search failed for query=%r", query)
+            return []
+
+    @staticmethod
+    def _parse_ter(raw_ter: Any) -> float | None:
+        """Convert '0.50%' or '0.50' to decimal ratio 0.005."""
+        if raw_ter is None:
+            return None
+        s = str(raw_ter).strip().replace("%", "").replace(",", ".")
+        try:
+            return float(s) / 100.0
+        except (ValueError, TypeError):
+            return None
+
+    @staticmethod
+    def _parse_aum(raw_aum: Any) -> int | None:
+        """Convert fund-size strings like '415' or '1,234' to int (millions)."""
+        if raw_aum is None:
+            return None
+        s = str(raw_aum).strip().replace(",", "").replace(".", "")
+        try:
+            return int(s)
+        except (ValueError, TypeError):
+            return None
 
     async def normalize(self, raw: list[dict]) -> list[dict]:
         results = []
@@ -105,8 +128,12 @@ class JustETFDiscoveryConnector(BaseConnector):
                 "ticker_yf": item.get("ticker") or item.get("tickerSymbol"),
                 "currency": item.get("fundCurrency") or item.get("currency"),
                 "exchange": item.get("exchange") or item.get("listingExchange"),
-                "ter": item.get("ter") or item.get("totalExpenseRatio"),
-                "aum_eur": item.get("fundSize") or item.get("fundSizeEUR"),
+                "ter": self._parse_ter(
+                    item.get("ter") or item.get("totalExpenseRatio")
+                ),
+                "aum_eur": self._parse_aum(
+                    item.get("fundSize") or item.get("fundSizeEUR")
+                ),
                 "domicile": item.get("domicile") or item.get("fundDomicile"),
                 "asset_class": item.get("assetClass"),
             })

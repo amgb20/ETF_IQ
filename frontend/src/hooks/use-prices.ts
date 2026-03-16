@@ -16,6 +16,21 @@ export interface PriceSeries {
   prices: PriceRow[];
 }
 
+export interface IntradayRow {
+  timestamp: string;
+  open: number | null;
+  high: number | null;
+  low: number | null;
+  close: number;
+  volume: number | null;
+}
+
+export interface IntradaySeries {
+  ticker: string;
+  interval: string;
+  prices: IntradayRow[];
+}
+
 export function usePriceSeries(etfId: string | undefined, from?: string, to?: string) {
   const params = new URLSearchParams();
   if (etfId) params.set("etf_id", etfId);

@@ -35,7 +35,7 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 from app.auth.router import router as auth_router  # noqa: E402
-from app.routers import portfolios, etfs, prices, admin, agent_outputs, events, alerts, chat, reports, users, analytics, notifications, onboarding  # noqa: E402
+from app.routers import portfolios, etfs, prices, admin, agent_outputs, events, alerts, chat, reports, users, analytics, notifications, onboarding, meta  # noqa: E402
 
 app.include_router(auth_router)
 app.include_router(portfolios.router)
@@ -51,6 +51,7 @@ app.include_router(reports.router)
 app.include_router(users.router)
 app.include_router(notifications.router)
 app.include_router(onboarding.router)
+app.include_router(meta.router)
 
 
 @app.get("/health")

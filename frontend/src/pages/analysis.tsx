@@ -1,6 +1,6 @@
 import { useState, useEffect, useMemo } from "react";
 import { useLocation, useNavigate, useParams } from "react-router-dom";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { usePortfolios, usePortfolio } from "@/hooks/use-portfolios";
 import { useOverlap } from "@/hooks/use-snapshot";
 import { apiFetch } from "@/lib/api-client";
@@ -70,6 +70,13 @@ export default function AnalysisPage() {
     }
   }, [portfolioEtfs.length]);
 
+  // Auto-sync: check price freshness on mount, sync if stale
+  const { data: priceStatus } = useQuery({
+    queryKey: ["prices", "status"],
+    queryFn: () => apiFetch<{ latest_date: string | null; needs_sync: boolean }>("/prices/status"),
+    staleTime: 5 * 60_000,
+  });
+
   const syncMutation = useMutation({
     mutationFn: () => apiFetch<{ status: string; tickers_synced: string[]; total_price_rows: number }>("/prices/sync", { method: "POST" }),
     onSuccess: (data) => {
@@ -80,6 +87,12 @@ export default function AnalysisPage() {
       console.error("[analysis] price sync failed:", err);
     },
   });
+
+  useEffect(() => {
+    if (priceStatus?.needs_sync && !syncMutation.isPending && !syncMutation.isSuccess) {
+      syncMutation.mutate();
+    }
+  }, [priceStatus?.needs_sync]);
 
   const handleToggleETF = (isin: string) => {
     setSelectedIsins((prev) =>
@@ -99,28 +112,14 @@ export default function AnalysisPage() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-3xl font-semibold">Analysis</h1>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5"
-          onClick={() => syncMutation.mutate()}
-          disabled={syncMutation.isPending}
-        >
-          <RefreshCw className={`h-3.5 w-3.5 ${syncMutation.isPending ? "animate-spin" : ""}`} />
-          {syncMutation.isPending ? "Syncing..." : "Sync Prices"}
-        </Button>
+        <span className="text-xs text-muted-foreground flex items-center gap-1">
+          {syncMutation.isPending ? (
+            <><RefreshCw className="h-3 w-3 animate-spin" /> Syncing prices...</>
+          ) : priceStatus?.latest_date ? (
+            <>Prices as of {priceStatus.latest_date}</>
+          ) : null}
+        </span>
       </div>
-
-      {syncMutation.isSuccess && (
-        <p className="text-sm text-positive">
-          Synced {syncMutation.data.tickers_synced.join(", ")} — {syncMutation.data.total_price_rows} price rows available.
-        </p>
-      )}
-      {syncMutation.isError && (
-        <p className="text-sm text-destructive">
-          Sync failed: {syncMutation.error?.message}
-        </p>
-      )}
 
       <ChartWorkspace
         etfs={portfolioEtfs}

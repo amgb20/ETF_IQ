@@ -1,5 +1,5 @@
-import { useState, useMemo } from "react";
-import { useQueries } from "@tanstack/react-query";
+import { useState, useMemo, useEffect } from "react";
+import { useQueries, type UseQueryResult } from "@tanstack/react-query";
 import {
   subDays, subMonths, subYears, startOfYear,
   format, parseISO, getISOWeek, getISOWeekYear,
@@ -14,7 +14,7 @@ import { apiFetch } from "@/lib/api-client";
 import { useEvents } from "@/hooks/use-events";
 import { useRiskMetrics } from "@/hooks/use-etfs";
 import type { ETFListItem } from "@/hooks/use-etfs";
-import type { PriceSeries } from "@/hooks/use-prices";
+import type { PriceSeries, IntradaySeries } from "@/hooks/use-prices";
 import { CHART_COLORS, tickerLabel } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
@@ -22,6 +22,36 @@ export type ChartMode = "line" | "bar" | "drawdown" | "risk-return" | "correlati
 
 type TimeRange = "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "5Y" | "MAX";
 const TIME_RANGES: TimeRange[] = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "MAX"];
+
+type DataInterval = "1m" | "5m" | "15m" | "1h" | "1d" | "1wk" | "1mo";
+
+const INTERVALS_FOR_RANGE: Record<TimeRange, DataInterval[]> = {
+  "1D":  ["1m", "5m", "15m", "1h"],
+  "1W":  ["15m", "1h", "1d"],
+  "1M":  ["1d", "1wk"],
+  "3M":  ["1d", "1wk", "1mo"],
+  "6M":  ["1d", "1wk", "1mo"],
+  "YTD": ["1d", "1wk", "1mo"],
+  "1Y":  ["1d", "1wk", "1mo"],
+  "3Y":  ["1wk", "1mo"],
+  "5Y":  ["1wk", "1mo"],
+  "MAX": ["1wk", "1mo"],
+};
+
+const DEFAULT_INTERVAL: Record<TimeRange, DataInterval> = {
+  "1D": "5m", "1W": "1h", "1M": "1d", "3M": "1d",
+  "6M": "1d", "YTD": "1d", "1Y": "1d", "3Y": "1wk",
+  "5Y": "1wk", "MAX": "1mo",
+};
+
+/** yfinance period string for each time range (used by intraday endpoint). */
+const PERIOD_FOR_RANGE: Record<TimeRange, string> = {
+  "1D": "1d", "1W": "5d", "1M": "1mo", "3M": "3mo",
+  "6M": "6mo", "YTD": "ytd", "1Y": "1y", "3Y": "3y",
+  "5Y": "5y", "MAX": "max",
+};
+
+const INTRADAY_INTERVALS = new Set<DataInterval>(["1m", "5m", "15m", "1h"]);
 
 function computeFromDate(range: TimeRange): string | undefined {
   const now = new Date();
@@ -50,6 +80,18 @@ function aggregateWeekly(
     byWeek.set(key, p);
   }
   return Array.from(byWeek.values());
+}
+
+function aggregateMonthly(
+  prices: { date: string; close: number }[],
+): { date: string; close: number }[] {
+  if (prices.length === 0) return [];
+  const byMonth = new Map<string, { date: string; close: number }>();
+  for (const p of prices) {
+    const key = p.date.slice(0, 7); // "YYYY-MM"
+    byMonth.set(key, p);
+  }
+  return Array.from(byMonth.values());
 }
 
 interface Props {
@@ -84,9 +126,15 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
   const [chartType, setChartType] = useState<ChartMode>("line");
   const [showEvents, setShowEvents] = useState(false);
   const [timeRange, setTimeRange] = useState<TimeRange>("1Y");
-  const [weeklyAgg, setWeeklyAgg] = useState(false);
+  const [interval, setInterval] = useState<DataInterval>("1d");
 
+  const isIntraday = INTRADAY_INTERVALS.has(interval);
   const fromDate = useMemo(() => computeFromDate(timeRange), [timeRange]);
+
+  // Reset interval when time range changes
+  useEffect(() => {
+    setInterval(DEFAULT_INTERVAL[timeRange]);
+  }, [timeRange]);
 
   const selectedEtfs = useMemo(
     () => etfs.filter((e) => selectedIsins.includes(e.isin)),
@@ -115,14 +163,22 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
 
   const priceQueries = useQueries({
     queries: selectedEtfs.map((e) => ({
-      queryKey: ["prices", e.id, fromDate, undefined],
+      queryKey: ["prices", e.id, timeRange, interval],
       queryFn: () => {
-        const params = new URLSearchParams();
-        params.set("etf_id", e.id);
+        if (isIntraday) {
+          const params = new URLSearchParams({
+            ticker: e.ticker_yf || e.isin,
+            period: PERIOD_FOR_RANGE[timeRange],
+            interval,
+          });
+          return apiFetch<IntradaySeries>(`/prices/intraday?${params.toString()}`);
+        }
+        const params = new URLSearchParams({ etf_id: e.id });
         if (fromDate) params.set("from", fromDate);
         return apiFetch<PriceSeries>(`/prices?${params.toString()}`);
       },
-      enabled: !!e.id,
+      enabled: isIntraday ? !!e.ticker_yf : !!e.id,
+      staleTime: isIntraday ? 60_000 : 5 * 60_000,
     })),
   });
 
@@ -130,17 +186,35 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
     const isDrawdown = chartType === "drawdown";
     return priceQueries
       .map((q, i) => ({ q, etf: selectedEtfs[i] }))
-      .filter(({ q }) => q.data?.prices?.length)
+      .filter(({ q }) => {
+        if (!q.data) return false;
+        if (isIntraday) return (q.data as IntradaySeries).prices?.length > 0;
+        return (q.data as PriceSeries).prices?.length > 0;
+      })
       .map(({ q, etf }) => {
-        let rawPrices = q.data!.prices.map((p) => ({ date: p.date, close: p.close }));
-        if (weeklyAgg) rawPrices = aggregateWeekly(rawPrices);
+        let rawPrices: { date: string; close: number }[];
+        if (isIntraday) {
+          const intradayData = q.data as IntradaySeries;
+          rawPrices = intradayData.prices.map((p) => ({
+            date: p.timestamp,
+            close: p.close,
+          }));
+        } else {
+          let daily = (q.data as PriceSeries).prices.map((p) => ({
+            date: p.date,
+            close: p.close,
+          }));
+          if (interval === "1wk") daily = aggregateWeekly(daily);
+          if (interval === "1mo") daily = aggregateMonthly(daily);
+          rawPrices = daily;
+        }
         const transformed = isDrawdown ? toDrawdown(rawPrices) : toPercentGrowth(rawPrices);
         return {
           label: tickerLabel(etf.ticker_yf, etf.isin),
           data: transformed,
         };
       });
-  }, [priceQueries.map((q) => q.dataUpdatedAt).join(","), selectedEtfs, chartType, weeklyAgg]);
+  }, [priceQueries.map((q) => q.dataUpdatedAt).join(","), selectedEtfs, chartType, interval, isIntraday]);
 
   const loading = priceQueries.some((q) => q.isLoading);
 
@@ -198,17 +272,20 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
             </button>
           ))}
           <div className="h-4 w-px bg-border mx-1" />
-          <button
-            onClick={() => setWeeklyAgg((v) => !v)}
-            className={cn(
-              "px-2.5 py-1 text-xs rounded-md font-medium transition-colors",
-              weeklyAgg
-                ? "bg-primary text-primary-foreground"
-                : "text-muted-foreground hover:text-foreground hover:bg-muted",
-            )}
-          >
-            Weekly
-          </button>
+          {INTERVALS_FOR_RANGE[timeRange].map((intv) => (
+            <button
+              key={intv}
+              onClick={() => setInterval(intv)}
+              className={cn(
+                "px-2.5 py-1 text-xs rounded-md font-medium transition-colors",
+                interval === intv
+                  ? "bg-primary text-primary-foreground"
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+              )}
+            >
+              {intv}
+            </button>
+          ))}
         </div>
       )}
 
@@ -244,6 +321,7 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
           loading={loading}
           chartType={chartType as "line" | "bar" | "drawdown"}
           events={showEvents ? events : undefined}
+          isIntraday={isIntraday}
         />
       )}
 
@@ -261,7 +339,7 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
 
       {chartType === "heatmap" && (
         <MonthlyReturnsHeatmap
-          priceQueries={priceQueries}
+          priceQueries={priceQueries as UseQueryResult<PriceSeries, Error>[]}
           etfs={selectedEtfs}
           loading={loading}
         />

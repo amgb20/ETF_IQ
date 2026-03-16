@@ -21,3 +21,23 @@ class PriceRow(BaseModel):
 class PriceSeriesResponse(BaseModel):
     etf_id: uuid.UUID
     prices: list[PriceRow]
+
+
+class IntradayRow(BaseModel):
+    timestamp: str  # ISO 8601 with time component
+    open: float | None = None
+    high: float | None = None
+    low: float | None = None
+    close: float
+    volume: int | None = None
+
+
+class IntradaySeriesResponse(BaseModel):
+    ticker: str
+    interval: str
+    prices: list[IntradayRow]
+
+
+class PriceStatusResponse(BaseModel):
+    latest_date: str | None
+    needs_sync: bool

@@ -54,42 +54,12 @@ RULES:
 """
 
 
-def _resolve_sources(sources: list[dict]) -> list[dict]:
-    """Resolve vertexaisearch redirect URLs to actual website URLs."""
-    import httpx
-
-    needs_resolve = any("vertexaisearch" in s.get("uri", "") for s in sources)
-    if not needs_resolve:
-        return sources
-
-    resolved: list[dict] = []
-    seen: set[str] = set()
-    try:
-        with httpx.Client(follow_redirects=True, timeout=10) as client:
-            for s in sources:
-                uri = s["uri"]
-                if "vertexaisearch" in uri:
-                    try:
-                        resp = client.head(uri)
-                        final = str(resp.url)
-                        if "vertexaisearch" not in final and final not in seen:
-                            seen.add(final)
-                            resolved.append({"uri": final, "title": s.get("title", "")})
-                    except Exception:
-                        continue
-                elif uri not in seen:
-                    seen.add(uri)
-                    resolved.append(s)
-    except Exception:
-        return [s for s in sources if "vertexaisearch" not in s.get("uri", "")]
-
-    return resolved
-
-
 def execute_web_search(query: str) -> str:
     """Search the live web using a nested Gemini call with native Google Search grounding."""
     from google import genai
     from google.genai import types
+
+    from app.agents.llm_client import _resolve_vertex_urls
 
     settings = get_settings()
     client = genai.Client(api_key=settings.GOOGLE_API_KEY)
@@ -112,9 +82,9 @@ def execute_web_search(query: str) -> str:
                     web = getattr(chunk, "web", None)
                     if web and web.uri and web.uri not in seen_uris:
                         seen_uris.add(web.uri)
-                        sources.append({"uri": web.uri, "title": web.title or ""})
+                        sources.append({"url": web.uri, "title": web.title or ""})
 
-        sources = _resolve_sources(sources)
+        sources = _resolve_vertex_urls(sources)
 
         return json.dumps({"text": text, "sources": sources})
     except Exception as exc:

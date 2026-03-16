@@ -18,6 +18,50 @@ from app.config import get_settings
 
 logger = logging.getLogger(__name__)
 
+
+def _resolve_vertex_urls(sources: list[dict]) -> list[dict]:
+    """Follow Vertex AI Search redirect URLs to obtain the real article URLs.
+
+    Gemini's grounding_chunks often return proxy URLs like
+    ``https://vertexaisearch.cloud.google.com/grounding-api-redirect/...``
+    instead of the original article URL.  This function follows the redirect
+    (HTTP HEAD) to get the final destination.
+    """
+    if not sources:
+        return sources
+
+    needs_resolve = any("vertexaisearch" in s.get("url", "") for s in sources)
+    if not needs_resolve:
+        return sources
+
+    import httpx
+
+    resolved: list[dict] = []
+    seen: set[str] = set()
+    try:
+        with httpx.Client(follow_redirects=True, timeout=10) as client:
+            for s in sources:
+                url = s.get("url", "")
+                title = s.get("title", "")
+                if "vertexaisearch" in url:
+                    try:
+                        resp = client.head(url)
+                        final = str(resp.url)
+                        if "vertexaisearch" not in final and final not in seen:
+                            seen.add(final)
+                            resolved.append({"url": final, "title": title})
+                    except Exception:
+                        continue
+                elif url and url not in seen:
+                    seen.add(url)
+                    resolved.append(s)
+    except Exception:
+        logger.warning("Failed to resolve Vertex AI URLs, filtering them out")
+        return [s for s in sources if "vertexaisearch" not in s.get("url", "")]
+
+    logger.info("Resolved %d/%d Vertex AI redirect URLs", len(resolved), len(sources))
+    return resolved
+
 _client: genai.Client | None = None
 
 
@@ -111,6 +155,9 @@ async def generate(
                 web = getattr(chunk, "web", None)
                 if web:
                     sources.append({"url": web.uri or "", "title": web.title or ""})
+
+    # Resolve Vertex AI Search proxy URLs to real article URLs
+    sources = _resolve_vertex_urls(sources)
 
     logger.info(
         "LLM call complete: model=%s prompt_tokens=%d completion_tokens=%d latency=%dms sources=%d",
