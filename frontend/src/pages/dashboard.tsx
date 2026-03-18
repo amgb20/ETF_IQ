@@ -61,7 +61,7 @@ export default function DashboardPage() {
           </Card>
         </div>
         <div className="lg:col-span-2 space-y-4">
-          <ThemeCards positions={positions} />
+          <ThemeCards positions={positions} themes={portfolio?.themes} />
         </div>
       </div>
 

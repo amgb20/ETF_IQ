@@ -4,17 +4,25 @@ from __future__ import annotations
 
 import asyncio
 import logging
+import re
 import time as _time
 import uuid
 from datetime import date
 
 from app.agents.judge import JudgeAgent
-from app.agents.research import AIStackAgent, GoldAgent, DefenceAgent, MacroAgent
+from app.agents.research.macro import MacroAgent
+from app.agents.research.dynamic_theme import DynamicThemeAgent
 from app.agents.risk_assessor import RiskAssessorAgent
 from app.agents.event_mapper import EventMapperAgent
 from app.agents.recommender import RecommenderAgent
+from app.agents.context_builder import load_portfolio_themes, load_theme_etf_descriptions
+from app.database import async_session
 
 logger = logging.getLogger(__name__)
+
+
+def _slugify(name: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", name.lower()).strip("_")
 
 
 class WeeklyOrchestrator:
@@ -27,10 +35,9 @@ class WeeklyOrchestrator:
         """Execute the full weekly agent cycle.
 
         1. Run Agent 8 (Judge) — evaluate last week's predictions
-        2. Run Agents 1-4 in parallel with reflection context
+        2. Build dynamic theme agents + MacroAgent, run in parallel
         3. Run Agent 5 (Risk) with research outputs
         4. Run Agent 6 (Events) + Agent 7 (Recommender) in parallel
-        5. Email digest stub (Phase 6)
         """
         run_date = run_date or date.today()
         t_total = _time.perf_counter()
@@ -46,8 +53,29 @@ class WeeklyOrchestrator:
             len(evaluations), int((_time.perf_counter() - t_phase) * 1000),
         )
 
-        # Step 2: Agents 1-4 in parallel
-        agents = [AIStackAgent(), GoldAgent(), DefenceAgent(), MacroAgent()]
+        # Step 2: Build dynamic research agents from portfolio themes
+        async with async_session() as session:
+            themes = await load_portfolio_themes(portfolio_id, session)
+            etf_meta = await load_theme_etf_descriptions(portfolio_id, session)
+
+        agents = []
+        for theme in themes:
+            agent_name = theme.research_agent or f"{_slugify(theme.name)}_analyst"
+            agents.append(DynamicThemeAgent(
+                theme_name=theme.name,
+                agent_name=agent_name,
+                etf_descriptions=etf_meta.get(theme.id, []),
+            ))
+
+        # MacroAgent covers the entire portfolio
+        all_tickers = [
+            t for descs in etf_meta.values() for d in descs
+            if (t := d.get("ticker_yf"))
+        ]
+        macro = MacroAgent()
+        macro.covered_tickers = list(dict.fromkeys(all_tickers))
+        agents.append(macro)
+
         agent_names = [a.agent_name for a in agents]
         logger.info("WeeklyOrchestrator [Phase 2/4]: Research agents in parallel (%s)", ", ".join(agent_names))
         t_phase = _time.perf_counter()

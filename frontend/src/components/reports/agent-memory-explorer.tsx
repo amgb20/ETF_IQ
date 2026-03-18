@@ -2,24 +2,11 @@ import { useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { useAgentScores, useAgentOutputs } from "@/hooks/use-agent-scores";
+import { usePortfolio } from "@/hooks/use-portfolios";
 
 interface Props {
   portfolioId: string | undefined;
 }
-
-const RESEARCH_AGENTS = [
-  "ai_stack_analyst",
-  "gold_analyst",
-  "defence_analyst",
-  "macro_analyst",
-];
-
-const AGENT_LABELS: Record<string, string> = {
-  ai_stack_analyst: "AI Stack",
-  gold_analyst: "Gold",
-  defence_analyst: "Defence",
-  macro_analyst: "Macro",
-};
 
 function scoreColor(score: number): string {
   if (score >= 7) return "bg-green-500/20 text-green-700 dark:text-green-400";
@@ -34,8 +21,23 @@ function confidenceColor(c: number): string {
 }
 
 export function AgentMemoryExplorer({ portfolioId }: Props) {
+  const { data: portfolio } = usePortfolio(portfolioId);
   const { data: scores } = useAgentScores(portfolioId, 8);
   const { data: outputs } = useAgentOutputs(portfolioId, undefined, 8);
+
+  const { researchAgents, agentLabels } = useMemo(() => {
+    const themes = portfolio?.themes ?? [];
+    const agents = [
+      ...themes.map((t) => t.research_agent ?? `${t.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_analyst`),
+      "macro_analyst",
+    ];
+    const labels: Record<string, string> = { macro_analyst: "Macro" };
+    for (const t of themes) {
+      const name = t.research_agent ?? `${t.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_analyst`;
+      labels[name] = t.name;
+    }
+    return { researchAgents: agents, agentLabels: labels };
+  }, [portfolio?.themes]);
 
   const { weeks, grid } = useMemo(() => {
     if (!scores || scores.length === 0) return { weeks: [] as string[], grid: {} as Record<string, Record<string, number>> };
@@ -44,23 +46,23 @@ export function AgentMemoryExplorer({ portfolioId }: Props) {
     const latestWeeks = allDates.slice(-8);
 
     const g: Record<string, Record<string, number>> = {};
-    for (const agent of RESEARCH_AGENTS) {
+    for (const agent of researchAgents) {
       g[agent] = {};
     }
     for (const s of scores) {
-      if (RESEARCH_AGENTS.includes(s.agent_name) && latestWeeks.includes(s.run_date)) {
+      if (researchAgents.includes(s.agent_name) && latestWeeks.includes(s.run_date)) {
         g[s.agent_name][s.run_date] = s.score;
       }
     }
     return { weeks: latestWeeks, grid: g };
-  }, [scores]);
+  }, [scores, researchAgents]);
 
   const latestPredictions = useMemo(() => {
     if (!outputs?.length) return {} as Record<string, { prediction: string; confidence: number; timeframe: string }[]>;
 
     const map: Record<string, typeof outputs[0]> = {};
     for (const o of outputs) {
-      if (RESEARCH_AGENTS.includes(o.agent_name)) {
+      if (researchAgents.includes(o.agent_name)) {
         if (!map[o.agent_name] || o.run_date > map[o.agent_name].run_date) {
           map[o.agent_name] = o;
         }
@@ -78,7 +80,7 @@ export function AgentMemoryExplorer({ portfolioId }: Props) {
       }
     }
     return result;
-  }, [outputs]);
+  }, [outputs, researchAgents]);
 
   const hasScores = weeks.length > 0;
   const hasOutputs = outputs != null && outputs.length > 0;
@@ -110,9 +112,9 @@ export function AgentMemoryExplorer({ portfolioId }: Props) {
               </tr>
             </thead>
             <tbody>
-              {RESEARCH_AGENTS.map((agent) => (
+              {researchAgents.map((agent) => (
                 <tr key={agent} className="border-t border-border">
-                  <td className="py-2 pr-4 text-xs font-medium">{AGENT_LABELS[agent] ?? agent}</td>
+                  <td className="py-2 pr-4 text-xs font-medium">{agentLabels[agent] ?? agent}</td>
                   {hasScores
                     ? weeks.map((w) => {
                         const score = grid[agent]?.[w];
@@ -154,12 +156,12 @@ export function AgentMemoryExplorer({ portfolioId }: Props) {
         {hasPredictions && (
           <div className="space-y-3 pt-2 border-t border-border">
             <h4 className="text-xs font-semibold text-muted-foreground uppercase tracking-wide">Latest Predictions</h4>
-            {RESEARCH_AGENTS.map((agent) => {
+            {researchAgents.map((agent) => {
               const preds = latestPredictions[agent];
               if (!preds?.length) return null;
               return (
                 <div key={agent} className="space-y-1.5">
-                  <p className="text-xs font-medium">{AGENT_LABELS[agent] ?? agent}</p>
+                  <p className="text-xs font-medium">{agentLabels[agent] ?? agent}</p>
                   {preds.map((p, i) => (
                     <div key={i} className="flex items-start gap-2 pl-3">
                       <Badge variant="outline" className={`shrink-0 text-[10px] px-1.5 ${confidenceColor(p.confidence)}`}>

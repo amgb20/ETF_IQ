@@ -33,11 +33,8 @@ REPORTS_DIR = os.path.join(
     os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "reports"
 )
 
-SECTION_AGENT_MAP = {
+DEFAULT_SECTION_AGENT_MAP = {
     "Exec Summary": "action_recommender",
-    "AI Stack": "ai_stack_analyst",
-    "Gold": "gold_analyst",
-    "Defence": "defence_analyst",
     "Macro": "macro_analyst",
     "Risk": "risk_assessor",
     "Recommendations": "action_recommender",
@@ -204,6 +201,7 @@ class ReportWriter:
         sections: list[str],
         report_type: str,
         run_date: date,
+        section_agent_map: dict[str, str] | None = None,
     ) -> str:
         import time as _time
 
@@ -250,12 +248,14 @@ class ReportWriter:
         )
         story.append(PageBreak())
 
+        effective_map = {**DEFAULT_SECTION_AGENT_MAP, **(section_agent_map or {})}
+
         output_map: dict[str, AgentOutput] = {}
         for o in agent_outputs:
             output_map[o.agent_name] = o
 
         for section_name in sections:
-            agent_name = SECTION_AGENT_MAP.get(section_name)
+            agent_name = effective_map.get(section_name)
             if not agent_name:
                 continue
             output = output_map.get(agent_name)

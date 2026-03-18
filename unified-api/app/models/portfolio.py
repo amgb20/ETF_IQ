@@ -30,8 +30,10 @@ class PortfolioTheme(Base):
     name: Mapped[str] = mapped_column(String(100), nullable=False)
     color: Mapped[str | None] = mapped_column(String(7))
     sort_order: Mapped[int] = mapped_column(Integer, default=0)
+    research_agent: Mapped[str | None] = mapped_column(String(100))
 
     portfolio = relationship("Portfolio", back_populates="themes")
+    positions = relationship("Position", back_populates="theme", lazy="selectin")
 
 
 class PortfolioSnapshot(Base):

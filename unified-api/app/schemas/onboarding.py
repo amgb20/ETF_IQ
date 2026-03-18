@@ -44,6 +44,7 @@ class PositionInput(BaseModel):
 class ThemeInput(BaseModel):
     name: str
     color: str
+    research_agent: str | None = None
     positions: list[PositionInput]
 
 

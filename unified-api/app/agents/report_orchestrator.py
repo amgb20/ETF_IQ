@@ -9,18 +9,45 @@ from datetime import date
 
 from sqlalchemy import select, update
 
-from app.agents.context_builder import build as build_context
+from app.agents.context_builder import build as build_context, load_portfolio_themes
 from app.agents.orchestrator import WeeklyOrchestrator
 from app.agents.report_writer import ReportWriter
 from app.database import async_session
 from app.models.agent import AgentOutput
 from app.models.notification import Notification
-from app.models.portfolio import Portfolio
+from app.models.portfolio import Portfolio, PortfolioTheme
 from app.models.report import Report
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_SECTIONS = ["Exec Summary", "AI Stack", "Gold", "Defence", "Macro", "Risk", "Recommendations"]
+FIXED_SECTIONS_PREFIX = ["Exec Summary"]
+FIXED_SECTIONS_SUFFIX = ["Macro", "Risk", "Recommendations"]
+
+
+async def build_default_sections(portfolio_id: uuid.UUID) -> list[str]:
+    """Build an ordered section list from portfolio themes + fixed sections."""
+    async with async_session() as session:
+        themes = await load_portfolio_themes(portfolio_id, session)
+    theme_sections = [t.name for t in themes]
+    return FIXED_SECTIONS_PREFIX + theme_sections + FIXED_SECTIONS_SUFFIX
+
+
+async def build_section_agent_map(portfolio_id: uuid.UUID) -> dict[str, str]:
+    """Build a mapping of section name -> agent_name from portfolio themes."""
+    import re
+
+    fixed = {
+        "Exec Summary": "action_recommender",
+        "Macro": "macro_analyst",
+        "Risk": "risk_assessor",
+        "Recommendations": "action_recommender",
+    }
+    async with async_session() as session:
+        themes = await load_portfolio_themes(portfolio_id, session)
+    for t in themes:
+        agent = t.research_agent or f"{re.sub(r'[^a-z0-9]+', '_', t.name.lower()).strip('_')}_analyst"
+        fixed[t.name] = agent
+    return fixed
 
 
 class ReportOrchestrator:
@@ -31,7 +58,8 @@ class ReportOrchestrator:
         report_type: str,
         sections: list[str] | None = None,
     ) -> None:
-        sections = sections or DEFAULT_SECTIONS
+        if not sections:
+            sections = await build_default_sections(portfolio_id)
         run_type = "deep_research" if report_type == "monthly" else "standard"
         run_date = date.today()
         t0 = _time.perf_counter()
@@ -71,12 +99,15 @@ class ReportOrchestrator:
                 agent_outputs = list(agent_result.scalars().all())
                 logger.info("ReportOrchestrator: found %d agent outputs for PDF", len(agent_outputs))
 
+                section_map = await build_section_agent_map(portfolio_id)
+
                 filepath = ReportWriter.build_pdf(
                     portfolio_name=ctx.portfolio_name,
                     agent_outputs=agent_outputs,
                     sections=sections,
                     report_type=report_type,
                     run_date=run_date,
+                    section_agent_map=section_map,
                 )
 
                 output_ids = [o.id for o in agent_outputs]

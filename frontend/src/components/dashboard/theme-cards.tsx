@@ -3,13 +3,22 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 import { CHART_COLORS, tickerLabel } from "@/lib/constants";
 import { formatCurrency, formatPct } from "@/lib/utils";
-import type { PositionBrief } from "@/hooks/use-portfolios";
+import type { PositionBrief, ThemeBrief } from "@/hooks/use-portfolios";
 
 interface Props {
   positions: PositionBrief[];
+  themes?: ThemeBrief[];
 }
 
-export function ThemeCards({ positions }: Props) {
+export function ThemeCards({ positions, themes: themeData }: Props) {
+  const themeColorMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    for (const t of themeData ?? []) {
+      if (t.color) map[t.name] = t.color;
+    }
+    return map;
+  }, [themeData]);
+
   const themes = useMemo(() => {
     const groups: Record<string, PositionBrief[]> = {};
     for (const p of positions) {
@@ -18,10 +27,10 @@ export function ThemeCards({ positions }: Props) {
     }
     return Object.entries(groups).map(([name, items], i) => ({
       name,
-      color: CHART_COLORS[i % CHART_COLORS.length],
+      color: items[0]?.theme_color || themeColorMap[name] || CHART_COLORS[i % CHART_COLORS.length],
       positions: items,
     }));
-  }, [positions]);
+  }, [positions, themeColorMap]);
 
   if (themes.length === 0) {
     return (

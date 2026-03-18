@@ -60,6 +60,7 @@ interface CompleteOnboardingBody {
   themes: {
     name: string;
     color: string;
+    research_agent?: string | null;
     positions: {
       etf_id: string;
       shares: number;

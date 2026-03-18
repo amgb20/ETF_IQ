@@ -14,7 +14,32 @@ class PortfolioCreate(BaseModel):
     description: str | None = None
 
 
+class ThemeCreate(BaseModel):
+    name: str
+    color: str = "#6366f1"
+
+
+class ThemeUpdate(BaseModel):
+    name: str | None = None
+    color: str | None = None
+
+
+class PositionThemeUpdate(BaseModel):
+    theme_id: uuid.UUID | None
+
+
 # ── Responses ────────────────────────────────────────────────────────
+
+class ThemeBrief(BaseModel):
+    id: uuid.UUID
+    name: str
+    color: str | None
+    research_agent: str | None
+    sort_order: int
+    position_count: int = 0
+
+    model_config = {"from_attributes": True}
+
 
 class PositionBrief(BaseModel):
     id: uuid.UUID
@@ -32,6 +57,7 @@ class PositionBrief(BaseModel):
     pnl_pct: float | None = None
     target_allocation: float | None = None
     theme_name: str | None = None
+    theme_color: str | None = None
 
     model_config = {"from_attributes": True}
 
@@ -42,6 +68,7 @@ class PortfolioResponse(BaseModel):
     description: str | None
     created_at: datetime | None
     positions: list[PositionBrief] = []
+    themes: list[ThemeBrief] = []
     total_value: float | None = None
     total_pnl: float | None = None
     total_pnl_pct: float | None = None

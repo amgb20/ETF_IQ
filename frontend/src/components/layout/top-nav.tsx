@@ -1,7 +1,7 @@
-import { Link, useLocation, useNavigate } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
-import { MessageSquare, LogOut, LogIn, Bell, Settings, FileText, AlertTriangle, CheckCheck } from "lucide-react";
+import { MessageSquare, Bell, FileText, AlertTriangle, CheckCheck, Menu } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserContext } from "@/contexts/UserContext";
 import { useNotifications, useMarkRead, useMarkAllRead } from "@/hooks/use-notifications";
@@ -32,23 +32,20 @@ function notifIcon(type: AppNotification["type"]) {
   }
 }
 
-export function TopNav() {
-  const location = useLocation();
+interface TopNavProps {
+  onMenuClick?: () => void;
+}
+
+export function TopNav({ onMenuClick }: TopNavProps) {
   const navigate = useNavigate();
-  const { isAuthenticated, user, logout } = useUserContext();
+  const { user } = useUserContext();
 
   const { data: notifications } = useNotifications();
   const markRead = useMarkRead();
   const markAllRead = useMarkAllRead();
 
   const unreadCount = (notifications ?? []).filter((n) => !n.is_read).length;
-
   const prefix = user ? `/${user.id}` : "";
-  const navLinks = [
-    { to: `${prefix}/dashboard`, label: "Dashboard" },
-    { to: `${prefix}/analysis`, label: "Analysis" },
-    { to: `${prefix}/reports`, label: "Reports" },
-  ];
 
   const handleNotifClick = (n: AppNotification) => {
     if (!n.is_read) markRead.mutate(n.id);
@@ -56,40 +53,30 @@ export function TopNav() {
     else navigate(`${prefix}/analysis/alerts`);
   };
 
-  const handleLogout = async () => {
-    await logout();
-    navigate("/login");
-  };
-
   return (
-    <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
-      <div className="container mx-auto flex h-14 max-w-7xl items-center px-4">
+    <header className="sticky top-0 z-40 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <div className="flex h-14 items-center px-4">
+        {/* Mobile hamburger */}
+        <Button
+          variant="ghost"
+          size="icon"
+          className="md:hidden mr-2"
+          onClick={onMenuClick}
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+
+        {/* Logo -- visible on mobile only (desktop has it in sidebar) */}
         <Link
           to={user ? `/${user.id}/dashboard` : "/"}
-          className="mr-8 text-lg tracking-tight"
-          style={{ fontFamily: "'Cormorant Garamond', serif", color: '#C9A84C', fontWeight: 600 }}
+          className="md:hidden text-lg tracking-tight"
+          style={{ fontFamily: "'Cormorant Garamond', serif", color: "#C9A84C", fontWeight: 600 }}
         >
           ETF IQ
         </Link>
 
-        <nav className="flex items-center gap-1">
-          {navLinks.map((link) => (
-            <Link
-              key={link.to}
-              to={link.to}
-              className={cn(
-                "px-3 py-1.5 text-sm font-medium transition-colors",
-                location.pathname.startsWith(link.to)
-                  ? "text-primary border-b-2 border-primary"
-                  : "text-muted-foreground hover:text-foreground"
-              )}
-            >
-              {link.label}
-            </Link>
-          ))}
-        </nav>
-
         <div className="ml-auto flex items-center gap-2">
+          {/* Notifications */}
           <Popover>
             <PopoverTrigger asChild>
               <Button variant="ghost" size="icon" className="relative">
@@ -150,12 +137,7 @@ export function TopNav() {
             </PopoverContent>
           </Popover>
 
-          <Link to={`${prefix}/settings`}>
-            <Button variant="ghost" size="icon" title="Settings">
-              <Settings className="h-4 w-4" />
-            </Button>
-          </Link>
-
+          {/* Chat toggle */}
           <Button
             variant="ghost"
             size="icon"
@@ -167,22 +149,6 @@ export function TopNav() {
           >
             <MessageSquare className="h-4 w-4" />
           </Button>
-
-          {isAuthenticated ? (
-            <div className="flex items-center gap-2">
-              <span className="text-xs text-muted-foreground hidden sm:inline">
-                {user?.email}
-              </span>
-              <Button variant="ghost" size="icon" onClick={handleLogout}>
-                <LogOut className="h-4 w-4" />
-              </Button>
-            </div>
-          ) : (
-            <Button variant="outline" size="sm" onClick={() => navigate("/login")}>
-              <LogIn className="h-4 w-4 mr-1" />
-              Login
-            </Button>
-          )}
         </div>
       </div>
     </header>

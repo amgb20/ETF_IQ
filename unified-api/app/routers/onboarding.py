@@ -293,6 +293,7 @@ async def complete_onboarding(
             name=theme_input.name,
             color=theme_input.color,
             sort_order=idx,
+            research_agent=theme_input.research_agent,
         )
         db.add(theme)
         await db.flush()

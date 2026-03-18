@@ -1,7 +1,7 @@
 import { useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { AGENT_NAMES, CHART_COLORS } from "@/lib/constants";
+import { CHART_COLORS } from "@/lib/constants";
 import {
   LineChart,
   Line,
@@ -14,32 +14,51 @@ import {
   Legend,
 } from "recharts";
 import { useAgentScores, useAgentOutputs } from "@/hooks/use-agent-scores";
+import { usePortfolio, type ThemeBrief } from "@/hooks/use-portfolios";
 
 interface Props {
   portfolioId?: string;
 }
 
-const RESEARCH_AGENTS = [
-  "ai_stack_analyst",
-  "gold_analyst",
-  "defence_analyst",
-  "macro_analyst",
-];
-
-const AGENT_DISPLAY: Record<string, { label: string; index: number }> = {
-  ai_stack_analyst: { label: "AI Stack", index: 0 },
-  gold_analyst: { label: "Gold", index: 1 },
-  defence_analyst: { label: "Defence", index: 2 },
-  macro_analyst: { label: "Macro", index: 3 },
-  risk_assessor: { label: "Risk", index: 4 },
-  event_mapper: { label: "Events", index: 5 },
-  action_recommender: { label: "Recommender", index: 6 },
-  judge: { label: "Judge", index: 7 },
+const FIXED_AGENTS: Record<string, string> = {
+  macro_analyst: "Macro",
+  risk_assessor: "Risk",
+  event_mapper: "Events",
+  action_recommender: "Recommender",
+  judge: "Judge",
 };
 
 export function AgentReportsTab({ portfolioId }: Props) {
+  const { data: portfolio } = usePortfolio(portfolioId);
   const { data: scores } = useAgentScores(portfolioId);
   const { data: outputs } = useAgentOutputs(portfolioId);
+
+  const themeAgents = useMemo(() => {
+    const themes = portfolio?.themes ?? [];
+    return themes.map((t) => ({
+      agent_name: t.research_agent ?? `${t.name.toLowerCase().replace(/[^a-z0-9]+/g, "_")}_analyst`,
+      label: t.name,
+    }));
+  }, [portfolio?.themes]);
+
+  const researchAgentNames = useMemo(
+    () => [...themeAgents.map((a) => a.agent_name), "macro_analyst"],
+    [themeAgents],
+  );
+
+  const agentDisplayMap = useMemo(() => {
+    const map: Record<string, string> = { ...FIXED_AGENTS };
+    for (const a of themeAgents) map[a.agent_name] = a.label;
+    return map;
+  }, [themeAgents]);
+
+  const agentCardData = useMemo(() => {
+    return themeAgents.map((a, i) => ({
+      key: a.agent_name,
+      displayName: `${a.label} Analyst`,
+      index: i,
+    }));
+  }, [themeAgents]);
 
   const chartData = useMemo(() => {
     if (!scores?.length) return [];
@@ -81,8 +100,6 @@ export function AgentReportsTab({ portfolioId }: Props) {
     return flagged;
   }, [scores]);
 
-  const agentNames = Object.keys(AGENT_DISPLAY);
-
   return (
     <div className="space-y-4">
       <div className="rounded-md border border-warning/30 bg-warning/10 px-4 py-2.5">
@@ -92,12 +109,11 @@ export function AgentReportsTab({ portfolioId }: Props) {
         </p>
       </div>
       <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-4">
-        {AGENT_NAMES.slice(0, 4).map((name, i) => {
-          const key = RESEARCH_AGENTS[i];
+        {agentCardData.map(({ key, displayName, index: i }) => {
           const latest = latestByAgent[key];
           const isWarn = underperforming.has(key);
           return (
-            <Card key={i}>
+            <Card key={key}>
               <CardHeader className="pb-1">
                 <CardTitle className="text-sm flex items-center gap-2">
                   Agent {i + 1}
@@ -109,7 +125,7 @@ export function AgentReportsTab({ portfolioId }: Props) {
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <p className="text-xs font-medium">{name}</p>
+                <p className="text-xs font-medium">{displayName}</p>
                 {latest ? (
                   <p className="text-xs text-muted-foreground mt-1 line-clamp-3">
                     {latest.summary.slice(0, 200)}...
@@ -195,12 +211,12 @@ export function AgentReportsTab({ portfolioId }: Props) {
                 <Legend wrapperStyle={{ fontSize: 11 }} />
                 <ReferenceLine y={7} stroke="#22c55e" strokeDasharray="3 3" label="" />
                 <ReferenceLine y={4} stroke="#ef4444" strokeDasharray="3 3" label="" />
-                {RESEARCH_AGENTS.map((agent, i) => (
+                {researchAgentNames.map((agent, i) => (
                   <Line
                     key={agent}
                     type="monotone"
                     dataKey={agent}
-                    name={AGENT_DISPLAY[agent]?.label ?? agent}
+                    name={agentDisplayMap[agent] ?? agent}
                     stroke={CHART_COLORS[i % CHART_COLORS.length]}
                     strokeWidth={2}
                     dot={{ r: 3 }}

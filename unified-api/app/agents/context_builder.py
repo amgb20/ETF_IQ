@@ -11,6 +11,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.models import Portfolio, Position, Price, ETF
+from app.models.portfolio import PortfolioTheme
 
 
 @dataclass
@@ -180,3 +181,70 @@ async def _latest_price(session: AsyncSession, etf_id: uuid.UUID) -> float | Non
     )
     row = result.scalar_one_or_none()
     return float(row) if row is not None else None
+
+
+async def load_portfolio_themes(
+    portfolio_id: uuid.UUID,
+    session: AsyncSession,
+) -> list[PortfolioTheme]:
+    """Load all themes for a portfolio, ordered by sort_order."""
+    result = await session.execute(
+        select(PortfolioTheme)
+        .where(PortfolioTheme.portfolio_id == portfolio_id)
+        .order_by(PortfolioTheme.sort_order)
+    )
+    return list(result.scalars().all())
+
+
+async def load_theme_etf_descriptions(
+    portfolio_id: uuid.UUID,
+    session: AsyncSession,
+) -> dict[uuid.UUID, list[dict]]:
+    """Build ETF metadata grouped by theme_id for dynamic agent prompts.
+
+    Returns ``{theme_id: [{"ticker_yf", "isin", "name", "description", "top_holdings"}]}``.
+    """
+    result = await session.execute(
+        select(Position)
+        .options(
+            selectinload(Position.etf).selectinload(ETF.holdings),
+            selectinload(Position.etf).selectinload(ETF.allocations),
+        )
+        .where(Position.portfolio_id == portfolio_id, Position.is_active == True)  # noqa: E712
+    )
+    positions = result.scalars().all()
+
+    grouped: dict[uuid.UUID, list[dict]] = {}
+    seen: dict[uuid.UUID, set[uuid.UUID]] = {}
+
+    for pos in positions:
+        tid = pos.theme_id
+        if tid is None:
+            continue
+        if tid not in grouped:
+            grouped[tid] = []
+            seen[tid] = set()
+        if pos.etf_id in seen[tid]:
+            continue
+        seen[tid].add(pos.etf_id)
+
+        etf = pos.etf
+        top_holdings = sorted(
+            (etf.holdings or []),
+            key=lambda h: float(h.weight or 0),
+            reverse=True,
+        )[:10]
+
+        grouped[tid].append({
+            "ticker_yf": etf.ticker_yf or etf.isin,
+            "isin": etf.isin,
+            "name": etf.name,
+            "description": etf.description or "",
+            "investment_focus": etf.investment_focus or "",
+            "top_holdings": [
+                h.holding_name or h.holding_ticker or h.holding_isin or "?"
+                for h in top_holdings
+            ],
+        })
+
+    return grouped

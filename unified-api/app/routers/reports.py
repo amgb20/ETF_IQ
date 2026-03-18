@@ -12,7 +12,7 @@ from fastapi.responses import FileResponse
 from sqlalchemy import delete, select, desc
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.report_orchestrator import ReportOrchestrator
+from app.agents.report_orchestrator import ReportOrchestrator, build_default_sections
 from app.agents.tools import rag_store
 from app.database import get_db
 from app.models.agent import AgentOutput, ChartEvent

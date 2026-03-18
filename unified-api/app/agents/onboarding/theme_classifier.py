@@ -135,6 +135,70 @@ Return ONLY a JSON array with no surrounding text:
 ]"""
 
 
+SINGLE_ETF_PROMPT = """You are a financial analyst. Given an ETF and a list of existing portfolio themes, decide where the ETF fits best.
+
+RULES:
+- If the ETF clearly fits an existing theme, return that theme's name EXACTLY as given.
+- Only create a new theme if the ETF does not fit ANY existing theme.
+- New theme labels must be 1-2 words maximum.
+- Suggest a hex color for new themes.
+
+Existing themes: {theme_names}
+
+Return ONLY a JSON object (no surrounding text):
+For an existing theme: {{"action": "assign", "theme_name": "<exact existing name>"}}
+For a new theme: {{"action": "create", "theme_name": "<new label>", "theme_color": "#hex"}}"""
+
+
+async def classify_single_etf(
+    etf: ETF,
+    existing_themes: list[dict],
+) -> dict:
+    """Classify a single ETF into an existing theme or propose a new one.
+
+    Args:
+        etf: ETF model with holdings/allocations loaded.
+        existing_themes: List of dicts with at least ``name`` and ``id`` keys.
+
+    Returns:
+        ``{"action": "assign", "theme_id": <uuid>}`` or
+        ``{"action": "create", "name": ..., "color": ...}``.
+    """
+    theme_names = ", ".join(t["name"] for t in existing_themes) if existing_themes else "(none)"
+    prompt = SINGLE_ETF_PROMPT.format(theme_names=theme_names)
+    prompt += f"\n\nETF to classify:\n{_etf_to_prompt_block(etf)}"
+
+    response = await llm_client.generate(prompt, config=llm_client.STRUCTURED_OUTPUT_CONFIG)
+
+    try:
+        result = json.loads(response.text.strip().strip("`").strip())
+    except json.JSONDecodeError:
+        match = re.search(r"\{[\s\S]*\}", response.text)
+        if match:
+            try:
+                result = json.loads(match.group(0))
+            except json.JSONDecodeError:
+                result = {}
+        else:
+            result = {}
+
+    action = result.get("action", "")
+    theme_name = result.get("theme_name", "")
+
+    if action == "assign" and theme_name:
+        for t in existing_themes:
+            if t["name"].lower() == theme_name.lower():
+                return {"action": "assign", "theme_id": t["id"]}
+        # Name didn't match exactly — fall through to create
+        logger.warning("LLM returned assign but theme '%s' not found; creating new.", theme_name)
+
+    return {
+        "action": "create",
+        "name": theme_name or "Other",
+        "color": result.get("theme_color", "#71717a"),
+    }
+
+
 async def classify_themes(etfs: list[ETF]) -> list[dict]:
     """Classify ETFs into investment themes using Gemini.
 

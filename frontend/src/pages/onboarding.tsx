@@ -197,10 +197,15 @@ export default function OnboardingPage() {
 
   // ── Step 7: Complete onboarding ───────────────────────────────
   const handleComplete = useCallback(async () => {
-    const themeMap = new Map<string, { color: string; positions: AllocationEntry[] }>();
+    const themeMap = new Map<string, { color: string; research_agent: string | null; positions: AllocationEntry[] }>();
     for (const alloc of allocations) {
       if (!themeMap.has(alloc.theme_label)) {
-        themeMap.set(alloc.theme_label, { color: alloc.theme_color, positions: [] });
+        const matched = themes.find((t) => t.label === alloc.theme_label);
+        themeMap.set(alloc.theme_label, {
+          color: alloc.theme_color,
+          research_agent: matched?.research_agent ?? null,
+          positions: [],
+        });
       }
       themeMap.get(alloc.theme_label)!.positions.push(alloc);
     }
@@ -208,6 +213,7 @@ export default function OnboardingPage() {
     const themesPayload = Array.from(themeMap.entries()).map(([name, data]) => ({
       name,
       color: data.color,
+      research_agent: data.research_agent,
       positions: data.positions.map((alloc) => ({
         etf_id: alloc.id,
         shares: alloc.mode === "owned" ? alloc.shares : 0,

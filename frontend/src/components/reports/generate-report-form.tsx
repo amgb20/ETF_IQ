@@ -1,13 +1,15 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Loader2 } from "lucide-react";
 import { useGenerateReport } from "@/hooks/use-reports";
+import { usePortfolio } from "@/hooks/use-portfolios";
 import { cn } from "@/lib/utils";
 
 const REPORT_TYPES = ["Weekly Health", "Monthly Deep Research"] as const;
-const SECTIONS = ["Exec Summary", "AI Stack", "Gold", "Defence", "Macro", "Risk", "Recommendations"];
+const FIXED_SECTIONS_PREFIX = ["Exec Summary"];
+const FIXED_SECTIONS_SUFFIX = ["Macro", "Risk", "Recommendations"];
 
 interface Props {
   portfolioId: string | undefined;
@@ -15,10 +17,20 @@ interface Props {
 }
 
 export function GenerateReportForm({ portfolioId, onGenerated }: Props) {
+  const { data: portfolio } = usePortfolio(portfolioId);
   const [reportType, setReportType] = useState<string>(REPORT_TYPES[0]);
   const [dateMode, setDateMode] = useState<string>("auto");
-  const [checkedSections, setCheckedSections] = useState<string[]>([...SECTIONS]);
   const generateReport = useGenerateReport();
+
+  const sections = useMemo(() => {
+    const themeNames = (portfolio?.themes ?? [])
+      .sort((a, b) => a.sort_order - b.sort_order)
+      .map((t) => t.name);
+    return [...FIXED_SECTIONS_PREFIX, ...themeNames, ...FIXED_SECTIONS_SUFFIX];
+  }, [portfolio?.themes]);
+
+  const [checkedSections, setCheckedSections] = useState<string[]>([]);
+  const effectiveSections = checkedSections.length > 0 ? checkedSections : sections;
 
   const toggleSection = (s: string) =>
     setCheckedSections((prev) => (prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]));
@@ -27,11 +39,13 @@ export function GenerateReportForm({ portfolioId, onGenerated }: Props) {
 
   const handleGenerate = () => {
     if (!portfolioId) return;
+    const allSelected = effectiveSections.length === sections.length &&
+      sections.every((s) => effectiveSections.includes(s));
     generateReport.mutate(
       {
         portfolio_id: portfolioId,
         type: isDeep ? "monthly" : "weekly",
-        sections: checkedSections.length < SECTIONS.length ? checkedSections : undefined,
+        sections: allSelected ? undefined : effectiveSections,
       },
       {
         onSuccess: (report) => onGenerated(report.id),
@@ -96,14 +110,14 @@ export function GenerateReportForm({ portfolioId, onGenerated }: Props) {
         <div>
           <label className="text-xs text-muted-foreground block mb-2">Sections</label>
           <div className="flex flex-wrap gap-2">
-            {SECTIONS.map((s) => (
+            {sections.map((s) => (
               <button
                 key={s}
                 type="button"
                 onClick={() => toggleSection(s)}
                 className={cn(
                   "inline-flex items-center rounded-md border px-2.5 py-0.5 text-xs font-semibold transition-colors",
-                  checkedSections.includes(s)
+                  effectiveSections.includes(s)
                     ? "bg-primary/20 text-primary border-primary/40"
                     : "bg-secondary text-muted-foreground border-border hover:border-primary/30 hover:text-foreground"
                 )}

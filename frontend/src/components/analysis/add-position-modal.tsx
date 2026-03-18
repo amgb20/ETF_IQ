@@ -12,6 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Plus, X, Loader2, ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useETFDiscover } from "@/hooks/use-etf-search";
 import { useAddPosition } from "@/hooks/use-positions";
+import { usePortfolioThemes, type ThemeBrief } from "@/hooks/use-portfolios";
 
 interface DraftETF {
   id: string;
@@ -21,10 +22,8 @@ interface DraftETF {
   shares: number;
   entry_price: number;
   entry_date: string;
-  theme: string;
+  theme_id: string;
 }
-
-const THEMES = ["AI Stack", "Gold", "Defence", "Other"];
 
 interface Props {
   open: boolean;
@@ -36,6 +35,7 @@ interface Props {
 export function AddPositionModal({ open, onOpenChange, portfolioId, existingIsins }: Props) {
   const qc = useQueryClient();
   const addPosition = useAddPosition(portfolioId);
+  const { data: themes } = usePortfolioThemes(portfolioId);
 
   const [step, setStep] = useState<"search" | "details">("search");
   const [drafts, setDrafts] = useState<DraftETF[]>([]);
@@ -56,7 +56,7 @@ export function AddPositionModal({ open, onOpenChange, portfolioId, existingIsin
         shares: 0,
         entry_price: 0,
         entry_date: new Date().toISOString().split("T")[0],
-        theme: "Other",
+        theme_id: "",
       },
     ]);
     setSearchQuery("");
@@ -81,7 +81,7 @@ export function AddPositionModal({ open, onOpenChange, portfolioId, existingIsin
           entry_price: d.entry_price,
           entry_date: d.entry_date,
           invested_amount: d.shares * d.entry_price,
-          layer_label: d.theme,
+          ...(d.theme_id ? { theme_id: d.theme_id } : {}),
         });
       }
       await qc.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
@@ -237,12 +237,13 @@ export function AddPositionModal({ open, onOpenChange, portfolioId, existingIsin
                   <div>
                     <label className="text-xs text-muted-foreground block mb-1">Theme</label>
                     <select
-                      value={d.theme}
-                      onChange={(e) => updateETF(d.isin, "theme", e.target.value)}
+                      value={d.theme_id}
+                      onChange={(e) => updateETF(d.isin, "theme_id", e.target.value)}
                       className="w-full rounded-md border border-input bg-background px-2 py-1 text-sm"
                     >
-                      {THEMES.map((t) => (
-                        <option key={t} value={t}>{t}</option>
+                      <option value="">Auto-detect</option>
+                      {(themes ?? []).map((t) => (
+                        <option key={t.id} value={t.id}>{t.name}</option>
                       ))}
                     </select>
                   </div>
