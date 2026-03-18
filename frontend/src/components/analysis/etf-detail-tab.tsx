@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { useETFDetail } from "@/hooks/use-etfs";
 import { Card, CardHeader, CardTitle, CardContent, CardDescription } from "@/components/ui/card";
 import { Table, TableHeader, TableBody, TableRow, TableHead, TableCell } from "@/components/ui/table";
@@ -227,11 +227,13 @@ function ETFDetailContent({ isin, overlap }: { isin: string; overlap?: OverlapDa
 export function ETFDetailTab({ etfs, overlap }: Props) {
   const [selectedIsin, setSelectedIsin] = useState<string | undefined>();
 
-  useEffect(() => {
-    if (etfs.length > 0 && (!selectedIsin || !etfs.some((e) => e.isin === selectedIsin))) {
-      setSelectedIsin(etfs[0].isin);
-    }
-  }, [etfs, selectedIsin]);
+  const resolvedIsin = selectedIsin && etfs.some((e) => e.isin === selectedIsin)
+    ? selectedIsin
+    : etfs.length > 0 ? etfs[0].isin : undefined;
+
+  if (resolvedIsin !== selectedIsin) {
+    setSelectedIsin(resolvedIsin);
+  }
 
   if (etfs.length === 0) {
     return (

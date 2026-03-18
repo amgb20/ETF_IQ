@@ -9,13 +9,13 @@ import time as _time
 import uuid
 from datetime import date
 
-from app.agents.judge import JudgeAgent
-from app.agents.research.macro import MacroAgent
-from app.agents.research.dynamic_theme import DynamicThemeAgent
-from app.agents.risk_assessor import RiskAssessorAgent
-from app.agents.event_mapper import EventMapperAgent
-from app.agents.recommender import RecommenderAgent
 from app.agents.context_builder import load_portfolio_themes, load_theme_etf_descriptions
+from app.agents.event_mapper import EventMapperAgent
+from app.agents.judge import JudgeAgent
+from app.agents.recommender import RecommenderAgent
+from app.agents.research.dynamic_theme import DynamicThemeAgent
+from app.agents.research.macro import MacroAgent
+from app.agents.risk_assessor import RiskAssessorAgent
 from app.database import async_session
 
 logger = logging.getLogger(__name__)
@@ -50,7 +50,8 @@ class WeeklyOrchestrator:
         evaluations = await judge.evaluate(portfolio_id, run_date)
         logger.info(
             "WeeklyOrchestrator [Phase 1/4] complete: Judge evaluated %d outputs (elapsed=%dms)",
-            len(evaluations), int((_time.perf_counter() - t_phase) * 1000),
+            len(evaluations),
+            int((_time.perf_counter() - t_phase) * 1000),
         )
 
         # Step 2: Build dynamic research agents from portfolio themes
@@ -61,17 +62,16 @@ class WeeklyOrchestrator:
         agents = []
         for theme in themes:
             agent_name = theme.research_agent or f"{_slugify(theme.name)}_analyst"
-            agents.append(DynamicThemeAgent(
-                theme_name=theme.name,
-                agent_name=agent_name,
-                etf_descriptions=etf_meta.get(theme.id, []),
-            ))
+            agents.append(
+                DynamicThemeAgent(
+                    theme_name=theme.name,
+                    agent_name=agent_name,
+                    etf_descriptions=etf_meta.get(theme.id, []),
+                )
+            )
 
         # MacroAgent covers the entire portfolio
-        all_tickers = [
-            t for descs in etf_meta.values() for d in descs
-            if (t := d.get("ticker_yf"))
-        ]
+        all_tickers = [t for descs in etf_meta.values() for d in descs if (t := d.get("ticker_yf"))]
         macro = MacroAgent()
         macro.covered_tickers = list(dict.fromkeys(all_tickers))
         agents.append(macro)
@@ -97,7 +97,9 @@ class WeeklyOrchestrator:
 
         logger.info(
             "WeeklyOrchestrator [Phase 2/4] complete: %d succeeded, %d failed (elapsed=%dms)",
-            successes, failures, int((_time.perf_counter() - t_phase) * 1000),
+            successes,
+            failures,
+            int((_time.perf_counter() - t_phase) * 1000),
         )
 
         # Step 3: Agent 5 (Risk) with research context
@@ -106,7 +108,9 @@ class WeeklyOrchestrator:
         risk_output = None
         try:
             risk_output = await RiskAssessorAgent().run(
-                portfolio_id, run_date, run_type,
+                portfolio_id,
+                run_date,
+                run_type,
                 research_outputs=research_outputs,
             )
             successes += 1
@@ -128,7 +132,9 @@ class WeeklyOrchestrator:
         phase4_results = await asyncio.gather(
             event_mapper.extract(portfolio_id, run_date, research_outputs),
             recommender.run(
-                portfolio_id, run_date, run_type,
+                portfolio_id,
+                run_date,
+                run_type,
                 research_outputs=research_outputs,
                 risk_output=risk_output,
             ),

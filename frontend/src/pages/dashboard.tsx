@@ -1,6 +1,5 @@
 import { useMemo } from "react";
 import { usePortfolios, usePortfolio } from "@/hooks/use-portfolios";
-import { Skeleton } from "@/components/ui/skeleton";
 import { HealthSummary } from "@/components/dashboard/health-summary";
 import { ThemeCards } from "@/components/dashboard/theme-cards";
 import { AllocationSection } from "@/components/dashboard/allocation-section";
@@ -17,10 +16,11 @@ export default function DashboardPage() {
   const loading = listLoading || detailLoading;
   const positions = portfolio?.positions ?? [];
 
+  const totalValue = portfolio?.total_value;
   const chartData = useMemo(() => {
-    if (!portfolio?.total_value || positions.length === 0) return [];
-    return [{ time: new Date().toISOString().split("T")[0], value: portfolio.total_value }];
-  }, [portfolio?.total_value, positions.length]);
+    if (!totalValue || positions.length === 0) return [];
+    return [{ time: new Date().toISOString().split("T")[0], value: totalValue }];
+  }, [totalValue, positions.length]);
 
   return (
     <div className="space-y-6">

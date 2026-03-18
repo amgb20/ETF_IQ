@@ -1,6 +1,6 @@
 """Agent 2 — Gold & Precious Metals Analyst: AUCP, SGLN."""
 
-from app.agents.base_agent import BaseAgent, PREDICTION_INSTRUCTION
+from app.agents.base_agent import PREDICTION_INSTRUCTION, BaseAgent
 from app.agents.context_builder import PortfolioContext
 from app.agents.prompts.v1.agent2_gold import SYSTEM_PROMPT
 from app.models.agent import AgentOutput

@@ -6,11 +6,11 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import date, timedelta
 
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from app.models import Portfolio, Position, Price, ETF
+from app.models import ETF, Portfolio, Position, Price
 from app.models.portfolio import PortfolioTheme
 
 
@@ -112,21 +112,23 @@ async def build(portfolio_id: uuid.UUID, session: AsyncSession) -> PortfolioCont
         pnl = (current_value - invested) if current_value else None
         pnl_pct = (pnl / invested * 100) if pnl and invested else None
 
-        ctx.positions.append(PositionContext(
-            etf_isin=pos.etf.isin,
-            etf_name=pos.etf.name,
-            ticker_yf=pos.etf.ticker_yf or pos.etf.isin,
-            theme=pos.theme.name if pos.theme else None,
-            shares=float(pos.shares),
-            entry_price=float(pos.entry_price),
-            entry_date=pos.entry_date,
-            invested=invested,
-            current_price=latest_price,
-            current_value=round(current_value, 2) if current_value else None,
-            pnl=round(pnl, 2) if pnl else None,
-            pnl_pct=round(pnl_pct, 2) if pnl_pct else None,
-            target_allocation=float(pos.target_allocation) if pos.target_allocation else None,
-        ))
+        ctx.positions.append(
+            PositionContext(
+                etf_isin=pos.etf.isin,
+                etf_name=pos.etf.name,
+                ticker_yf=pos.etf.ticker_yf or pos.etf.isin,
+                theme=pos.theme.name if pos.theme else None,
+                shares=float(pos.shares),
+                entry_price=float(pos.entry_price),
+                entry_date=pos.entry_date,
+                invested=invested,
+                current_price=latest_price,
+                current_value=round(current_value, 2) if current_value else None,
+                pnl=round(pnl, 2) if pnl else None,
+                pnl_pct=round(pnl_pct, 2) if pnl_pct else None,
+                target_allocation=float(pos.target_allocation) if pos.target_allocation else None,
+            )
+        )
 
         if current_value:
             ctx.total_value += current_value
@@ -152,13 +154,15 @@ async def build_market_summary(session: AsyncSession, days: int = 7) -> dict[str
 
     market: dict[str, list[dict]] = {}
     for price_row, ticker in rows:
-        market.setdefault(ticker, []).append({
-            "date": str(price_row.date),
-            "close": float(price_row.close),
-            "open": float(price_row.open) if price_row.open else None,
-            "high": float(price_row.high) if price_row.high else None,
-            "low": float(price_row.low) if price_row.low else None,
-        })
+        market.setdefault(ticker, []).append(
+            {
+                "date": str(price_row.date),
+                "close": float(price_row.close),
+                "open": float(price_row.open) if price_row.open else None,
+                "high": float(price_row.high) if price_row.high else None,
+                "low": float(price_row.low) if price_row.low else None,
+            }
+        )
     return market
 
 
@@ -189,9 +193,7 @@ async def load_portfolio_themes(
 ) -> list[PortfolioTheme]:
     """Load all themes for a portfolio, ordered by sort_order."""
     result = await session.execute(
-        select(PortfolioTheme)
-        .where(PortfolioTheme.portfolio_id == portfolio_id)
-        .order_by(PortfolioTheme.sort_order)
+        select(PortfolioTheme).where(PortfolioTheme.portfolio_id == portfolio_id).order_by(PortfolioTheme.sort_order)
     )
     return list(result.scalars().all())
 
@@ -235,16 +237,15 @@ async def load_theme_etf_descriptions(
             reverse=True,
         )[:10]
 
-        grouped[tid].append({
-            "ticker_yf": etf.ticker_yf or etf.isin,
-            "isin": etf.isin,
-            "name": etf.name,
-            "description": etf.description or "",
-            "investment_focus": etf.investment_focus or "",
-            "top_holdings": [
-                h.holding_name or h.holding_ticker or h.holding_isin or "?"
-                for h in top_holdings
-            ],
-        })
+        grouped[tid].append(
+            {
+                "ticker_yf": etf.ticker_yf or etf.isin,
+                "isin": etf.isin,
+                "name": etf.name,
+                "description": etf.description or "",
+                "investment_focus": etf.investment_focus or "",
+                "top_holdings": [h.holding_name or h.holding_ticker or h.holding_isin or "?" for h in top_holdings],
+            }
+        )
 
     return grouped

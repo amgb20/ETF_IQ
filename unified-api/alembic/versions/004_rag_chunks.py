@@ -5,10 +5,11 @@ Revises: 003
 Create Date: 2026-03-12
 """
 
-from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects import postgresql
 from pgvector.sqlalchemy import Vector
+from sqlalchemy.dialects import postgresql
+
+from alembic import op
 
 revision = "004"
 down_revision = "003"

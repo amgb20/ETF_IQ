@@ -62,6 +62,7 @@ def _resolve_vertex_urls(sources: list[dict]) -> list[dict]:
     logger.info("Resolved %d/%d Vertex AI redirect URLs", len(resolved), len(sources))
     return resolved
 
+
 _client: genai.Client | None = None
 
 
@@ -97,6 +98,7 @@ DEEP_RESEARCH_CONFIG = GenerateContentConfig(
 def get_langchain_llm(temperature: float = 0.2, max_output_tokens: int = 4096):
     """Return a ChatGoogleGenerativeAI instance for the LangChain chat agent."""
     from langchain_google_genai import ChatGoogleGenerativeAI
+
     settings = get_settings()
     model_name = settings.GEMINI_MODEL.removeprefix("models/")
     return ChatGoogleGenerativeAI(
@@ -161,7 +163,11 @@ async def generate(
 
     logger.info(
         "LLM call complete: model=%s prompt_tokens=%d completion_tokens=%d latency=%dms sources=%d",
-        model_name, prompt_tokens, completion_tokens, latency_ms, len(sources),
+        model_name,
+        prompt_tokens,
+        completion_tokens,
+        latency_ms,
+        len(sources),
     )
 
     return LLMResponse(

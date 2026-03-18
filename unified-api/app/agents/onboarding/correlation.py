@@ -16,7 +16,7 @@ import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.models.etf import ETF, ETFHolding
+from app.models.etf import ETFHolding
 from app.models.price import Price
 
 logger = logging.getLogger(__name__)
@@ -63,9 +63,7 @@ async def compute_price_correlations(
         if id_a not in returns_by_etf or id_b not in returns_by_etf:
             continue
 
-        common_dates = sorted(
-            set(returns_by_etf[id_a].keys()) & set(returns_by_etf[id_b].keys())
-        )
+        common_dates = sorted(set(returns_by_etf[id_a].keys()) & set(returns_by_etf[id_b].keys()))
         if len(common_dates) < 30:
             # Not enough data for meaningful correlation
             continue
@@ -77,11 +75,13 @@ async def compute_price_correlations(
         corr_value = float(corr_matrix[0, 1])
 
         if not np.isnan(corr_value):
-            correlations.append({
-                "etf_id_a": id_a,
-                "etf_id_b": id_b,
-                "correlation": round(corr_value, 4),
-            })
+            correlations.append(
+                {
+                    "etf_id_a": id_a,
+                    "etf_id_b": id_b,
+                    "correlation": round(corr_value, 4),
+                }
+            )
 
     return correlations
 
@@ -96,8 +96,9 @@ async def compute_holdings_overlap(
     Returns list of dicts: {etf_id_a, etf_id_b, overlap_pct, shared_count}.
     """
     result = await db.execute(
-        select(ETFHolding.etf_id, ETFHolding.holding_isin, ETFHolding.weight)
-        .where(ETFHolding.etf_id.in_(etf_ids), ETFHolding.holding_isin.isnot(None))
+        select(ETFHolding.etf_id, ETFHolding.holding_isin, ETFHolding.weight).where(
+            ETFHolding.etf_id.in_(etf_ids), ETFHolding.holding_isin.isnot(None)
+        )
     )
     rows = result.all()
 
@@ -117,26 +118,28 @@ async def compute_holdings_overlap(
         shared_isins = set(holdings_a.keys()) & set(holdings_b.keys())
 
         if not shared_isins:
-            overlaps.append({
-                "etf_id_a": id_a,
-                "etf_id_b": id_b,
-                "overlap_pct": 0.0,
-                "shared_count": 0,
-            })
+            overlaps.append(
+                {
+                    "etf_id_a": id_a,
+                    "etf_id_b": id_b,
+                    "overlap_pct": 0.0,
+                    "shared_count": 0,
+                }
+            )
             continue
 
-        weighted_overlap = sum(
-            min(holdings_a[isin], holdings_b[isin]) for isin in shared_isins
-        )
+        weighted_overlap = sum(min(holdings_a[isin], holdings_b[isin]) for isin in shared_isins)
         # Weight is typically 0-1 (fraction), multiply by 100 for percentage
         overlap_pct = round(weighted_overlap * 100, 2)
 
-        overlaps.append({
-            "etf_id_a": id_a,
-            "etf_id_b": id_b,
-            "overlap_pct": overlap_pct,
-            "shared_count": len(shared_isins),
-        })
+        overlaps.append(
+            {
+                "etf_id_a": id_a,
+                "etf_id_b": id_b,
+                "overlap_pct": overlap_pct,
+                "shared_count": len(shared_isins),
+            }
+        )
 
     return overlaps
 
@@ -155,12 +158,14 @@ def flag_correlated_pairs(
             pair_key = (str(pc["etf_id_a"]), str(pc["etf_id_b"]), "price")
             if pair_key not in seen:
                 seen.add(pair_key)
-                flagged.append({
-                    "etf_id_a": pc["etf_id_a"],
-                    "etf_id_b": pc["etf_id_b"],
-                    "reason": f"price_correlation > {threshold}",
-                    "value": pc["correlation"],
-                })
+                flagged.append(
+                    {
+                        "etf_id_a": pc["etf_id_a"],
+                        "etf_id_b": pc["etf_id_b"],
+                        "reason": f"price_correlation > {threshold}",
+                        "value": pc["correlation"],
+                    }
+                )
 
     threshold_pct = threshold * 100
     for ho in holdings_overlaps:
@@ -168,11 +173,13 @@ def flag_correlated_pairs(
             pair_key = (str(ho["etf_id_a"]), str(ho["etf_id_b"]), "holdings")
             if pair_key not in seen:
                 seen.add(pair_key)
-                flagged.append({
-                    "etf_id_a": ho["etf_id_a"],
-                    "etf_id_b": ho["etf_id_b"],
-                    "reason": f"holdings_overlap > {threshold_pct}%",
-                    "value": ho["overlap_pct"],
-                })
+                flagged.append(
+                    {
+                        "etf_id_a": ho["etf_id_a"],
+                        "etf_id_b": ho["etf_id_b"],
+                        "reason": f"holdings_overlap > {threshold_pct}%",
+                        "value": ho["overlap_pct"],
+                    }
+                )
 
     return flagged

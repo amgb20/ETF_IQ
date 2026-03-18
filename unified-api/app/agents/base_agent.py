@@ -5,14 +5,13 @@ from __future__ import annotations
 import logging
 import uuid
 from abc import ABC, abstractmethod
-from datetime import date, timedelta
+from datetime import date
 
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.dialects.postgresql import insert as pg_insert
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import llm_client
-from app.agents.tools import rag_store
 from app.agents.context_builder import (
     PortfolioContext,
     build,
@@ -21,6 +20,7 @@ from app.agents.context_builder import (
 )
 from app.agents.prediction_parser import parse as parse_predictions
 from app.agents.prompts import get_prompt_version
+from app.agents.tools import rag_store
 from app.database import async_session
 from app.models.agent import AgentOutput
 
@@ -99,7 +99,10 @@ class BaseAgent(ABC):
         t0 = _time.perf_counter()
         logger.info(
             "Agent %s starting for portfolio %s (run_date=%s, run_type=%s)",
-            self.agent_name, portfolio_id, run_date, run_type,
+            self.agent_name,
+            portfolio_id,
+            run_date,
+            run_type,
         )
 
         async with async_session() as session:
@@ -116,11 +119,7 @@ class BaseAgent(ABC):
 
             prompt = self.build_prompt(ctx, market_str, past_output, judge_eval)
 
-            config = (
-                llm_client.DEEP_RESEARCH_CONFIG
-                if run_type == "deep_research"
-                else llm_client.STANDARD_CONFIG
-            )
+            config = llm_client.DEEP_RESEARCH_CONFIG if run_type == "deep_research" else llm_client.STANDARD_CONFIG
             logger.info("Agent %s: calling LLM...", self.agent_name)
             response = await llm_client.generate(prompt, config=config)
 
@@ -150,7 +149,11 @@ class BaseAgent(ABC):
             elapsed_ms = int((_time.perf_counter() - t0) * 1000)
             logger.info(
                 "Agent %s completed for portfolio %s (run_date=%s, predictions=%d, elapsed=%dms)",
-                self.agent_name, portfolio_id, run_date, len(predictions), elapsed_ms,
+                self.agent_name,
+                portfolio_id,
+                run_date,
+                len(predictions),
+                elapsed_ms,
             )
             return output
 
@@ -219,7 +222,9 @@ class BaseAgent(ABC):
         metadata = {
             "agent_name": output.agent_name,
             "run_date": str(output.run_date),
-            "judge_overall_score": float(output.judge_overall_score) if getattr(output, "judge_overall_score", None) else None,
+            "judge_overall_score": float(output.judge_overall_score)
+            if getattr(output, "judge_overall_score", None)
+            else None,
             "source_type": "agent_output",
         }
         await _embed_output(output.portfolio_id, output.id, text, metadata)
@@ -245,11 +250,12 @@ class BaseAgent(ABC):
         )
         return result.scalar_one_or_none()
 
-    def _build_reflection_block(
-        self, past_output: AgentOutput, judge_eval: dict
-    ) -> str:
+    def _build_reflection_block(self, past_output: AgentOutput, judge_eval: dict) -> str:
         import json
-        preds_str = json.dumps(past_output.predictions, indent=2) if past_output.predictions else "No predictions recorded."
+
+        preds_str = (
+            json.dumps(past_output.predictions, indent=2) if past_output.predictions else "No predictions recorded."
+        )
         eval_str = json.dumps(judge_eval, indent=2) if judge_eval else "No evaluation available."
         return REFLECTION_TEMPLATE.format(
             date=past_output.run_date,

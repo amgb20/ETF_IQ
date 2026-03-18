@@ -50,7 +50,9 @@ class EventMapperAgent:
         t0 = _time.perf_counter()
         logger.info(
             "EventMapper starting for portfolio %s (run_date=%s, research_outputs=%d)",
-            portfolio_id, run_date, len(research_outputs),
+            portfolio_id,
+            run_date,
+            len(research_outputs),
         )
 
         summaries: list[str] = []
@@ -82,7 +84,8 @@ class EventMapperAgent:
         try:
             logger.info("EventMapper: calling LLM...")
             response = await llm_client.generate(
-                prompt, config=llm_client.STRUCTURED_OUTPUT_CONFIG,
+                prompt,
+                config=llm_client.STRUCTURED_OUTPUT_CONFIG,
             )
             raw_events = self._parse_events(response.text)
             logger.info("EventMapper: LLM returned %d parsed events", len(raw_events))
@@ -151,11 +154,18 @@ class EventMapperAgent:
 
             if response:
                 await self._store_agent_output(
-                    session, portfolio_id, run_date, response, raw_events,
+                    session,
+                    portfolio_id,
+                    run_date,
+                    response,
+                    raw_events,
                 )
             elif llm_error:
                 await self._store_error_output(
-                    session, portfolio_id, run_date, llm_error,
+                    session,
+                    portfolio_id,
+                    run_date,
+                    llm_error,
                 )
 
             await session.commit()
@@ -183,7 +193,9 @@ class EventMapperAgent:
         elapsed_ms = int((_time.perf_counter() - t0) * 1000)
         logger.info(
             "EventMapper completed: extracted %d events for portfolio %s (elapsed=%dms)",
-            len(chart_events), portfolio_id, elapsed_ms,
+            len(chart_events),
+            portfolio_id,
+            elapsed_ms,
         )
         return chart_events
 
@@ -229,7 +241,8 @@ class EventMapperAgent:
         recovered = self._recover_truncated_events(text)
         if recovered:
             logger.warning(
-                "EventMapper: recovered %d events from truncated JSON", len(recovered),
+                "EventMapper: recovered %d events from truncated JSON",
+                len(recovered),
             )
             return recovered
 

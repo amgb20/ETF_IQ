@@ -69,11 +69,13 @@ def _try_regex(text: str) -> list[dict]:
         conf_match = re.search(r"Confidence:\s*(\d+)", block, re.IGNORECASE)
         time_match = re.search(r"Timeframe:\s*(.+?)(?:\n|$)", block, re.IGNORECASE)
         if pred_match:
-            results.append({
-                "prediction": pred_match.group(1).strip(),
-                "confidence": int(conf_match.group(1)) if conf_match else 5,
-                "timeframe": time_match.group(1).strip() if time_match else "1 week",
-            })
+            results.append(
+                {
+                    "prediction": pred_match.group(1).strip(),
+                    "confidence": int(conf_match.group(1)) if conf_match else 5,
+                    "timeframe": time_match.group(1).strip() if time_match else "1 week",
+                }
+            )
     return results
 
 

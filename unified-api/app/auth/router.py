@@ -98,12 +98,14 @@ async def passwordless_verify(
 
     response.set_cookie(key="access_token", value=token, httponly=True, **cookie_opts)
 
-    js_payload = json.dumps({
-        "id": str(user.id),
-        "email": user.email,
-        "role": user.role,
-        "username": user.display_name or user.email.split("@")[0],
-    })
+    js_payload = json.dumps(
+        {
+            "id": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "username": user.display_name or user.email.split("@")[0],
+        }
+    )
     response.set_cookie(key="access_token_js", value=js_payload, httponly=False, **cookie_opts)
 
     return {

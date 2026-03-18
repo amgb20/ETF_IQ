@@ -19,8 +19,6 @@ function corrColor(val: number): string {
 }
 
 export function CorrelationHeatmap({ correlation, etfs, loading }: Props) {
-  if (loading) return <Skeleton className="h-[400px] w-full rounded-xl" />;
-
   const labels = useMemo(() => {
     if (!etfs) return [];
     return etfs.map((e) => ({
@@ -28,6 +26,8 @@ export function CorrelationHeatmap({ correlation, etfs, loading }: Props) {
       label: e.ticker_yf?.replace(".L", "") ?? e.isin.slice(0, 6),
     }));
   }, [etfs]);
+
+  if (loading) return <Skeleton className="h-[400px] w-full rounded-xl" />;
 
   if (!correlation || labels.length < 2) {
     return (

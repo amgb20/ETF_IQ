@@ -55,8 +55,6 @@ function computeMonthlyReturns(prices: { date: string; close: number }[]): Month
 }
 
 export function MonthlyReturnsHeatmap({ priceQueries, etfs, loading }: Props) {
-  if (loading) return <Skeleton className="h-[400px] w-full rounded-xl" />;
-
   const data = useMemo(() => {
     const rows: { label: string; returns: Map<string, number> }[] = [];
     const allMonths = new Set<string>();
@@ -86,7 +84,10 @@ export function MonthlyReturnsHeatmap({ priceQueries, etfs, loading }: Props) {
     });
 
     return { rows, months: sortedMonths };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [priceQueries.map((q) => q.dataUpdatedAt).join(","), etfs]);
+
+  if (loading) return <Skeleton className="h-[400px] w-full rounded-xl" />;
 
   if (data.rows.length === 0) {
     return (

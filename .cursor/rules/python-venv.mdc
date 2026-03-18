@@ -1,0 +1,16 @@
+---
+description: Require virtual environment activation before running any Python commands
+alwaysApply: true
+---
+
+# Python Virtual Environment Requirement
+
+Before executing any Python command (`python`, `pip`, `pytest`, `uvicorn`, etc.), you MUST ensure a virtual environment is active.
+
+## Steps
+
+1. **Check for a venv** — look for `.venv/`, `venv/`, or any `*_venv/` directory in the project root.
+2. **Activate it** before running Python commands:
+   - Windows: `.venv\Scripts\activate`
+   - macOS/Linux: `source .venv/bin/activate`
+3. **If no venv exists** — stop and ask the user to create one before proceeding. Do NOT install packages or run Python in the global environment.

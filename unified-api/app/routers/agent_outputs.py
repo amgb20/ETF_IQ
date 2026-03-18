@@ -5,13 +5,13 @@ from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 from app.database import get_db
 from app.models.agent import AgentOutput
 from app.schemas.agent_output import AgentOutputResponse
-from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 router = APIRouter(prefix="/agent-outputs", tags=["agent-outputs"])
 
@@ -47,10 +47,7 @@ async def get_agent_scores(
         .order_by(AgentOutput.run_date, AgentOutput.agent_name)
     )
     rows = result.all()
-    return [
-        AgentScoreEntry(agent_name=r[0], run_date=r[1], score=float(r[2]))
-        for r in rows
-    ]
+    return [AgentScoreEntry(agent_name=r[0], run_date=r[1], score=float(r[2])) for r in rows]
 
 
 @router.get("", response_model=list[AgentOutputResponse])

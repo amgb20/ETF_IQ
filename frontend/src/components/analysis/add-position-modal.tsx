@@ -12,7 +12,7 @@ import { Badge } from "@/components/ui/badge";
 import { Search, Plus, X, Loader2, ArrowLeft, ArrowRight, Check } from "lucide-react";
 import { useETFDiscover } from "@/hooks/use-etf-search";
 import { useAddPosition } from "@/hooks/use-positions";
-import { usePortfolioThemes, type ThemeBrief } from "@/hooks/use-portfolios";
+import { usePortfolioThemes } from "@/hooks/use-portfolios";
 
 interface DraftETF {
   id: string;
@@ -87,8 +87,8 @@ export function AddPositionModal({ open, onOpenChange, portfolioId, existingIsin
       await qc.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
       reset();
       onOpenChange(false);
-    } catch (err: any) {
-      setError(err?.message ?? "Failed to add positions");
+    } catch (err: unknown) {
+      setError(err instanceof Error ? err.message : "Failed to add positions");
     } finally {
       setSaving(false);
     }

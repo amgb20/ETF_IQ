@@ -2,13 +2,11 @@ import { AlertTriangle, CheckCircle, ArrowRight } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CorrelationsResponse, DraftETF } from "@/types/onboarding";
+import type { CorrelationsResponse } from "@/types/onboarding";
 
 interface StepCorrelationsProps {
   correlations: CorrelationsResponse | null;
-  etfs: DraftETF[];
   isLoading: boolean;
-  hasFlaggedPairs: boolean;
   onNext: () => void;
   isLoadingNext: boolean;
 }
@@ -41,9 +39,7 @@ function CorrelationBar({
 
 export function StepCorrelations({
   correlations,
-  etfs,
   isLoading,
-  hasFlaggedPairs,
   onNext,
   isLoadingNext,
 }: StepCorrelationsProps) {

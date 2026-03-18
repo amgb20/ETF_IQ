@@ -34,6 +34,7 @@ const CHART_HEIGHT = 400;
 export function AnalysisChart({ series, loading, chartType = "line", events, isIntraday = false }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const seriesRefs = useRef<ISeriesApi<any>[]>([]);
 
   const [pinnedCard, setPinnedCard] = useState<{
@@ -41,6 +42,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events, isI
     x: number;
     y: number;
   } | null>(null);
+  const [containerWidth, setContainerWidth] = useState(600);
 
   const eventsByDate = useMemo(() => {
     const map = new Map<string, ChartEvent[]>();
@@ -84,6 +86,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events, isI
     const ro = new ResizeObserver((entries) => {
       const { width } = entries[0].contentRect;
       chart.applyOptions({ width });
+      setContainerWidth(width);
     });
     ro.observe(containerRef.current);
 
@@ -110,6 +113,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events, isI
 
     series.forEach((s, i) => {
       const color = CHART_COLORS[i % CHART_COLORS.length];
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let seriesApi: ISeriesApi<any>;
 
       if (chartType === "bar") {
@@ -139,6 +143,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events, isI
             time: Math.floor(new Date(d.time).getTime() / 1000) as unknown as Time,
             value: d.value,
           }))
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         : (s.data as any);
       seriesApi.setData(chartData);
 
@@ -211,6 +216,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events, isI
     const chart = chartRef.current;
     if (!chart) return;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const handler = (param: any) => {
       if (!param.time || !param.point || !events?.length) {
         setPinnedCard(null);
@@ -266,7 +272,7 @@ export function AnalysisChart({ series, loading, chartType = "line", events, isI
           events={pinnedCard.events}
           x={pinnedCard.x}
           y={pinnedCard.y}
-          containerWidth={containerRef.current?.clientWidth ?? 600}
+          containerWidth={containerWidth}
           containerHeight={CHART_HEIGHT}
           onClose={() => setPinnedCard(null)}
         />

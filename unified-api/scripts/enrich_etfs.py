@@ -1,4 +1,5 @@
 """One-shot: enrich ETF metadata from yfinance and compute risk fields from prices."""
+
 import asyncio
 import logging
 import os
@@ -8,8 +9,9 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 logging.basicConfig(level=logging.INFO)
 
-from app.database import async_session, engine
 from data_connectors.yfinance_conn.connector import YFinanceConnector
+
+from app.database import async_session, engine
 
 
 async def main():

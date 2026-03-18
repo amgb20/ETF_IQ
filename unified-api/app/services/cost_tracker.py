@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import date
 
-from sqlalchemy import select, func, extract
+from sqlalchemy import extract, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agent import AgentOutput
@@ -56,14 +56,16 @@ async def get_monthly_costs(
         completion_cost = int(row.total_completion_tokens) / 1000 * GEMINI_OUTPUT_COST_PER_1K
         total_cost = prompt_cost + completion_cost
 
-        costs.append({
-            "user_id": str(row.user_id),
-            "portfolio_name": row.portfolio_name,
-            "total_runs": row.total_runs,
-            "prompt_tokens": int(row.total_prompt_tokens),
-            "completion_tokens": int(row.total_completion_tokens),
-            "estimated_cost_usd": round(total_cost, 4),
-            "month": f"{year}-{month_num:02d}",
-        })
+        costs.append(
+            {
+                "user_id": str(row.user_id),
+                "portfolio_name": row.portfolio_name,
+                "total_runs": row.total_runs,
+                "prompt_tokens": int(row.total_prompt_tokens),
+                "completion_tokens": int(row.total_completion_tokens),
+                "estimated_cost_usd": round(total_cost, 4),
+                "month": f"{year}-{month_num:02d}",
+            }
+        )
 
     return costs

@@ -67,6 +67,7 @@ export function useChat(portfolioId: string | undefined) {
 
   useEffect(() => {
     if (!sessionId || !portfolioId) return;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     apiFetch<{ id: string; role: string; content: string; tools_used: any }[]>(
       `/chat/sessions/${sessionId}/messages`,
     )
@@ -173,8 +174,8 @@ export function useChat(portfolioId: string | undefined) {
             }
           }
         }
-      } catch (err: any) {
-        if (err.name !== "AbortError") {
+      } catch (err: unknown) {
+        if (err instanceof Error && err.name !== "AbortError") {
           setMessages((prev) => {
             const updated = [...prev];
             const last = updated[updated.length - 1];

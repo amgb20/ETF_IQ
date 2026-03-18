@@ -19,7 +19,7 @@ const STATUS_LABELS: Record<string, string> = {
 export function ProgressIndicator({ reportId }: Props) {
   const { data: status } = useReportStatus(reportId);
   const [elapsed, setElapsed] = useState(0);
-  const [startTime] = useState(Date.now());
+  const [startTime] = useState(() => Date.now());
 
   useEffect(() => {
     if (!status || status.status === "complete" || status.status === "failed") return;

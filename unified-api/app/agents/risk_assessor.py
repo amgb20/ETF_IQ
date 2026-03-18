@@ -6,7 +6,6 @@ then sends these along with research outputs to the LLM for synthesis.
 
 from __future__ import annotations
 
-import json
 import logging
 import uuid
 from datetime import date, timedelta
@@ -15,15 +14,15 @@ import numpy as np
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.base_agent import BaseAgent, PREDICTION_INSTRUCTION
-from app.agents.context_builder import PortfolioContext, build, build_market_summary, market_data_to_prompt
-from app.agents.prompts.v1.agent5_risk import SYSTEM_PROMPT
 from app.agents import llm_client
+from app.agents.base_agent import PREDICTION_INSTRUCTION, BaseAgent
+from app.agents.context_builder import PortfolioContext, build, build_market_summary, market_data_to_prompt
 from app.agents.prediction_parser import parse as parse_predictions
+from app.agents.prompts.v1.agent5_risk import SYSTEM_PROMPT
 from app.database import async_session
 from app.models.agent import AgentOutput
-from app.models.price import Price
 from app.models.etf import ETF
+from app.models.price import Price
 
 logger = logging.getLogger(__name__)
 
@@ -73,7 +72,9 @@ class RiskAssessorAgent(BaseAgent):
         t0 = _time.perf_counter()
         logger.info(
             "RiskAssessorAgent starting for portfolio %s (run_date=%s, run_type=%s)",
-            portfolio_id, run_date, run_type,
+            portfolio_id,
+            run_date,
+            run_type,
         )
 
         async with async_session() as session:
@@ -98,7 +99,10 @@ class RiskAssessorAgent(BaseAgent):
             judge_eval = past_output.judge_evaluation if past_output and past_output.judge_evaluation else None
 
             prompt = self.build_prompt(
-                ctx, market_str, past_output, judge_eval,
+                ctx,
+                market_str,
+                past_output,
+                judge_eval,
                 correlation_data=corr_str,
                 drift_data=drift_str,
                 volatility_data=vol_str,
@@ -118,7 +122,9 @@ class RiskAssessorAgent(BaseAgent):
                 run_type=run_type,
                 summary=response.text,
                 predictions=predictions,
-                reflection=f"Reflected on Week {past_output.run_date} evaluation." if past_output and judge_eval else None,
+                reflection=f"Reflected on Week {past_output.run_date} evaluation."
+                if past_output and judge_eval
+                else None,
                 research_mode=run_type,
                 model_used=response.model_used,
                 prompt_tokens=response.prompt_tokens,
@@ -130,7 +136,9 @@ class RiskAssessorAgent(BaseAgent):
             elapsed_ms = int((_time.perf_counter() - t0) * 1000)
             logger.info(
                 "RiskAssessorAgent completed for portfolio %s (predictions=%d, elapsed=%dms)",
-                portfolio_id, len(predictions), elapsed_ms,
+                portfolio_id,
+                len(predictions),
+                elapsed_ms,
             )
             return output
 

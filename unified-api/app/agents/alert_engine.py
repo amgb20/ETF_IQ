@@ -10,7 +10,7 @@ import logging
 from datetime import date, timedelta
 
 import numpy as np
-from sqlalchemy import select, desc, update, func
+from sqlalchemy import desc, func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.alert import Alert, AlertEvent
@@ -39,11 +39,13 @@ class AlertEngine:
             try:
                 breached, actual_value, message = await AlertEngine._check(session, alert)
                 if breached:
-                    session.add(AlertEvent(
-                        alert_id=alert.id,
-                        actual_value=actual_value,
-                        message=message,
-                    ))
+                    session.add(
+                        AlertEvent(
+                            alert_id=alert.id,
+                            actual_value=actual_value,
+                            message=message,
+                        )
+                    )
                     await session.execute(
                         update(Alert)
                         .where(Alert.id == alert.id)
@@ -56,24 +58,31 @@ class AlertEngine:
                     logger.info("Alert %s triggered: %s", alert.id, message)
 
                     try:
-                        from app.services.email import send_alert_email
                         from app.models.portfolio import Portfolio
+                        from app.services.email import send_alert_email
+
                         portfolio = await session.get(Portfolio, alert.portfolio_id)
                         if portfolio:
                             user = await session.get(User, portfolio.user_id)
                             if user:
-                                await send_alert_email(user, alert, AlertEvent(
-                                    alert_id=alert.id,
-                                    actual_value=actual_value,
-                                    message=message,
-                                ))
-                                session.add(Notification(
-                                    user_id=user.id,
-                                    type="alert_triggered",
-                                    title="Alert triggered",
-                                    message=message,
-                                    ref_id=alert.id,
-                                ))
+                                await send_alert_email(
+                                    user,
+                                    alert,
+                                    AlertEvent(
+                                        alert_id=alert.id,
+                                        actual_value=actual_value,
+                                        message=message,
+                                    ),
+                                )
+                                session.add(
+                                    Notification(
+                                        user_id=user.id,
+                                        type="alert_triggered",
+                                        title="Alert triggered",
+                                        message=message,
+                                        ref_id=alert.id,
+                                    )
+                                )
                     except Exception:
                         logger.exception("Failed to send alert email for alert %s", alert.id)
             except Exception:
@@ -87,10 +96,7 @@ class AlertEngine:
     async def _check(session: AsyncSession, alert: Alert) -> tuple[bool, float | None, str]:
         """Evaluate a single alert against latest price data."""
         latest = await session.execute(
-            select(Price.close, Price.date)
-            .where(Price.etf_id == alert.etf_id)
-            .order_by(desc(Price.date))
-            .limit(2)
+            select(Price.close, Price.date).where(Price.etf_id == alert.etf_id).order_by(desc(Price.date)).limit(2)
         )
         rows = latest.all()
         if not rows:
@@ -123,9 +129,7 @@ class AlertEngine:
         if alert.type == "volatility":
             cutoff = date.today() - timedelta(days=30)
             vol_result = await session.execute(
-                select(Price.close)
-                .where(Price.etf_id == alert.etf_id, Price.date >= cutoff)
-                .order_by(Price.date)
+                select(Price.close).where(Price.etf_id == alert.etf_id, Price.date >= cutoff).order_by(Price.date)
             )
             closes = [float(r[0]) for r in vol_result.all()]
             if len(closes) < 5:

@@ -3,15 +3,15 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 from app.database import get_db
-from app.models.alert import Alert, AlertEvent
+from app.models.alert import Alert
 from app.models.notification import Notification
 from app.schemas.alert import AlertCreate, AlertResponse, AlertUpdate
-from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 router = APIRouter(prefix="/alerts", tags=["alerts"])
 
@@ -52,13 +52,15 @@ async def create_alert(
     await db.flush()
     await db.refresh(alert, attribute_names=["events"])
 
-    db.add(Notification(
-        user_id=user.id,
-        type="alert_configured",
-        title="Alert configured",
-        message=f"{body.type.replace('_', ' ').title()} alert set at {body.threshold}",
-        ref_id=alert.id,
-    ))
+    db.add(
+        Notification(
+            user_id=user.id,
+            type="alert_configured",
+            title="Alert configured",
+            message=f"{body.type.replace('_', ' ').title()} alert set at {body.threshold}",
+            ref_id=alert.id,
+        )
+    )
 
     return AlertResponse.model_validate(alert)
 
@@ -70,9 +72,7 @@ async def update_alert(
     user: RequireAuth = ...,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(
-        select(Alert).options(selectinload(Alert.events)).where(Alert.id == alert_id)
-    )
+    result = await db.execute(select(Alert).options(selectinload(Alert.events)).where(Alert.id == alert_id))
     alert = result.scalar_one_or_none()
     if not alert:
         raise HTTPException(status_code=404, detail="Alert not found")

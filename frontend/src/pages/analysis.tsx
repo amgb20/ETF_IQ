@@ -5,7 +5,6 @@ import { usePortfolios, usePortfolio } from "@/hooks/use-portfolios";
 import { useOverlap } from "@/hooks/use-snapshot";
 import { apiFetch } from "@/lib/api-client";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ChartWorkspace } from "@/components/analysis/chart-workspace";
 import { ETFDetailTab } from "@/components/analysis/etf-detail-tab";
@@ -65,9 +64,9 @@ export default function AnalysisPage() {
 
   useEffect(() => {
     if (portfolioEtfs.length > 0 && selectedIsins.length === 0) {
-      console.log("[analysis] pre-selecting all ETFs:", portfolioEtfs.map((e) => e.isin));
       setSelectedIsins(portfolioEtfs.map((e) => e.isin));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [portfolioEtfs.length]);
 
   // Auto-sync: check price freshness on mount, sync if stale
@@ -92,6 +91,7 @@ export default function AnalysisPage() {
     if (priceStatus?.needs_sync && !syncMutation.isPending && !syncMutation.isSuccess) {
       syncMutation.mutate();
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [priceStatus?.needs_sync]);
 
   const handleToggleETF = (isin: string) => {

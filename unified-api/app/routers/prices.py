@@ -6,19 +6,19 @@ import uuid
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, and_, func
+from sqlalchemy import and_, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import RequireAuth
 from app.database import get_db
-from app.models import Price, ETF, Portfolio, Position
+from app.models import ETF, Portfolio, Position, Price
 from app.schemas.price import (
-    PriceRow,
-    PriceSeriesResponse,
     IntradayRow,
     IntradaySeriesResponse,
+    PriceRow,
+    PriceSeriesResponse,
     PriceStatusResponse,
 )
-from app.auth.dependencies import RequireAuth
 
 logger = logging.getLogger(__name__)
 
@@ -191,9 +191,7 @@ async def sync_prices(
     await connector.ingest(db, tickers=tickers, period=period)
 
     count_result = await db.execute(
-        select(Price.etf_id, Price.date)
-        .join(ETF, ETF.id == Price.etf_id)
-        .where(ETF.ticker_yf.in_(tickers))
+        select(Price.etf_id, Price.date).join(ETF, ETF.id == Price.etf_id).where(ETF.ticker_yf.in_(tickers))
     )
     total_rows = len(count_result.all())
 

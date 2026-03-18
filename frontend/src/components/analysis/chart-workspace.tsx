@@ -141,11 +141,6 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
     [etfs, selectedIsins],
   );
 
-  const selectedTickers = useMemo(
-    () => selectedEtfs.map((e) => tickerLabel(e.ticker_yf, e.isin)),
-    [selectedEtfs],
-  );
-
   const eventTickers = useMemo(
     () => selectedEtfs.map((e) => e.ticker_yf).filter(Boolean) as string[],
     [selectedEtfs],
@@ -214,6 +209,7 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
           data: transformed,
         };
       });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [priceQueries.map((q) => q.dataUpdatedAt).join(","), selectedEtfs, chartType, interval, isIntraday]);
 
   const loading = priceQueries.some((q) => q.isLoading);

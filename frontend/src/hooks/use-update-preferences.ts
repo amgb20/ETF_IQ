@@ -18,9 +18,11 @@ export function useUpdatePreferences() {
     onMutate: async (variables) => {
       await qc.cancelQueries({ queryKey: ["user-profile"] });
       const previous = qc.getQueryData(["user-profile"]);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       qc.setQueryData(["user-profile"], (old: any) => ({ ...old, ...variables }));
       return { previous };
     },
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onError: (_err: unknown, _vars: unknown, context: any) => {
       qc.setQueryData(["user-profile"], context?.previous);
       toast.error("Failed to save preferences.");

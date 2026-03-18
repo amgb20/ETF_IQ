@@ -9,7 +9,6 @@ from __future__ import annotations
 import json
 import logging
 import re
-import uuid
 
 from app.agents import llm_client
 from app.models.etf import ETF
@@ -67,8 +66,7 @@ def _etf_to_prompt_block(etf: ETF) -> str:
     if etf.holdings:
         top_holdings = sorted(etf.holdings, key=lambda h: float(h.weight or 0), reverse=True)[:5]
         holdings_str = ", ".join(
-            f"{h.holding_name or h.holding_ticker or h.holding_isin} ({h.weight})"
-            for h in top_holdings
+            f"{h.holding_name or h.holding_ticker or h.holding_isin} ({h.weight})" for h in top_holdings
         )
         parts.append(f"Top Holdings: {holdings_str}")
 
@@ -211,10 +209,7 @@ async def classify_themes(etfs: list[ETF]) -> list[dict]:
     if not etfs:
         return []
 
-    etf_blocks = "\n\n".join(
-        f"--- ETF {i + 1} ---\n{_etf_to_prompt_block(etf)}"
-        for i, etf in enumerate(etfs)
-    )
+    etf_blocks = "\n\n".join(f"--- ETF {i + 1} ---\n{_etf_to_prompt_block(etf)}" for i, etf in enumerate(etfs))
 
     prompt = f"{SYSTEM_PROMPT}\n\nETFs to classify:\n\n{etf_blocks}"
 
@@ -224,13 +219,15 @@ async def classify_themes(etfs: list[ETF]) -> list[dict]:
     if not raw_themes:
         # Fallback: put everything in "Other"
         logger.warning("Theme classification returned no results, falling back to 'Other'")
-        return [{
-            "label": "Other",
-            "color": "#71717a",
-            "etf_ids": [str(etf.id) for etf in etfs],
-            "etf_isins": [etf.isin for etf in etfs],
-            "research_agent": None,
-        }]
+        return [
+            {
+                "label": "Other",
+                "color": "#71717a",
+                "etf_ids": [str(etf.id) for etf in etfs],
+                "etf_isins": [etf.isin for etf in etfs],
+                "research_agent": None,
+            }
+        ]
 
     # Validate and enrich with research agent mapping
     etf_id_set = {str(etf.id) for etf in etfs}
@@ -245,12 +242,14 @@ async def classify_themes(etfs: list[ETF]) -> list[dict]:
         # Validate ETF IDs belong to the input set
         valid_ids = [eid for eid in raw_ids if eid in etf_id_set]
 
-        results.append({
-            "label": label,
-            "color": color,
-            "etf_ids": valid_ids,
-            "etf_isins": raw_isins,
-            "research_agent": _match_research_agent(label),
-        })
+        results.append(
+            {
+                "label": label,
+                "color": color,
+                "etf_ids": valid_ids,
+                "etf_isins": raw_isins,
+                "research_agent": _match_research_agent(label),
+            }
+        )
 
     return results

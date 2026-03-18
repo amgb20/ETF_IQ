@@ -1,11 +1,10 @@
 from contextlib import asynccontextmanager
 
+from data_connectors.scheduler import start_scheduler, stop_scheduler
 from fastapi import FastAPI, Request
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
-
-from data_connectors.scheduler import start_scheduler, stop_scheduler
 
 
 def _rate_limit_key(request: Request) -> str:
@@ -13,6 +12,7 @@ def _rate_limit_key(request: Request) -> str:
     if token:
         try:
             from jose import jwt
+
             payload = jwt.get_unverified_claims(token)
             return payload.get("sub", get_remote_address(request))
         except Exception:
@@ -35,7 +35,22 @@ app.state.limiter = limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 from app.auth.router import router as auth_router  # noqa: E402
-from app.routers import portfolios, etfs, prices, admin, agent_outputs, events, alerts, chat, reports, users, analytics, notifications, onboarding, meta  # noqa: E402
+from app.routers import (  # noqa: E402
+    admin,
+    agent_outputs,
+    alerts,
+    analytics,
+    chat,
+    etfs,
+    events,
+    meta,
+    notifications,
+    onboarding,
+    portfolios,
+    prices,
+    reports,
+    users,
+)
 
 app.include_router(auth_router)
 app.include_router(portfolios.router)

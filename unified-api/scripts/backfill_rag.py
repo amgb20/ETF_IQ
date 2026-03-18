@@ -3,27 +3,26 @@
 Run from unified-api/:
     python -m scripts.backfill_rag
 """
+
 import asyncio
-import sys
 import os
+import sys
 
 # Allow running from the unified-api directory
 sys.path.insert(0, os.path.dirname(os.path.dirname(__file__)))
 
 from sqlalchemy import select
 
+from app.agents.tools import rag_store
 from app.database import async_session
 from app.models.agent import AgentOutput, ChartEvent
 from app.models.rag import RagChunk
-from app.agents.tools import rag_store
 
 
 async def backfill() -> None:
     async with async_session() as session:
         # Load already-embedded source IDs to skip them
-        existing = set(
-            (await session.execute(select(RagChunk.source_id, RagChunk.source_type))).all()
-        )
+        existing = set((await session.execute(select(RagChunk.source_id, RagChunk.source_type))).all())
         existing_ids = {(str(src_id), src_type) for src_id, src_type in existing}
 
         outputs = (await session.execute(select(AgentOutput))).scalars().all()
@@ -34,7 +33,9 @@ async def backfill() -> None:
             metadata = {
                 "agent_name": o.agent_name,
                 "run_date": str(o.run_date),
-                "judge_overall_score": float(o.judge_overall_score) if getattr(o, "judge_overall_score", None) else None,
+                "judge_overall_score": float(o.judge_overall_score)
+                if getattr(o, "judge_overall_score", None)
+                else None,
                 "source_type": "agent_output",
             }
             await rag_store.upsert_chunk(session, o.portfolio_id, "agent_output", o.id, text, metadata)

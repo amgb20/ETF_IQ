@@ -2,10 +2,9 @@
 
 from __future__ import annotations
 
-from app.agents.base_agent import BaseAgent, PREDICTION_INSTRUCTION
+from app.agents.base_agent import PREDICTION_INSTRUCTION, BaseAgent
 from app.agents.context_builder import PortfolioContext
 from app.models.agent import AgentOutput
-
 
 THEME_AGENT_PROMPT_TEMPLATE = """\
 You are the {theme_name} Analyst for PortfolioIQ, a specialist in researching \
@@ -63,8 +62,7 @@ class DynamicThemeAgent(BaseAgent):
             holdings = e.get("top_holdings", [])
             holdings_str = ", ".join(holdings[:8]) if holdings else "N/A"
             coverage_lines.append(
-                f"- {ticker} ({name}) — {desc[:200] if desc else 'N/A'}\n"
-                f"  Top holdings: {holdings_str}"
+                f"- {ticker} ({name}) — {desc[:200] if desc else 'N/A'}\n  Top holdings: {holdings_str}"
             )
             all_holdings.extend(holdings[:5])
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import logging
 from datetime import date, timedelta
 
-from sqlalchemy import select, desc, text, cast, String
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.agent import AgentOutput
@@ -45,6 +45,7 @@ class ReportHistoryTool:
             stmt = stmt.where(AgentOutput.agent_name == agent_name)
 
         from sqlalchemy import or_
+
         stmt = stmt.where(or_(*like_clauses))
         stmt = stmt.limit(5)
 
@@ -53,16 +54,20 @@ class ReportHistoryTool:
 
         results = []
         for o in outputs:
-            results.append({
-                "agent_name": o.agent_name,
-                "run_date": str(o.run_date),
-                "summary_excerpt": o.summary[:500],
-                "judge_overall_score": float(o.judge_overall_score) if o.judge_overall_score else None,
-                "predictions": o.predictions,
-            })
+            results.append(
+                {
+                    "agent_name": o.agent_name,
+                    "run_date": str(o.run_date),
+                    "summary_excerpt": o.summary[:500],
+                    "judge_overall_score": float(o.judge_overall_score) if o.judge_overall_score else None,
+                    "predictions": o.predictions,
+                }
+            )
 
         logger.info(
             "ReportHistoryTool: query=%r agent=%s found=%d results",
-            query[:50], agent_name, len(results),
+            query[:50],
+            agent_name,
+            len(results),
         )
         return results

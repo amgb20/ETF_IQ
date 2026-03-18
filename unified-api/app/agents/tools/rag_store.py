@@ -1,11 +1,12 @@
 """RAG store — embed and retrieve chunks scoped to portfolio_id."""
+
 from __future__ import annotations
 
 import asyncio
 import logging
 import uuid
 
-from sqlalchemy import select, delete
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import llm_client
@@ -35,10 +36,12 @@ async def embed_text(text: str) -> list[float]:
         except Exception as exc:
             last_exc = exc
             if attempt < _EMBED_MAX_RETRIES - 1:
-                wait = _EMBED_BACKOFF_BASE * (2 ** attempt)
+                wait = _EMBED_BACKOFF_BASE * (2**attempt)
                 logger.warning(
                     "embed_text attempt %d failed (%s), retrying in %.1fs",
-                    attempt + 1, exc, wait,
+                    attempt + 1,
+                    exc,
+                    wait,
                 )
                 await asyncio.sleep(wait)
 
@@ -63,14 +66,16 @@ async def upsert_chunk(
                 RagChunk.source_id == source_id,
             )
         )
-        session.add(RagChunk(
-            portfolio_id=portfolio_id,
-            source_type=source_type,
-            source_id=source_id,
-            chunk_text=text[:2000],
-            embedding=vector,
-            metadata_=metadata,
-        ))
+        session.add(
+            RagChunk(
+                portfolio_id=portfolio_id,
+                source_type=source_type,
+                source_id=source_id,
+                chunk_text=text[:2000],
+                embedding=vector,
+                metadata_=metadata,
+            )
+        )
         await session.commit()
         logger.info("RAG upsert OK: %s/%s", source_type, source_id)
     except Exception:

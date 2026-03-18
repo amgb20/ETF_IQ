@@ -1,6 +1,6 @@
 """Agent 1 — AI Stack Analyst: XAIX, SMGB, VPNG, URNG."""
 
-from app.agents.base_agent import BaseAgent, PREDICTION_INSTRUCTION
+from app.agents.base_agent import PREDICTION_INSTRUCTION, BaseAgent
 from app.agents.context_builder import PortfolioContext
 from app.agents.prompts.v1.agent1_ai_stack import SYSTEM_PROMPT
 from app.models.agent import AgentOutput
