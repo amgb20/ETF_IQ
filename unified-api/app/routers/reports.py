@@ -9,16 +9,16 @@ from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException, Query, Response
 from fastapi.responses import FileResponse
-from sqlalchemy import delete, select, desc
+from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.agents.report_orchestrator import ReportOrchestrator, build_default_sections
+from app.agents.report_orchestrator import ReportOrchestrator
 from app.agents.tools import rag_store
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 from app.database import get_db
 from app.models.agent import AgentOutput, ChartEvent
 from app.models.report import Report
 from app.schemas.report import ReportCreate, ReportResponse, ReportStatusResponse
-from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 logger = logging.getLogger(__name__)
 
@@ -129,9 +129,7 @@ async def delete_report(
     if report.agent_output_ids:
         # 1. Find chart events linked to these agent outputs
         ce_result = await db.execute(
-            select(ChartEvent.id).where(
-                ChartEvent.agent_output_id.in_(report.agent_output_ids)
-            )
+            select(ChartEvent.id).where(ChartEvent.agent_output_id.in_(report.agent_output_ids))
         )
         chart_event_ids = [row[0] for row in ce_result.all()]
 
@@ -139,18 +137,14 @@ async def delete_report(
         if chart_event_ids:
             ce_deleted = await rag_store.delete_chunks(db, "chart_event", chart_event_ids)
             logger.info("Deleted %d chart_event rag_chunks for report %s", ce_deleted, report_id)
-            await db.execute(
-                delete(ChartEvent).where(ChartEvent.id.in_(chart_event_ids))
-            )
+            await db.execute(delete(ChartEvent).where(ChartEvent.id.in_(chart_event_ids)))
             logger.info("Deleted %d chart_events for report %s", len(chart_event_ids), report_id)
 
         # 3. Delete agent output RAG embeddings + rows
         deleted = await rag_store.delete_chunks(db, "agent_output", report.agent_output_ids)
         logger.info("Deleted %d agent_output rag_chunks for report %s", deleted, report_id)
 
-        await db.execute(
-            delete(AgentOutput).where(AgentOutput.id.in_(report.agent_output_ids))
-        )
+        await db.execute(delete(AgentOutput).where(AgentOutput.id.in_(report.agent_output_ids)))
 
     if report.file_path:
         Path(report.file_path).unlink(missing_ok=True)
@@ -169,9 +163,7 @@ async def list_reports(
     await verify_portfolio_owner(portfolio_id, user, db)
 
     result = await db.execute(
-        select(Report)
-        .where(Report.portfolio_id == portfolio_id)
-        .order_by(desc(Report.generated_at))
+        select(Report).where(Report.portfolio_id == portfolio_id).order_by(desc(Report.generated_at))
     )
     reports = result.scalars().all()
     return [ReportResponse.model_validate(r) for r in reports]

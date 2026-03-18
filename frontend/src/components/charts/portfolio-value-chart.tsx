@@ -14,7 +14,7 @@ interface Props {
   entryPrice?: number;
 }
 
-export function PortfolioValueChart({ data, loading, entryDate, entryPrice }: Props) {
+export function PortfolioValueChart({ data, loading }: Props) {
   const containerRef = useRef<HTMLDivElement>(null);
   const chartRef = useRef<IChartApi | null>(null);
   const seriesRef = useRef<ISeriesApi<"Area"> | null>(null);
@@ -61,6 +61,7 @@ export function PortfolioValueChart({ data, loading, entryDate, entryPrice }: Pr
 
   useEffect(() => {
     if (seriesRef.current && data.length > 0) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       seriesRef.current.setData(data as any);
       chartRef.current?.timeScale().fitContent();
     }

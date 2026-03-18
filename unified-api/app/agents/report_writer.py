@@ -29,9 +29,7 @@ from app.models.agent import AgentOutput
 
 logger = logging.getLogger(__name__)
 
-REPORTS_DIR = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "reports"
-)
+REPORTS_DIR = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(__file__))), "reports")
 
 DEFAULT_SECTION_AGENT_MAP = {
     "Exec Summary": "action_recommender",
@@ -101,53 +99,96 @@ def _build_styles() -> dict[str, ParagraphStyle]:
     base = getSampleStyleSheet()
     return {
         "title": ParagraphStyle(
-            "rpt_title", parent=base["Title"],
-            fontName="Helvetica-Bold", fontSize=22, leading=28,
-            textColor=_NAVY, alignment=TA_CENTER, spaceAfter=4,
+            "rpt_title",
+            parent=base["Title"],
+            fontName="Helvetica-Bold",
+            fontSize=22,
+            leading=28,
+            textColor=_NAVY,
+            alignment=TA_CENTER,
+            spaceAfter=4,
         ),
         "subtitle": ParagraphStyle(
-            "rpt_subtitle", parent=base["Normal"],
-            fontName="Helvetica", fontSize=12, leading=16,
-            textColor=_GRAY_700, alignment=TA_CENTER, spaceAfter=2,
+            "rpt_subtitle",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=12,
+            leading=16,
+            textColor=_GRAY_700,
+            alignment=TA_CENTER,
+            spaceAfter=2,
         ),
         "h1": ParagraphStyle(
-            "rpt_h1", parent=base["Heading1"],
-            fontName="Helvetica-Bold", fontSize=16, leading=22,
-            textColor=_NAVY, spaceBefore=16, spaceAfter=8,
+            "rpt_h1",
+            parent=base["Heading1"],
+            fontName="Helvetica-Bold",
+            fontSize=16,
+            leading=22,
+            textColor=_NAVY,
+            spaceBefore=16,
+            spaceAfter=8,
         ),
         "h2": ParagraphStyle(
-            "rpt_h2", parent=base["Heading2"],
-            fontName="Helvetica-Bold", fontSize=13, leading=17,
-            textColor=_BLUE, spaceBefore=10, spaceAfter=4,
+            "rpt_h2",
+            parent=base["Heading2"],
+            fontName="Helvetica-Bold",
+            fontSize=13,
+            leading=17,
+            textColor=_BLUE,
+            spaceBefore=10,
+            spaceAfter=4,
         ),
         "h3": ParagraphStyle(
-            "rpt_h3", parent=base["Heading3"],
-            fontName="Helvetica-Bold", fontSize=11, leading=14,
-            textColor=_GRAY_700, spaceBefore=8, spaceAfter=3,
+            "rpt_h3",
+            parent=base["Heading3"],
+            fontName="Helvetica-Bold",
+            fontSize=11,
+            leading=14,
+            textColor=_GRAY_700,
+            spaceBefore=8,
+            spaceAfter=3,
         ),
         "body": ParagraphStyle(
-            "rpt_body", parent=base["Normal"],
-            fontName="Helvetica", fontSize=9.5, leading=13,
-            textColor=colors.black, alignment=TA_JUSTIFY, spaceAfter=6,
+            "rpt_body",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=9.5,
+            leading=13,
+            textColor=colors.black,
+            alignment=TA_JUSTIFY,
+            spaceAfter=6,
         ),
         "bullet": ParagraphStyle(
-            "rpt_bullet", parent=base["Normal"],
-            fontName="Helvetica", fontSize=9.5, leading=13,
-            textColor=colors.black, leftIndent=18, spaceAfter=3,
+            "rpt_bullet",
+            parent=base["Normal"],
+            fontName="Helvetica",
+            fontSize=9.5,
+            leading=13,
+            textColor=colors.black,
+            leftIndent=18,
+            spaceAfter=3,
         ),
         "disclaimer_body": ParagraphStyle(
-            "rpt_discl", parent=base["Normal"],
-            fontName="Helvetica-Oblique", fontSize=8, leading=11,
-            textColor=_GRAY_500, spaceBefore=12,
+            "rpt_discl",
+            parent=base["Normal"],
+            fontName="Helvetica-Oblique",
+            fontSize=8,
+            leading=11,
+            textColor=_GRAY_500,
+            spaceBefore=12,
         ),
         "tbl_hdr": ParagraphStyle(
             "rpt_tbl_hdr",
-            fontName="Helvetica-Bold", fontSize=8.5, leading=11,
+            fontName="Helvetica-Bold",
+            fontSize=8.5,
+            leading=11,
             textColor=colors.white,
         ),
         "tbl_cell": ParagraphStyle(
             "rpt_tbl_cell",
-            fontName="Helvetica", fontSize=8.5, leading=11,
+            fontName="Helvetica",
+            fontSize=8.5,
+            leading=11,
             textColor=colors.black,
         ),
     }
@@ -181,10 +222,8 @@ def _content_to_flowables(text: str, styles: dict[str, ParagraphStyle]) -> list:
         bullet_m = re.match(r"^[\*\-]\s+", stripped)
         if bullet_m:
             flush()
-            item_text = stripped[bullet_m.end():]
-            flowables.append(
-                Paragraph(f"\u2022\u2003{_md_inline(item_text)}", styles["bullet"])
-            )
+            item_text = stripped[bullet_m.end() :]
+            flowables.append(Paragraph(f"\u2022\u2003{_md_inline(item_text)}", styles["bullet"]))
             continue
 
         current_para.append(stripped)
@@ -208,7 +247,10 @@ class ReportWriter:
         t0 = _time.perf_counter()
         logger.info(
             "ReportWriter.build_pdf starting: portfolio=%s type=%s sections=%d agent_outputs=%d",
-            portfolio_name, report_type, len(sections), len(agent_outputs),
+            portfolio_name,
+            report_type,
+            len(sections),
+            len(agent_outputs),
         )
         os.makedirs(REPORTS_DIR, exist_ok=True)
         styles = _build_styles()
@@ -217,7 +259,8 @@ class ReportWriter:
         filepath = os.path.join(REPORTS_DIR, filename)
 
         frame = Frame(
-            MARGIN_L, MARGIN_B,
+            MARGIN_L,
+            MARGIN_B,
             PAGE_W - MARGIN_L - MARGIN_R,
             PAGE_H - MARGIN_T - MARGIN_B,
             id="main",
@@ -243,9 +286,7 @@ class ReportWriter:
                 styles["subtitle"],
             )
         )
-        story.append(
-            Paragraph(f"Generated: {run_date.isoformat()}", styles["subtitle"])
-        )
+        story.append(Paragraph(f"Generated: {run_date.isoformat()}", styles["subtitle"]))
         story.append(PageBreak())
 
         effective_map = {**DEFAULT_SECTION_AGENT_MAP, **(section_agent_map or {})}
@@ -262,35 +303,23 @@ class ReportWriter:
             if not output:
                 continue
 
-            display = (
-                "Executive Summary" if section_name == "Exec Summary" else section_name
-            )
+            display = "Executive Summary" if section_name == "Exec Summary" else section_name
             story.append(Paragraph(display, styles["h1"]))
 
             summary = output.summary or ""
             if section_name == "Recommendations" and "Exec Summary" in sections:
                 exec_end = summary.find("\n\n", 500)
-                text = (
-                    summary[exec_end:].strip()[:3000]
-                    if exec_end > 0
-                    else summary[:3000]
-                )
+                text = summary[exec_end:].strip()[:3000] if exec_end > 0 else summary[:3000]
             elif section_name == "Exec Summary":
                 exec_end = summary.find("\n\n", 200)
-                text = (
-                    summary[:exec_end].strip() if exec_end > 0 else summary[:800]
-                )
+                text = summary[:exec_end].strip() if exec_end > 0 else summary[:800]
             else:
                 text = summary[:3000]
 
             story.extend(_content_to_flowables(text, styles))
 
             if output.predictions:
-                preds = (
-                    output.predictions
-                    if isinstance(output.predictions, list)
-                    else []
-                )
+                preds = output.predictions if isinstance(output.predictions, list) else []
                 if preds:
                     story.append(Spacer(1, 8))
                     story.append(Paragraph("Predictions", styles["h2"]))
@@ -303,20 +332,22 @@ class ReportWriter:
                     ]
                     data = [header]
                     for pred in preds[:5]:
-                        data.append([
-                            Paragraph(
-                                _esc(str(pred.get("prediction", ""))[:200]),
-                                styles["tbl_cell"],
-                            ),
-                            Paragraph(
-                                _esc(str(pred.get("confidence", ""))),
-                                styles["tbl_cell"],
-                            ),
-                            Paragraph(
-                                _esc(str(pred.get("timeframe", ""))),
-                                styles["tbl_cell"],
-                            ),
-                        ])
+                        data.append(
+                            [
+                                Paragraph(
+                                    _esc(str(pred.get("prediction", ""))[:200]),
+                                    styles["tbl_cell"],
+                                ),
+                                Paragraph(
+                                    _esc(str(pred.get("confidence", ""))),
+                                    styles["tbl_cell"],
+                                ),
+                                Paragraph(
+                                    _esc(str(pred.get("timeframe", ""))),
+                                    styles["tbl_cell"],
+                                ),
+                            ]
+                        )
 
                     avail_w = PAGE_W - MARGIN_L - MARGIN_R
                     tbl = Table(
@@ -324,17 +355,21 @@ class ReportWriter:
                         colWidths=[avail_w * 0.62, avail_w * 0.16, avail_w * 0.22],
                         repeatRows=1,
                     )
-                    tbl.setStyle(TableStyle([
-                        ("BACKGROUND", (0, 0), (-1, 0), _TBL_HDR),
-                        ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
-                        ("VALIGN", (0, 0), (-1, -1), "TOP"),
-                        ("GRID", (0, 0), (-1, -1), 0.5, _GRAY_200),
-                        ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, _GRAY_50]),
-                        ("TOPPADDING", (0, 0), (-1, -1), 5),
-                        ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
-                        ("LEFTPADDING", (0, 0), (-1, -1), 6),
-                        ("RIGHTPADDING", (0, 0), (-1, -1), 6),
-                    ]))
+                    tbl.setStyle(
+                        TableStyle(
+                            [
+                                ("BACKGROUND", (0, 0), (-1, 0), _TBL_HDR),
+                                ("TEXTCOLOR", (0, 0), (-1, 0), colors.white),
+                                ("VALIGN", (0, 0), (-1, -1), "TOP"),
+                                ("GRID", (0, 0), (-1, -1), 0.5, _GRAY_200),
+                                ("ROWBACKGROUNDS", (0, 1), (-1, -1), [colors.white, _GRAY_50]),
+                                ("TOPPADDING", (0, 0), (-1, -1), 5),
+                                ("BOTTOMPADDING", (0, 0), (-1, -1), 5),
+                                ("LEFTPADDING", (0, 0), (-1, -1), 6),
+                                ("RIGHTPADDING", (0, 0), (-1, -1), 6),
+                            ]
+                        )
+                    )
                     story.append(tbl)
 
             if output.judge_overall_score is not None:

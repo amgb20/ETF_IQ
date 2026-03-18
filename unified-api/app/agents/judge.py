@@ -43,7 +43,10 @@ class JudgeAgent:
             previous_outputs = await self._load_unevaluated(session, portfolio_id, run_date)
 
             if not previous_outputs:
-                logger.info("Judge: no unevaluated outputs found for portfolio %s — cold start or already evaluated", portfolio_id)
+                logger.info(
+                    "Judge: no unevaluated outputs found for portfolio %s — cold start or already evaluated",
+                    portfolio_id,
+                )
                 return []
 
             logger.info("Judge: found %d unevaluated outputs, building context...", len(previous_outputs))
@@ -73,7 +76,9 @@ class JudgeAgent:
             elapsed_ms = int((_time.perf_counter() - t0) * 1000)
             logger.info(
                 "Judge completed: evaluated %d agent outputs for portfolio %s (elapsed=%dms)",
-                len(evaluations), portfolio_id, elapsed_ms,
+                len(evaluations),
+                portfolio_id,
+                elapsed_ms,
             )
             return evaluations
 

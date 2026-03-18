@@ -6,8 +6,8 @@ from typing import Any
 
 from pydantic import BaseModel
 
-
 # ── Create / Update ──────────────────────────────────────────────────
+
 
 class PortfolioCreate(BaseModel):
     name: str
@@ -29,6 +29,7 @@ class PositionThemeUpdate(BaseModel):
 
 
 # ── Responses ────────────────────────────────────────────────────────
+
 
 class ThemeBrief(BaseModel):
     id: uuid.UUID

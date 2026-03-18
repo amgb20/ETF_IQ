@@ -243,7 +243,7 @@ export default function OnboardingPage() {
     } catch (err) {
       console.error("Onboarding completion failed:", err);
     }
-  }, [allocations, portfolioName, completeOnboarding, queryClient, navigate, user]);
+  }, [allocations, portfolioName, completeOnboarding, queryClient, navigate, user, themes]);
 
   // ── Back navigation ───────────────────────────────────────────
   const handleBack = () => {
@@ -253,8 +253,6 @@ export default function OnboardingPage() {
       setStep((s) => Math.max(1, s - 1));
     }
   };
-
-  const hasFlaggedPairs = (correlations?.flagged_pairs.length ?? 0) > 0;
 
   return (
     <div className="min-h-screen bg-background">
@@ -293,9 +291,7 @@ export default function OnboardingPage() {
         {step === 4 && (
           <StepCorrelations
             correlations={correlations}
-            etfs={etfs}
             isLoading={computeCorrelations.isPending}
-            hasFlaggedPairs={hasFlaggedPairs}
             onNext={handleOptimize}
             isLoadingNext={correlationAdvisor.isPending}
           />

@@ -9,13 +9,14 @@ from datetime import date
 
 from sqlalchemy import select, update
 
-from app.agents.context_builder import build as build_context, load_portfolio_themes
+from app.agents.context_builder import build as build_context
+from app.agents.context_builder import load_portfolio_themes
 from app.agents.orchestrator import WeeklyOrchestrator
 from app.agents.report_writer import ReportWriter
 from app.database import async_session
 from app.models.agent import AgentOutput
 from app.models.notification import Notification
-from app.models.portfolio import Portfolio, PortfolioTheme
+from app.models.portfolio import Portfolio
 from app.models.report import Report
 
 logger = logging.getLogger(__name__)
@@ -66,23 +67,23 @@ class ReportOrchestrator:
 
         try:
             async with async_session() as session:
-                await session.execute(
-                    update(Report)
-                    .where(Report.id == report_id)
-                    .values(status="running")
-                )
+                await session.execute(update(Report).where(Report.id == report_id).values(status="running"))
                 await session.commit()
 
             logger.info(
                 "ReportOrchestrator starting: report=%s portfolio=%s type=%s sections=%s",
-                report_id, portfolio_id, report_type, sections,
+                report_id,
+                portfolio_id,
+                report_type,
+                sections,
             )
 
             logger.info("ReportOrchestrator: running agent pipeline...")
             result = await WeeklyOrchestrator.run(portfolio_id, run_date, run_type)
             logger.info(
                 "ReportOrchestrator: agent pipeline finished (succeeded=%s, failed=%s)",
-                result.get("agents_succeeded"), result.get("agents_failed"),
+                result.get("agents_succeeded"),
+                result.get("agents_failed"),
             )
 
             async with async_session() as session:
@@ -90,8 +91,7 @@ class ReportOrchestrator:
                 ctx = await build_context(portfolio_id, session)
 
                 agent_result = await session.execute(
-                    select(AgentOutput)
-                    .where(
+                    select(AgentOutput).where(
                         AgentOutput.portfolio_id == portfolio_id,
                         AgentOutput.run_date == run_date,
                     )
@@ -112,9 +112,7 @@ class ReportOrchestrator:
 
                 output_ids = [o.id for o in agent_outputs]
 
-                recommender_output = next(
-                    (o for o in agent_outputs if o.agent_name == "action_recommender"), None
-                )
+                recommender_output = next((o for o in agent_outputs if o.agent_name == "action_recommender"), None)
                 summary = None
                 if recommender_output:
                     text = recommender_output.summary
@@ -140,13 +138,15 @@ class ReportOrchestrator:
                 try:
                     portfolio = await session.get(Portfolio, portfolio_id)
                     if portfolio:
-                        session.add(Notification(
-                            user_id=portfolio.user_id,
-                            type="report_ready",
-                            title="Report ready",
-                            message=summary or f"Your {report_type} report is ready to download.",
-                            ref_id=report_id,
-                        ))
+                        session.add(
+                            Notification(
+                                user_id=portfolio.user_id,
+                                type="report_ready",
+                                title="Report ready",
+                                message=summary or f"Your {report_type} report is ready to download.",
+                                ref_id=report_id,
+                            )
+                        )
                         await session.commit()
                 except Exception:
                     logger.debug("Failed to create report-ready notification", exc_info=True)
@@ -159,11 +159,7 @@ class ReportOrchestrator:
             logger.exception("ReportOrchestrator failed: report=%s (elapsed=%dms)", report_id, elapsed_ms)
             try:
                 async with async_session() as session:
-                    await session.execute(
-                        update(Report)
-                        .where(Report.id == report_id)
-                        .values(status="failed")
-                    )
+                    await session.execute(update(Report).where(Report.id == report_id).values(status="failed"))
                     await session.commit()
             except Exception:
                 logger.exception("Failed to update report status to 'failed'")

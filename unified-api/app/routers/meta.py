@@ -29,14 +29,14 @@ class OGResponse(BaseModel):
 
 
 _OG_RE = re.compile(
-    r'<meta\s+(?:[^>]*?\s+)?'
+    r"<meta\s+(?:[^>]*?\s+)?"
     r'(?:property|name)\s*=\s*["\']og:(\w+)["\']'
     r'\s+content\s*=\s*["\']([^"\']*)["\']',
     re.IGNORECASE,
 )
 
 _OG_RE_REVERSED = re.compile(
-    r'<meta\s+(?:[^>]*?\s+)?'
+    r"<meta\s+(?:[^>]*?\s+)?"
     r'content\s*=\s*["\']([^"\']*)["\']'
     r'\s+(?:property|name)\s*=\s*["\']og:(\w+)["\']',
     re.IGNORECASE,
@@ -70,6 +70,7 @@ def _parse_og(html: str, base_url: str) -> dict:
             favicon = "https:" + fav_href
         elif fav_href.startswith("/"):
             from urllib.parse import urlparse
+
             parsed = urlparse(base_url)
             favicon = f"{parsed.scheme}://{parsed.netloc}{fav_href}"
         elif fav_href.startswith("http"):
@@ -94,8 +95,13 @@ async def get_og_metadata(
 
     # Block internal/private URLs
     from urllib.parse import urlparse
+
     hostname = urlparse(url).hostname or ""
-    if hostname in ("localhost", "127.0.0.1", "0.0.0.0") or hostname.startswith("192.168.") or hostname.startswith("10."):
+    if (
+        hostname in ("localhost", "127.0.0.1", "0.0.0.0")
+        or hostname.startswith("192.168.")
+        or hostname.startswith("10.")
+    ):
         raise HTTPException(status_code=400, detail="Cannot fetch internal URLs")
 
     # Check cache

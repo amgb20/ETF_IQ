@@ -36,7 +36,7 @@ export function AllocationPie({ items }: Props) {
             paddingAngle={2}
             strokeWidth={0}
           >
-            {data.map((entry, i) => (
+            {data.map((entry) => (
               <Cell key={entry.name} fill={entry.fill} />
             ))}
           </Pie>

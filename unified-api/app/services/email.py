@@ -6,7 +6,7 @@ import logging
 from datetime import date, timedelta
 
 import resend
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -45,7 +45,7 @@ async def send_alert_email(
             <p style="margin: 0 0 8px;"><strong>Type:</strong> {alert.type}</p>
             <p style="margin: 0 0 8px;"><strong>Threshold:</strong> {float(alert.threshold):.4f}</p>
             <p style="margin: 0 0 8px;"><strong>Actual Value:</strong> {float(event.actual_value):.4f if event.actual_value else 'N/A'}</p>
-            <p style="margin: 0;"><strong>Details:</strong> {event.message or 'N/A'}</p>
+            <p style="margin: 0;"><strong>Details:</strong> {event.message or "N/A"}</p>
         </div>
         <p style="color: #71717a; font-size: 12px;">
             This is an automated alert from PortfolioIQ. Not financial advice.
@@ -54,12 +54,14 @@ async def send_alert_email(
     """
 
     try:
-        resend.Emails.send({
-            "from": settings.EMAIL_FROM,
-            "to": [user.email],
-            "subject": subject,
-            "html": html,
-        })
+        resend.Emails.send(
+            {
+                "from": settings.EMAIL_FROM,
+                "to": [user.email],
+                "subject": subject,
+                "html": html,
+            }
+        )
         logger.info("Alert email sent to %s for alert %s", user.email, alert.id)
         return True
     except Exception:
@@ -153,12 +155,14 @@ async def send_weekly_digest(
     """
 
     try:
-        resend.Emails.send({
-            "from": settings.EMAIL_FROM,
-            "to": [user.email],
-            "subject": f"PortfolioIQ Weekly Digest -- {date.today().isoformat()}",
-            "html": html,
-        })
+        resend.Emails.send(
+            {
+                "from": settings.EMAIL_FROM,
+                "to": [user.email],
+                "subject": f"PortfolioIQ Weekly Digest -- {date.today().isoformat()}",
+                "html": html,
+            }
+        )
         logger.info("Weekly digest sent to %s", user.email)
         return True
     except Exception:

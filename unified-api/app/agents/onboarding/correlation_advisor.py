@@ -219,12 +219,14 @@ async def advise_on_correlations(
                 loser_uuid = uuid.UUID(loser_id) if isinstance(loser_id, str) else loser_id
                 theme = theme_assignments.get(loser_uuid, "Other")
 
-            discard_candidates.append({
-                "etf_id": loser_id,
-                "isin": loser.get("isin", ""),
-                "name": loser.get("name", ""),
-                "theme": theme,
-            })
+            discard_candidates.append(
+                {
+                    "etf_id": loser_id,
+                    "isin": loser.get("isin", ""),
+                    "name": loser.get("name", ""),
+                    "theme": theme,
+                }
+            )
 
         for r in ranked_list:
             all_pair_ids.add(str(r.get("etf_id", "")))
@@ -233,28 +235,19 @@ async def advise_on_correlations(
     if discard_candidates:
         # Build remaining ETFs text (all user ETFs minus discard candidates)
         discard_ids = {d["etf_id"] for d in discard_candidates}
-        remaining_etfs = [
-            etf for eid, etf in etf_metadata.items()
-            if str(eid) not in discard_ids
-        ]
+        remaining_etfs = [etf for eid, etf in etf_metadata.items() if str(eid) not in discard_ids]
 
         discards_text = "\n\n".join(
-            f"ISIN: {d['isin']}, Name: {d['name']}, Theme: {d['theme']}"
-            for d in discard_candidates
+            f"ISIN: {d['isin']}, Name: {d['name']}, Theme: {d['theme']}" for d in discard_candidates
         )
-        remaining_text = "\n".join(
-            f"- {etf.isin}: {etf.name}"
-            for etf in remaining_etfs
-        )
+        remaining_text = "\n".join(f"- {etf.isin}: {etf.name}" for etf in remaining_etfs)
 
         replacement_prompt = REPLACEMENT_PROMPT.format(
             discards_text=discards_text,
             remaining_text=remaining_text,
         )
 
-        replacement_response = await llm_client.generate(
-            replacement_prompt, config=llm_client.STANDARD_CONFIG
-        )
+        replacement_response = await llm_client.generate(replacement_prompt, config=llm_client.STANDARD_CONFIG)
         replacements = _parse_json_array(replacement_response.text)
 
     return {"rankings": rankings, "replacements": replacements}
@@ -274,9 +267,7 @@ async def enrich_suggestions_from_db(
     if not all_isins:
         return replacements
 
-    result = await db.execute(
-        select(ETF).where(ETF.isin.in_(all_isins))
-    )
+    result = await db.execute(select(ETF).where(ETF.isin.in_(all_isins)))
     etf_by_isin: dict[str, ETF] = {etf.isin: etf for etf in result.scalars().all()}
 
     for r in replacements:

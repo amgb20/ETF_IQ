@@ -38,9 +38,7 @@ class PortfolioTheme(Base):
 
 class PortfolioSnapshot(Base):
     __tablename__ = "portfolio_snapshots"
-    __table_args__ = (
-        UniqueConstraint("portfolio_id", "date"),
-    )
+    __table_args__ = (UniqueConstraint("portfolio_id", "date"),)
 
     id: Mapped[uuid.UUID] = mapped_column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     portfolio_id: Mapped[uuid.UUID] = mapped_column(ForeignKey("portfolios.id"))

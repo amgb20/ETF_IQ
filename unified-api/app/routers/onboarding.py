@@ -10,6 +10,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.agents.onboarding.correlation import (
+    compute_holdings_overlap,
+    compute_price_correlations,
+    flag_correlated_pairs,
+)
+from app.agents.onboarding.correlation_advisor import (
+    advise_on_correlations,
+    enrich_suggestions_from_db,
+)
+from app.agents.onboarding.theme_classifier import classify_themes
 from app.auth.dependencies import RequireAuth
 from app.database import get_db
 from app.models.etf import ETF
@@ -32,16 +42,6 @@ from app.schemas.onboarding import (
     ReplacementSuggestion,
     SuggestedETF,
     ThemeClassification,
-)
-from app.agents.onboarding.theme_classifier import classify_themes
-from app.agents.onboarding.correlation import (
-    compute_price_correlations,
-    compute_holdings_overlap,
-    flag_correlated_pairs,
-)
-from app.agents.onboarding.correlation_advisor import (
-    advise_on_correlations,
-    enrich_suggestions_from_db,
 )
 
 logger = logging.getLogger(__name__)
@@ -229,15 +229,14 @@ async def advisor_endpoint(
             )
             for re_item in r.get("ranked", [])
         ]
-        pair_ids = [
-            uuid.UUID(pid) if isinstance(pid, str) else pid
-            for pid in r.get("pair", [])
-        ]
-        rankings.append(PairRanking(
-            pair_etf_ids=pair_ids,
-            ranked_etfs=ranked_etfs,
-            reasoning=r.get("reasoning", ""),
-        ))
+        pair_ids = [uuid.UUID(pid) if isinstance(pid, str) else pid for pid in r.get("pair", [])]
+        rankings.append(
+            PairRanking(
+                pair_etf_ids=pair_ids,
+                ranked_etfs=ranked_etfs,
+                reasoning=r.get("reasoning", ""),
+            )
+        )
 
     # Map replacements to response models
     replacements = []
@@ -254,12 +253,14 @@ async def advisor_endpoint(
             for s in rep.get("suggestions", [])
         ]
         discard_id = rep.get("discard_etf_id", "")
-        replacements.append(ReplacementSuggestion(
-            discard_etf_id=uuid.UUID(discard_id) if isinstance(discard_id, str) else discard_id,
-            theme=rep.get("theme", "Other"),
-            suggested_etfs=suggested,
-            reasoning=rep.get("reasoning", ""),
-        ))
+        replacements.append(
+            ReplacementSuggestion(
+                discard_etf_id=uuid.UUID(discard_id) if isinstance(discard_id, str) else discard_id,
+                theme=rep.get("theme", "Other"),
+                suggested_etfs=suggested,
+                reasoning=rep.get("reasoning", ""),
+            )
+        )
 
     return AdvisorResponse(rankings=rankings, replacements=replacements)
 
@@ -327,7 +328,9 @@ async def complete_onboarding(
 
     logger.info(
         "Onboarding complete: user=%s portfolio=%s themes=%d",
-        user.id, portfolio.id, len(body.themes),
+        user.id,
+        portfolio.id,
+        len(body.themes),
     )
 
     return {"portfolio_id": str(portfolio.id), "status": "onboarded"}

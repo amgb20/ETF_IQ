@@ -1,16 +1,16 @@
 from __future__ import annotations
 
 import uuid
-from datetime import date, timedelta
+from datetime import date
 
 from fastapi import APIRouter, Depends, Query
-from sqlalchemy import select, desc
+from sqlalchemy import desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 from app.database import get_db
 from app.models.agent import ChartEvent
 from app.schemas.event import ChartEventResponse
-from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 router = APIRouter(prefix="/events", tags=["events"])
 
@@ -26,11 +26,7 @@ async def list_events(
 ):
     await verify_portfolio_owner(portfolio_id, user, db)
 
-    stmt = (
-        select(ChartEvent)
-        .where(ChartEvent.portfolio_id == portfolio_id)
-        .order_by(desc(ChartEvent.event_date))
-    )
+    stmt = select(ChartEvent).where(ChartEvent.portfolio_id == portfolio_id).order_by(desc(ChartEvent.event_date))
 
     if from_date:
         stmt = stmt.where(ChartEvent.event_date >= from_date)

@@ -7,12 +7,12 @@ from datetime import datetime
 
 from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
-from sqlalchemy import select, desc, update
+from sqlalchemy import desc, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.auth.dependencies import RequireAuth
 from app.database import get_db
 from app.models.notification import Notification
-from app.auth.dependencies import RequireAuth
 
 router = APIRouter(prefix="/notifications", tags=["notifications"])
 
@@ -36,10 +36,7 @@ async def list_notifications(
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
-        select(Notification)
-        .where(Notification.user_id == user.id)
-        .order_by(desc(Notification.created_at))
-        .limit(50)
+        select(Notification).where(Notification.user_id == user.id).order_by(desc(Notification.created_at)).limit(50)
     )
     rows = result.scalars().all()
     return [NotificationResponse.model_validate(r) for r in rows]

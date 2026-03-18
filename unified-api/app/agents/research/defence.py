@@ -1,6 +1,6 @@
 """Agent 3 — Defence & Geopolitics Analyst: ARMG."""
 
-from app.agents.base_agent import BaseAgent, PREDICTION_INSTRUCTION
+from app.agents.base_agent import PREDICTION_INSTRUCTION, BaseAgent
 from app.agents.context_builder import PortfolioContext
 from app.agents.prompts.v1.agent3_defence import SYSTEM_PROMPT
 from app.models.agent import AgentOutput

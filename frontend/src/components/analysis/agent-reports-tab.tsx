@@ -14,7 +14,7 @@ import {
   Legend,
 } from "recharts";
 import { useAgentScores, useAgentOutputs } from "@/hooks/use-agent-scores";
-import { usePortfolio, type ThemeBrief } from "@/hooks/use-portfolios";
+import { usePortfolio } from "@/hooks/use-portfolios";
 
 interface Props {
   portfolioId?: string;

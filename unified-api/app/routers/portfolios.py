@@ -6,26 +6,27 @@ import uuid
 from collections import defaultdict
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select, desc, func as sa_func, update
+from sqlalchemy import desc, select, update
+from sqlalchemy import func as sa_func
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
+from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 from app.database import get_db
-from app.models import Portfolio, Position, ETF, Price, PortfolioSnapshot, ETFHolding
+from app.models import ETF, Portfolio, PortfolioSnapshot, Position, Price
 from app.models.portfolio import PortfolioTheme
 from app.schemas.portfolio import (
+    OverlapResponse,
     PortfolioCreate,
     PortfolioResponse,
     PositionBrief,
+    PositionThemeUpdate,
+    SnapshotResponse,
     ThemeBrief,
     ThemeCreate,
     ThemeUpdate,
-    PositionThemeUpdate,
-    SnapshotResponse,
-    OverlapResponse,
 )
 from app.schemas.position import PositionCreate, PositionResponse
-from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 
 logger = logging.getLogger(__name__)
 
@@ -39,14 +40,11 @@ def _slugify(name: str) -> str:
 @router.get("", response_model=list[PortfolioResponse])
 async def list_portfolios(user: RequireAuth, db: AsyncSession = Depends(get_db)):
     logger.info("GET /portfolios  user=%s", user.id)
-    result = await db.execute(
-        select(Portfolio).where(Portfolio.user_id == user.id)
-    )
+    result = await db.execute(select(Portfolio).where(Portfolio.user_id == user.id))
     portfolios = result.scalars().all()
     logger.info("GET /portfolios  user=%s  returning %d portfolios", user.id, len(portfolios))
     return [
-        PortfolioResponse(id=p.id, name=p.name, description=p.description, created_at=p.created_at)
-        for p in portfolios
+        PortfolioResponse(id=p.id, name=p.name, description=p.description, created_at=p.created_at) for p in portfolios
     ]
 
 
@@ -102,7 +100,11 @@ async def get_portfolio(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSes
         latest_price = await _latest_price(db, pos.etf_id)
         logger.info(
             "  position etf_id=%s  isin=%s  ticker_yf=%s  latest_price=%s  entry_price=%s",
-            pos.etf_id, pos.etf.isin, pos.etf.ticker_yf, latest_price, pos.entry_price,
+            pos.etf_id,
+            pos.etf.isin,
+            pos.etf.ticker_yf,
+            latest_price,
+            pos.entry_price,
         )
         effective_price = latest_price if latest_price is not None else float(pos.entry_price)
         current_value = float(pos.shares) * effective_price
@@ -139,7 +141,10 @@ async def get_portfolio(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSes
 
     logger.info(
         "GET /portfolios/%s  positions=%d  total_value=%.2f  total_invested=%.2f",
-        portfolio_id, len(position_briefs), total_value, total_invested,
+        portfolio_id,
+        len(position_briefs),
+        total_value,
+        total_invested,
     )
     return PortfolioResponse(
         id=portfolio.id,
@@ -155,8 +160,11 @@ async def get_portfolio(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSes
 
 
 @router.post("/{portfolio_id}/positions", response_model=PositionResponse, status_code=201)
-async def add_position(portfolio_id: uuid.UUID, body: PositionCreate, user: RequireAuth, db: AsyncSession = Depends(get_db)):
+async def add_position(
+    portfolio_id: uuid.UUID, body: PositionCreate, user: RequireAuth, db: AsyncSession = Depends(get_db)
+):
     from sqlalchemy.orm import selectinload as _sel
+
     from app.agents.onboarding.theme_classifier import classify_single_etf
 
     portfolio = await db.get(Portfolio, portfolio_id)
@@ -166,9 +174,7 @@ async def add_position(portfolio_id: uuid.UUID, body: PositionCreate, user: Requ
         raise HTTPException(status_code=403, detail="Access denied")
 
     etf_result = await db.execute(
-        select(ETF)
-        .options(_sel(ETF.holdings), _sel(ETF.allocations))
-        .where(ETF.id == body.etf_id)
+        select(ETF).options(_sel(ETF.holdings), _sel(ETF.allocations)).where(ETF.id == body.etf_id)
     )
     etf = etf_result.scalar_one_or_none()
     if not etf:
@@ -178,9 +184,7 @@ async def add_position(portfolio_id: uuid.UUID, body: PositionCreate, user: Requ
 
     # Auto-classify when no theme is explicitly provided
     if theme_id is None and not body.layer_label:
-        themes_result = await db.execute(
-            select(PortfolioTheme).where(PortfolioTheme.portfolio_id == portfolio_id)
-        )
+        themes_result = await db.execute(select(PortfolioTheme).where(PortfolioTheme.portfolio_id == portfolio_id))
         existing = [{"id": t.id, "name": t.name} for t in themes_result.scalars().all()]
 
         try:
@@ -189,8 +193,9 @@ async def add_position(portfolio_id: uuid.UUID, body: PositionCreate, user: Requ
                 theme_id = classification["theme_id"]
             else:
                 max_order = await db.execute(
-                    select(sa_func.coalesce(sa_func.max(PortfolioTheme.sort_order), -1))
-                    .where(PortfolioTheme.portfolio_id == portfolio_id)
+                    select(sa_func.coalesce(sa_func.max(PortfolioTheme.sort_order), -1)).where(
+                        PortfolioTheme.portfolio_id == portfolio_id
+                    )
                 )
                 new_theme = PortfolioTheme(
                     portfolio_id=portfolio_id,
@@ -249,12 +254,15 @@ async def list_themes(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSessi
 
 
 @router.post("/{portfolio_id}/themes", response_model=ThemeBrief, status_code=201)
-async def create_theme(portfolio_id: uuid.UUID, body: ThemeCreate, user: RequireAuth, db: AsyncSession = Depends(get_db)):
+async def create_theme(
+    portfolio_id: uuid.UUID, body: ThemeCreate, user: RequireAuth, db: AsyncSession = Depends(get_db)
+):
     await verify_portfolio_owner(portfolio_id, user, db)
 
     max_order = await db.execute(
-        select(sa_func.coalesce(sa_func.max(PortfolioTheme.sort_order), -1))
-        .where(PortfolioTheme.portfolio_id == portfolio_id)
+        select(sa_func.coalesce(sa_func.max(PortfolioTheme.sort_order), -1)).where(
+            PortfolioTheme.portfolio_id == portfolio_id
+        )
     )
     next_order = (max_order.scalar() or 0) + 1
 
@@ -283,8 +291,11 @@ async def create_theme(portfolio_id: uuid.UUID, body: ThemeCreate, user: Require
 
 @router.put("/{portfolio_id}/themes/{theme_id}", response_model=ThemeBrief)
 async def update_theme(
-    portfolio_id: uuid.UUID, theme_id: uuid.UUID, body: ThemeUpdate,
-    user: RequireAuth, db: AsyncSession = Depends(get_db),
+    portfolio_id: uuid.UUID,
+    theme_id: uuid.UUID,
+    body: ThemeUpdate,
+    user: RequireAuth,
+    db: AsyncSession = Depends(get_db),
 ):
     await verify_portfolio_owner(portfolio_id, user, db)
     theme = await db.get(PortfolioTheme, theme_id)
@@ -301,8 +312,7 @@ async def update_theme(
     await db.refresh(theme)
 
     pos_count = await db.execute(
-        select(sa_func.count(Position.id))
-        .where(Position.theme_id == theme_id, Position.is_active == True)  # noqa: E712
+        select(sa_func.count(Position.id)).where(Position.theme_id == theme_id, Position.is_active == True)  # noqa: E712
     )
     return ThemeBrief(
         id=theme.id,
@@ -316,8 +326,10 @@ async def update_theme(
 
 @router.delete("/{portfolio_id}/themes/{theme_id}", status_code=204)
 async def delete_theme(
-    portfolio_id: uuid.UUID, theme_id: uuid.UUID,
-    user: RequireAuth, db: AsyncSession = Depends(get_db),
+    portfolio_id: uuid.UUID,
+    theme_id: uuid.UUID,
+    user: RequireAuth,
+    db: AsyncSession = Depends(get_db),
 ):
     await verify_portfolio_owner(portfolio_id, user, db)
     theme = await db.get(PortfolioTheme, theme_id)
@@ -325,9 +337,7 @@ async def delete_theme(
         raise HTTPException(status_code=404, detail="Theme not found")
 
     await db.execute(
-        update(Position)
-        .where(Position.theme_id == theme_id)
-        .values(theme_id=None, layer_label=theme.name)
+        update(Position).where(Position.theme_id == theme_id).values(theme_id=None, layer_label=theme.name)
     )
     await db.delete(theme)
     await db.flush()
@@ -335,8 +345,11 @@ async def delete_theme(
 
 @router.put("/{portfolio_id}/positions/{position_id}/theme")
 async def reassign_position_theme(
-    portfolio_id: uuid.UUID, position_id: uuid.UUID,
-    body: PositionThemeUpdate, user: RequireAuth, db: AsyncSession = Depends(get_db),
+    portfolio_id: uuid.UUID,
+    position_id: uuid.UUID,
+    body: PositionThemeUpdate,
+    user: RequireAuth,
+    db: AsyncSession = Depends(get_db),
 ):
     await verify_portfolio_owner(portfolio_id, user, db)
     position = await db.get(Position, position_id)
@@ -377,12 +390,16 @@ async def get_overlap(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSessi
     await verify_portfolio_owner(portfolio_id, user, db)
 
     positions = (
-        await db.execute(
-            select(Position)
-            .options(selectinload(Position.etf).selectinload(ETF.holdings))
-            .where(Position.portfolio_id == portfolio_id, Position.is_active == True)  # noqa: E712
+        (
+            await db.execute(
+                select(Position)
+                .options(selectinload(Position.etf).selectinload(ETF.holdings))
+                .where(Position.portfolio_id == portfolio_id, Position.is_active == True)  # noqa: E712
+            )
         )
-    ).scalars().all()
+        .scalars()
+        .all()
+    )
 
     if not positions:
         raise HTTPException(status_code=404, detail="No active positions found")
@@ -406,8 +423,6 @@ async def get_overlap(portfolio_id: uuid.UUID, user: RequireAuth, db: AsyncSessi
 
 
 async def _latest_price(db: AsyncSession, etf_id: uuid.UUID) -> float | None:
-    result = await db.execute(
-        select(Price.close).where(Price.etf_id == etf_id).order_by(desc(Price.date)).limit(1)
-    )
+    result = await db.execute(select(Price.close).where(Price.etf_id == etf_id).order_by(desc(Price.date)).limit(1))
     row = result.scalar_one_or_none()
     return float(row) if row is not None else None

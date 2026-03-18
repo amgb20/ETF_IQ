@@ -11,7 +11,7 @@ from collections.abc import AsyncGenerator
 import sqlalchemy as sa
 from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, SystemMessage, ToolMessage
 from langchain_core.tools import StructuredTool
-from sqlalchemy import select, update, func
+from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents import llm_client
@@ -20,7 +20,7 @@ from app.agents.tools import rag_store
 from app.config import get_settings
 from app.database import async_session
 from app.models.alert import Alert
-from app.models.chat import ChatSession, ChatMessage
+from app.models.chat import ChatMessage, ChatSession
 from app.models.notification import Notification
 
 logger = logging.getLogger(__name__)
@@ -67,9 +67,7 @@ def execute_web_search(query: str) -> str:
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=query,
-            config=types.GenerateContentConfig(
-                tools=[types.Tool(google_search=types.GoogleSearch())]
-            ),
+            config=types.GenerateContentConfig(tools=[types.Tool(google_search=types.GoogleSearch())]),
         )
         text = response.text or "No results found."
 
@@ -117,12 +115,14 @@ class ChatAgent:
             results = await rag_store.search(db_session, portfolio_id, query)
             if not results:
                 return "No relevant past analyses found."
-            return "\n\n---\n\n".join([
-                f"[{r['metadata'].get('agent_name', r['source_type'])} "
-                f"— {r['metadata'].get('run_date', r['metadata'].get('event_date', ''))}]\n"
-                f"{r['text']}"
-                for r in results
-            ])
+            return "\n\n---\n\n".join(
+                [
+                    f"[{r['metadata'].get('agent_name', r['source_type'])} "
+                    f"— {r['metadata'].get('run_date', r['metadata'].get('event_date', ''))}]\n"
+                    f"{r['text']}"
+                    for r in results
+                ]
+            )
 
         rag_tool = StructuredTool.from_function(
             coroutine=_rag_search,
@@ -180,15 +180,18 @@ class ChatAgent:
             await db_session.flush()
 
             from app.models.portfolio import Portfolio
+
             portfolio_row = await db_session.get(Portfolio, portfolio_id)
             if portfolio_row:
-                db_session.add(Notification(
-                    user_id=portfolio_row.user_id,
-                    type="alert_configured",
-                    title="Alert configured",
-                    message=f"{alert_type.replace('_', ' ').title()} alert set at {threshold} for {etf.ticker_yf or etf.name}",
-                    ref_id=new_alert.id,
-                ))
+                db_session.add(
+                    Notification(
+                        user_id=portfolio_row.user_id,
+                        type="alert_configured",
+                        title="Alert configured",
+                        message=f"{alert_type.replace('_', ' ').title()} alert set at {threshold} for {etf.ticker_yf or etf.name}",
+                        ref_id=new_alert.id,
+                    )
+                )
 
             await db_session.commit()
 
@@ -221,16 +224,16 @@ class ChatAgent:
                 self.session_id = chat_session.id
             else:
                 await session.execute(
-                    update(ChatSession)
-                    .where(ChatSession.id == self.session_id)
-                    .values(last_message_at=func.now())
+                    update(ChatSession).where(ChatSession.id == self.session_id).values(last_message_at=func.now())
                 )
 
-            session.add(ChatMessage(
-                session_id=self.session_id,
-                role="user",
-                content=user_text,
-            ))
+            session.add(
+                ChatMessage(
+                    session_id=self.session_id,
+                    role="user",
+                    content=user_text,
+                )
+            )
             await session.commit()
 
             # 2. Build system prompt with live portfolio context
@@ -266,7 +269,8 @@ class ChatAgent:
                                 text = chunk.content
                             elif isinstance(chunk.content, list):
                                 text = "".join(
-                                    part.get("text", "") for part in chunk.content
+                                    part.get("text", "")
+                                    for part in chunk.content
                                     if isinstance(part, dict) and part.get("type") == "text"
                                 )
                             else:
@@ -310,11 +314,13 @@ class ChatAgent:
 
                 for tc, result in zip(full_ai_msg.tool_calls, results):
                     result_str = str(result) if not isinstance(result, Exception) else f"Error: {result}"
-                    messages.append(ToolMessage(
-                        tool_call_id=tc["id"],
-                        name=tc["name"],
-                        content=result_str,
-                    ))
+                    messages.append(
+                        ToolMessage(
+                            tool_call_id=tc["id"],
+                            name=tc["name"],
+                            content=result_str,
+                        )
+                    )
                     sse_name = tc["name"] if tc["name"] in ("web_search", "create_alert") else "rag_search"
                     yield {"type": "tool_result", "name": sse_name}
 
@@ -328,16 +334,16 @@ class ChatAgent:
                             pass
 
             # 6. Persist assistant message
-            session.add(ChatMessage(
-                session_id=self.session_id,
-                role="assistant",
-                content=full_text,
-                tools_used=tools_used if tools_used else None,
-            ))
+            session.add(
+                ChatMessage(
+                    session_id=self.session_id,
+                    role="assistant",
+                    content=full_text,
+                    tools_used=tools_used if tools_used else None,
+                )
+            )
             await session.execute(
-                update(ChatSession)
-                .where(ChatSession.id == self.session_id)
-                .values(last_message_at=func.now())
+                update(ChatSession).where(ChatSession.id == self.session_id).values(last_message_at=func.now())
             )
             await session.commit()
 
@@ -353,14 +359,13 @@ class ChatAgent:
                 return
 
             msg_count = await session.scalar(
-                select(func.count())
-                .select_from(ChatMessage)
-                .where(ChatMessage.session_id == self.session_id)
+                select(func.count()).select_from(ChatMessage).where(ChatMessage.session_id == self.session_id)
             )
             if msg_count != 2:
                 return
 
             from google.genai.types import GenerateContentConfig
+
             client = llm_client.get_client()
             settings = get_settings()
             resp = await client.aio.models.generate_content(
@@ -378,7 +383,7 @@ class ChatAgent:
                     "Title: Portfolio Changes Last Friday\n"
                     'User: "Can you compare my ETF performance over 6 months?"\n'
                     "Title: ETF Performance 6-Month Comparison\n\n"
-                    f"User: \"{first_msg}\"\nTitle:"
+                    f'User: "{first_msg}"\nTitle:'
                 ),
                 config=GenerateContentConfig(
                     temperature=0.0,
@@ -389,14 +394,12 @@ class ChatAgent:
 
             logger.info(
                 "Title generated for session %s: %r (from: %r)",
-                self.session_id, title, first_msg[:80],
+                self.session_id,
+                title,
+                first_msg[:80],
             )
 
-            await session.execute(
-                update(ChatSession)
-                .where(ChatSession.id == self.session_id)
-                .values(title=title)
-            )
+            await session.execute(update(ChatSession).where(ChatSession.id == self.session_id).values(title=title))
             await session.commit()
         except Exception:
             logger.warning("Title generation failed for session %s", self.session_id, exc_info=True)

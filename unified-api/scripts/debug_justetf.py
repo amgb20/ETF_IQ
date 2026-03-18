@@ -13,10 +13,10 @@ Or multiple ISINs:
 from __future__ import annotations
 
 import asyncio
+import html as html_mod
 import json
 import re
 import sys
-import html as html_mod
 
 import httpx
 import justetf_scraping
@@ -41,6 +41,7 @@ def section(title: str) -> None:
 # 1. Library — get_etf_overview
 # ---------------------------------------------------------------------------
 
+
 def debug_library(isin: str) -> dict:
     section(f"[1] justetf_scraping.get_etf_overview({isin})")
     try:
@@ -55,6 +56,7 @@ def debug_library(isin: str) -> dict:
 # ---------------------------------------------------------------------------
 # 2. Library — load_chart (shows what price/return data is available)
 # ---------------------------------------------------------------------------
+
 
 def debug_chart(isin: str) -> None:
     section(f"[2] justetf_scraping.load_chart({isin})  — first 5 rows")
@@ -71,6 +73,7 @@ def debug_chart(isin: str) -> None:
 # ---------------------------------------------------------------------------
 # 3. Raw HTML — fetch and show ALL data-testid values found on the page
 # ---------------------------------------------------------------------------
+
 
 async def debug_html(isin: str) -> str:
     section(f"[3] Raw justETF profile page — all data-testid attributes ({isin})")
@@ -104,6 +107,7 @@ async def debug_html(isin: str) -> str:
 # ---------------------------------------------------------------------------
 # 4. Our scraper — show exactly what _scrape_profile_metadata extracts
 # ---------------------------------------------------------------------------
+
 
 async def debug_our_scraper(isin: str, html: str) -> None:
     section(f"[4] Our testid_map extraction result ({isin})")
@@ -140,12 +144,8 @@ async def debug_our_scraper(isin: str, html: str) -> None:
 
     # Show what holdings testids look like
     section(f"[5] Holdings testid matches ({isin})")
-    names = re.findall(
-        r'data-testid="tl_etf-holdings_top-holdings_link_name"[^>]*title="([^"]+)"', html
-    )
-    pcts = re.findall(
-        r'data-testid="tl_etf-holdings_top-holdings_value_percentage"[^>]*>([^<]+)<', html
-    )
+    names = re.findall(r'data-testid="tl_etf-holdings_top-holdings_link_name"[^>]*title="([^"]+)"', html)
+    pcts = re.findall(r'data-testid="tl_etf-holdings_top-holdings_value_percentage"[^>]*>([^<]+)<', html)
     if names:
         for i, name in enumerate(names):
             pct = pcts[i] if i < len(pcts) else "?"
@@ -155,16 +155,24 @@ async def debug_our_scraper(isin: str, html: str) -> None:
         # Show nearby testids to help find the right pattern
         nearby = re.findall(r'data-testid="([^"]*holding[^"]*)"', html)
         if nearby:
-            print(f"\n  Testids containing 'holding' on this page:")
+            print("\n  Testids containing 'holding' on this page:")
             for t in sorted(set(nearby)):
                 print(f"    {t}")
 
     section(f"[6] Missing fields — testids containing key terms ({isin})")
-    for term in ["fund.size", "aum", "size", "description", "index.desc",
-                 "holdings.count", "number", "drawdown", "return", "risk"]:
-        hits = re.findall(
-            rf'data-testid="([^"]*{re.escape(term)}[^"]*)"', html, re.IGNORECASE
-        )
+    for term in [
+        "fund.size",
+        "aum",
+        "size",
+        "description",
+        "index.desc",
+        "holdings.count",
+        "number",
+        "drawdown",
+        "return",
+        "risk",
+    ]:
+        hits = re.findall(rf'data-testid="([^"]*{re.escape(term)}[^"]*)"', html, re.IGNORECASE)
         if hits:
             print(f"  '{term}' → {sorted(set(hits))}")
 
@@ -172,6 +180,7 @@ async def debug_our_scraper(isin: str, html: str) -> None:
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 async def main() -> None:
     for isin in ISINS:

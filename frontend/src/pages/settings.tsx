@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -24,11 +24,7 @@ export default function SettingsPage() {
   const { mutate: updatePrefs } = useUpdatePreferences();
   const { theme, setTheme } = useTheme();
 
-  const [displayName, setDisplayName] = useState("");
-
-  useEffect(() => {
-    if (user) setDisplayName(user.display_name ?? "");
-  }, [user]);
+  const [displayName, setDisplayName] = useState(user?.display_name ?? "");
 
   if (isLoading) {
     return (
@@ -208,9 +204,9 @@ function ThemeManagementSection() {
   const portfolioId = portfolios?.[0]?.id;
   const { data: themes, isLoading } = usePortfolioThemes(portfolioId);
 
-  const createTheme = portfolioId ? useCreateTheme(portfolioId) : null;
-  const updateTheme = portfolioId ? useUpdateTheme(portfolioId) : null;
-  const deleteTheme = portfolioId ? useDeleteTheme(portfolioId) : null;
+  const createTheme = useCreateTheme(portfolioId ?? "");
+  const updateTheme = useUpdateTheme(portfolioId ?? "");
+  const deleteTheme = useDeleteTheme(portfolioId ?? "");
 
   const [newName, setNewName] = useState("");
   const [newColor, setNewColor] = useState("#6366f1");
@@ -221,7 +217,7 @@ function ThemeManagementSection() {
   if (!portfolioId) return null;
 
   const handleCreate = () => {
-    if (!newName.trim() || !createTheme) return;
+    if (!newName.trim() || !portfolioId) return;
     createTheme.mutate(
       { name: newName.trim(), color: newColor },
       { onSuccess: () => { setNewName(""); setNewColor("#6366f1"); } },
@@ -235,7 +231,7 @@ function ThemeManagementSection() {
   };
 
   const handleUpdate = () => {
-    if (!editingId || !updateTheme) return;
+    if (!editingId || !portfolioId) return;
     updateTheme.mutate(
       { themeId: editingId, name: editName, color: editColor },
       { onSuccess: () => setEditingId(null) },
@@ -243,7 +239,7 @@ function ThemeManagementSection() {
   };
 
   const handleDelete = (themeId: string) => {
-    if (!deleteTheme) return;
+    if (!portfolioId) return;
     deleteTheme.mutate(themeId);
   };
 

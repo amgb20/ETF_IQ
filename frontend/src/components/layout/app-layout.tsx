@@ -24,7 +24,7 @@ export function AppLayout() {
   const toggleCollapsed = () => {
     setCollapsed((prev) => {
       const next = !prev;
-      try { localStorage.setItem(STORAGE_KEY, String(next)); } catch {}
+      try { localStorage.setItem(STORAGE_KEY, String(next)); } catch { /* storage unavailable */ }
       return next;
     });
   };

@@ -8,7 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.database import get_db
 from app.models import ETF, Price
-from app.schemas.etf import ETFDetailResponse, ETFDiscoverItem, ETFListItem, QuoteResponse
+from app.schemas.etf import ETFDetailResponse, ETFListItem, QuoteResponse
 
 logger = logging.getLogger(__name__)
 
@@ -32,11 +32,13 @@ async def search_etfs(
     logger.info("GET /etfs/search  q=%s", q)
     stmt = (
         select(ETF)
-        .where(or_(
-            ETF.name.ilike(f"%{q}%"),
-            ETF.isin.ilike(f"%{q}%"),
-            ETF.ticker_yf.ilike(f"%{q}%"),
-        ))
+        .where(
+            or_(
+                ETF.name.ilike(f"%{q}%"),
+                ETF.isin.ilike(f"%{q}%"),
+                ETF.ticker_yf.ilike(f"%{q}%"),
+            )
+        )
         .order_by(ETF.name)
         .limit(20)
     )
@@ -54,8 +56,8 @@ async def discover_etfs(
     db: AsyncSession = Depends(get_db),
 ):
     """Search the justETF universe and auto-ingest results into the local DB."""
-    from sqlalchemy.dialects.postgresql import insert as pg_insert
     from data_connectors.registry import get_registry
+    from sqlalchemy.dialects.postgresql import insert as pg_insert
 
     connector = get_registry().get("justetf_discovery")
     if not connector:
@@ -74,18 +76,22 @@ async def discover_etfs(
 
     try:
         for item in normalized:
-            stmt = pg_insert(ETF.__table__).values(
-                isin=item["isin"],
-                name=item["name"],
-                ticker_yf=item.get("ticker_yf"),
-                currency=item.get("currency"),
-                exchange=item.get("exchange"),
-                ter=item.get("ter"),
-                aum_eur=item.get("aum_eur"),
-                domicile=item.get("domicile"),
-            ).on_conflict_do_update(
-                index_elements=["isin"],
-                set_={"name": item["name"]},
+            stmt = (
+                pg_insert(ETF.__table__)
+                .values(
+                    isin=item["isin"],
+                    name=item["name"],
+                    ticker_yf=item.get("ticker_yf"),
+                    currency=item.get("currency"),
+                    exchange=item.get("exchange"),
+                    ter=item.get("ter"),
+                    aum_eur=item.get("aum_eur"),
+                    domicile=item.get("domicile"),
+                )
+                .on_conflict_do_update(
+                    index_elements=["isin"],
+                    set_={"name": item["name"]},
+                )
             )
             await db.execute(stmt)
         await db.commit()
@@ -94,9 +100,7 @@ async def discover_etfs(
         await db.rollback()
 
     isins = [item["isin"] for item in normalized]
-    result = await db.execute(
-        select(ETF).where(ETF.isin.in_(isins)).order_by(ETF.name)
-    )
+    result = await db.execute(select(ETF).where(ETF.isin.in_(isins)).order_by(ETF.name))
     etfs = result.scalars().all()
     return [ETFListItem.model_validate(e) for e in etfs]
 
@@ -110,19 +114,22 @@ async def get_etf_quote(isin: str, db: AsyncSession = Depends(get_db)):
         raise HTTPException(status_code=404, detail="ETF not found")
 
     recent = (
-        await db.execute(
-            select(Price)
-            .where(Price.etf_id == etf.id)
-            .order_by(Price.date.desc())
-            .limit(2)
-        )
-    ).scalars().all()
+        (await db.execute(select(Price).where(Price.etf_id == etf.id).order_by(Price.date.desc()).limit(2)))
+        .scalars()
+        .all()
+    )
 
     if not recent:
-        return QuoteResponse(isin=isin, last_close=None, last_date=None,
-                             previous_close=None, day_change=None,
-                             day_change_pct=None, week_52_high=None,
-                             week_52_low=None)
+        return QuoteResponse(
+            isin=isin,
+            last_close=None,
+            last_date=None,
+            previous_close=None,
+            day_change=None,
+            day_change_pct=None,
+            week_52_high=None,
+            week_52_low=None,
+        )
 
     last = recent[0]
     prev = recent[1] if len(recent) > 1 else None
@@ -131,8 +138,7 @@ async def get_etf_quote(isin: str, db: AsyncSession = Depends(get_db)):
 
     year_ago = date.today() - timedelta(days=365)
     hi_lo = await db.execute(
-        select(func.max(Price.high), func.min(Price.low))
-        .where(and_(Price.etf_id == etf.id, Price.date >= year_ago))
+        select(func.max(Price.high), func.min(Price.low)).where(and_(Price.etf_id == etf.id, Price.date >= year_ago))
     )
     row = hi_lo.one_or_none()
     w52_high = round(float(row[0]), 4) if row and row[0] else None
@@ -154,9 +160,7 @@ async def get_etf_quote(isin: str, db: AsyncSession = Depends(get_db)):
 async def get_etf_detail(isin: str, db: AsyncSession = Depends(get_db)):
     logger.info("GET /etfs/%s", isin)
     result = await db.execute(
-        select(ETF)
-        .options(selectinload(ETF.holdings), selectinload(ETF.allocations))
-        .where(ETF.isin == isin)
+        select(ETF).options(selectinload(ETF.holdings), selectinload(ETF.allocations)).where(ETF.isin == isin)
     )
     etf = result.scalar_one_or_none()
     if not etf:

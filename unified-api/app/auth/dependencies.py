@@ -9,7 +9,6 @@ from fastapi import Depends, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.config import get_settings
 from app.database import get_db
 from app.models.user import User
 
@@ -85,6 +84,7 @@ async def verify_portfolio_owner(
 ):
     """Load a portfolio and verify the current user owns it. Returns the portfolio or raises 403."""
     import uuid
+
     from app.models import Portfolio
 
     pid = portfolio_id if isinstance(portfolio_id, uuid.UUID) else uuid.UUID(str(portfolio_id))

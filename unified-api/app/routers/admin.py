@@ -1,13 +1,13 @@
 import uuid
 from datetime import date
 
+from data_connectors.registry import get_registry
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.database import get_db
 from app.auth.dependencies import require_role
-from data_connectors.registry import get_registry
+from app.database import get_db
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -32,6 +32,7 @@ class AgentRunRequest(BaseModel):
 @router.post("/agents/run")
 async def run_agents(body: AgentRunRequest, _user=Depends(require_role("admin")), db: AsyncSession = Depends(get_db)):
     from sqlalchemy import select
+
     from app.agents.orchestrator import WeeklyOrchestrator
     from app.models import Portfolio
 
