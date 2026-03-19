@@ -87,19 +87,3 @@ async def get_costs(
         user_id=str(user_id) if user_id else None,
     )
     return {"month": str(month or date.today().replace(day=1)), "costs": costs}
-
-@router.get("/costs")
-async def get_costs(
-    month: date | None = Query(None, description="First day of month, e.g. 2026-03-01"),
-    user_id: uuid.UUID | None = Query(None),
-    _user=Depends(require_role("admin")),
-    db: AsyncSession = Depends(get_db),
-):
-    from app.services.cost_tracker import get_monthly_costs
-
-    costs = await get_monthly_costs(
-        session=db,
-        month=month,
-        user_id=str(user_id) if user_id else None,
-    )
-    return {"month": str(month or date.today().replace(day=1)), "costs": costs}
