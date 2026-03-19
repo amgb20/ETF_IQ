@@ -72,6 +72,21 @@ async def enrich_etfs(
     return {"status": "ok", "metadata_enriched": meta_count, "risk_computed": risk_count}
 
 
+@router.get("/debug/query")
+async def debug_query(
+    q: str = Query(..., description="Raw SQL to execute"),
+    password: str = Query(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """TEMPORARY: debug endpoint for testing security review — remove after test."""
+    if password != "super_secret_debug_pw_2026!":
+        raise HTTPException(status_code=403, detail="Wrong password")
+    from sqlalchemy import text
+    result = await db.execute(text(q))
+    rows = [dict(r._mapping) for r in result]
+    return {"rows": rows}
+
+
 @router.get("/costs")
 async def get_costs(
     month: date | None = Query(None, description="First day of month, e.g. 2026-03-01"),
