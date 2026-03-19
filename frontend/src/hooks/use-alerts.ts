@@ -74,6 +74,17 @@ export function useDeleteAlert() {
   return useMutation({
     mutationFn: (id: string) =>
       apiFetch(`/alerts/${id}`, { method: "DELETE" }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ["alerts"] }),
+    onMutate: async (id) => {
+      await qc.cancelQueries({ queryKey: ["alerts"] });
+      const previous = qc.getQueriesData<Alert[]>({ queryKey: ["alerts"] });
+      qc.setQueriesData<Alert[]>({ queryKey: ["alerts"] }, (old) =>
+        old?.filter((a) => a.id !== id),
+      );
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      context?.previous.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: ["alerts"] }),
   });
 }

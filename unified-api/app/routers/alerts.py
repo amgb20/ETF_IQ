@@ -3,13 +3,13 @@ from __future__ import annotations
 import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import desc, select
+from sqlalchemy import delete, desc, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
 from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 from app.database import get_db
-from app.models.alert import Alert
+from app.models.alert import Alert, AlertEvent
 from app.models.notification import Notification
 from app.schemas.alert import AlertCreate, AlertResponse, AlertUpdate
 
@@ -102,5 +102,7 @@ async def delete_alert(
 
     await verify_portfolio_owner(alert.portfolio_id, user, db)
 
-    alert.is_active = False
+    await db.execute(delete(AlertEvent).where(AlertEvent.alert_id == alert_id))
+    await db.execute(delete(Notification).where(Notification.ref_id == alert_id))
+    await db.delete(alert)
     await db.flush()
