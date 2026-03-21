@@ -48,17 +48,15 @@ ETF IQ is a full-stack application that combines portfolio tracking, AI-driven r
 - Sector and country allocation bar charts
 - Holding overlap warnings across portfolio ETFs
 
-### AI Research Agents (8 agents, weekly cadence)
-- **Agent 1 — AI Stack Analyst**: Research on technology and AI sector ETFs
-- **Agent 2 — Gold Analyst**: Research on gold and commodity ETFs
-- **Agent 3 — Defence Analyst**: Research on defence and aerospace ETFs
-- **Agent 4 — Macro Analyst**: Macroeconomic and broad market research
-- **Agent 5 — Risk Assessor**: Cross-agent risk synthesis
-- **Agent 6 — Event Mapper**: Maps AI research findings to chart events with dates and tickers
-- **Agent 7 — Recommender**: Actionable buy/hold/sell recommendations from all agent context
-- **Agent 8 — Judge**: Evaluates past predictions against what actually happened, scoring 0–10
+### AI Research Agents (dynamic + 4 fixed, weekly cadence)
+- **Dynamic Theme Agents** — built at runtime from portfolio themes (e.g., "AI Stack Analyst", "Gold Analyst", "Defence Analyst"); each covers the ETFs assigned to its theme
+- **Macro Analyst** — macroeconomic and broad market research covering the entire portfolio
+- **Risk Assessor** — cross-agent risk synthesis from all research outputs
+- **Event Mapper** — maps research findings to chart events with dates, tickers, and sentiment
+- **Recommender** — actionable buy/hold/sell recommendations from all agent context
+- **Judge** — evaluates past predictions against what actually happened (web search grounded), scoring 0–10 across correctness, confidence calibration, and reasoning validity
 
-Agents use a **reflection loop**: before each run, agents load their previous output and Judge score, then acknowledge past mistakes in their prompt before producing new research.
+Agents use a **memory-reflection loop**: before each run, agents load their previous output and Judge score, then acknowledge past mistakes in their prompt before producing new research. Predictions are structured JSON with confidence (1–10) and timeframe.
 
 ### "Charles" — AI Portfolio Assistant (Chat)
 - Conversational AI assistant backed by Gemini with real-time SSE streaming
@@ -71,9 +69,9 @@ Agents use a **reflection loop**: before each run, agents load their previous ou
 - Session rename and delete
 
 ### Report Generation
-- **Weekly Health Report** — PDF covering all 8 agent outputs, risk summary, and recommendations
+- **Weekly Health Report** — PDF covering all agent outputs, risk summary, and recommendations
 - **Monthly Deep Research Report** — extended thinking mode (Gemini thinking budget: 32,768 tokens)
-- Configurable sections: Exec Summary, AI Stack, Gold, Defence, Macro, Risk, Recommendations
+- Dynamic sections: Exec Summary + portfolio theme sections + Macro, Risk, Recommendations
 - PDF download, status polling, and archive table
 - **Agent Memory Explorer** — grid showing Judge scores per agent per week (last 8 runs), colour-coded green/amber/red
 
@@ -91,8 +89,12 @@ Agents use a **reflection loop**: before each run, agents load their previous ou
 ### Onboarding Wizard
 - 5-step guided flow for first-time users
 - ETF search by name or ISIN
-- Theme assignment, position details (shares, entry price, entry date, target allocation)
+- **LLM-powered theme classification** — Gemini analyses selected ETFs and assigns investment themes automatically
+- **Dual correlation analysis** — price correlation + holdings overlap detection with flagging of highly correlated pairs
+- **LLM-powered advisor** — ranks correlated pairs and suggests replacement ETFs from the JustETF universe
+- Position details (shares, entry price, entry date, target allocation)
 - Confirmation summary before portfolio creation
+- Re-onboarding cleans up existing portfolios for a fresh start
 
 ### Settings
 - Display name, base currency (EUR, USD, GBP, CHF, JPY, CAD)
@@ -111,7 +113,7 @@ Agents use a **reflection loop**: before each run, agents load their previous ou
 
 | Layer | Technologies |
 |---|---|
-| **Frontend** | Node 20, TypeScript, Vite 6, React 18, Tailwind CSS 3, Radix UI / shadcn, TanStack React Query, lightweight-charts v5, Recharts |
+| **Frontend** | Node 20, TypeScript 5.9, Vite 7, React 19, Tailwind CSS 4, Radix UI / shadcn, TanStack React Query v5, lightweight-charts v5, Recharts, Three.js (3D globe) |
 | **Backend** | Python 3.11, FastAPI, Uvicorn, SQLAlchemy 2.0 async, asyncpg, Alembic |
 | **AI / LLM** | Google Gemini (`google-genai`), LangChain ReAct agent (chat), pgvector RAG (768-dim embeddings) |
 | **Auth** | Auth0 passwordless email OTP + internal HS256 JWT |
@@ -134,7 +136,7 @@ Agents use a **reflection loop**: before each run, agents load their previous ou
                     │ HTTP / SSE
 ┌───────────────────▼─────────────────────────────┐
 │  Backend — unified-api (FastAPI, port 8000)      │
-│  - 12 API routers                                │
+│  - 14 API routers                                │
 │  - Auth0 OTP + internal JWT auth                 │
 │  - APScheduler (3 cron jobs)                     │
 │  - 8 Gemini-powered AI agents                    │
@@ -173,25 +175,56 @@ Agents use a **reflection loop**: before each run, agents load their previous ou
 
 ## AI Agent Pipeline
 
-The `WeeklyOrchestrator` runs every Monday at 08:00 UTC (or on-demand via admin API):
+### WeeklyOrchestrator
+
+The `WeeklyOrchestrator` (`unified-api/app/agents/orchestrator.py`) runs every Monday at 08:00 UTC (or on-demand via admin API / report generation). It executes a **4-phase pipeline** per portfolio:
 
 ```
-Step 1: Judge Agent        — scores past predictions (web search grounded)
-Step 2: Research × 4       — AI Stack, Gold, Defence, Macro (parallel)
-Step 3: Risk Assessor      — synthesises research into risk assessment
-Step 4: Event Mapper       — extracts chart events from research (parallel)
-        Recommender        — generates actionable recommendations (parallel)
-Step 5: Email digest       — sends weekly digest to subscribed users
+Phase 1: Judge Agent        — scores last week's predictions (web search grounded)
+Phase 2: Research × N       — dynamic theme agents + Macro (parallel, asyncio.gather)
+Phase 3: Risk Assessor      — synthesises research into risk assessment
+Phase 4: Event Mapper       — extracts chart events from research  ┐ parallel
+         Recommender        — generates actionable recommendations ┘
+Post:    Email digest        — sends weekly digest to subscribed users
 ```
 
-Each research agent:
-1. Loads portfolio context (positions, prices, allocations)
-2. Loads its own previous output + Judge score (reflection loop)
-3. Calls Gemini with Google Search grounding
-4. Parses and stores structured predictions
-5. Embeds output into pgvector RAG store (fire-and-forget)
+**Dynamic theme agents**: Research agents are built at runtime from portfolio themes (not hardcoded). Each `PortfolioTheme` maps to a `DynamicThemeAgent` that covers the ETFs assigned to that theme. The `MacroAgent` covers the entire portfolio.
 
-**Deep Research mode** (monthly reports): uses Gemini with `thinking_budget=32768` and `max_output_tokens=16384`.
+### BaseAgent Reflection Loop
+
+Each research agent inherits from `BaseAgent` (`unified-api/app/agents/base_agent.py`) and follows this cycle:
+
+1. **Load context** — portfolio positions, prices, allocations via `context_builder`
+2. **Load past output** — most recent previous `AgentOutput` for this agent
+3. **Build reflection block** — if a Judge evaluation exists, inject the `REFLECTION_TEMPLATE` which forces the agent to acknowledge past mistakes before producing new analysis
+4. **Call Gemini** — with Google Search grounding; uses `DEEP_RESEARCH_CONFIG` (thinking_budget=32768) or `STANDARD_CONFIG` based on `run_type`
+5. **Parse predictions** — extract structured JSON predictions (2–5 per agent, confidence 1–10, timeframe)
+6. **Store output** — upsert to `agent_outputs` table (idempotent via unique constraint on `portfolio_id + agent_name + run_date + run_type`)
+7. **Embed to RAG** — fire-and-forget embedding into `rag_chunks` (pgvector 768-dim) for chat knowledge search
+
+### ReportOrchestrator
+
+The `ReportOrchestrator` (`unified-api/app/agents/report_orchestrator.py`) handles on-demand PDF report generation, triggered by `POST /reports`:
+
+```
+1. Update report status → "running"
+2. Run WeeklyOrchestrator.run()     ← full agent pipeline (standard or deep_research)
+3. Load all AgentOutputs for the run date
+4. Build section→agent mapping      ← "Exec Summary" + theme sections + "Macro", "Risk", "Recommendations"
+5. ReportWriter.build_pdf()          ← ReportLab A4 PDF with navy/blue theme, markdown rendering
+6. Update report status → "complete", store file_path, extract summary_sentence
+7. Create "report_ready" Notification
+```
+
+**Report types:**
+- **Weekly Health Report** (`run_type="standard"`) — standard Gemini config
+- **Monthly Deep Research Report** (`run_type="deep_research"`) — Gemini with `thinking_budget=32768` and `max_output_tokens=16384`
+
+**Section ordering** is dynamic: `["Exec Summary"] + [theme names from portfolio] + ["Macro", "Risk", "Recommendations"]`. Each section maps to an agent name (e.g., theme "AI Stack" → `ai_stack_analyst`, "Macro" → `macro_analyst`).
+
+**PDF generation** (`unified-api/app/agents/report_writer.py`): Uses ReportLab Platypus with A4 pages, inline markdown-to-paragraph conversion (bold, italic), footer with disclaimer + page numbers, and navy colour scheme. Output stored in `data/reports/` with UUID-based filenames.
+
+**Error handling**: If any step fails, the report status is set to `"failed"` and the error is logged. The agent pipeline uses `asyncio.gather(return_exceptions=True)` so individual agent failures don't crash the entire run.
 
 ---
 
@@ -296,6 +329,20 @@ All connectors implement the `BaseConnector` ABC: `fetch()` → `normalize()` �
 |---|---|---|
 | GET | `/users/me` | Current user profile |
 | PUT | `/users/me/preferences` | Update display name, currency, theme, notifications, ToS |
+
+### Onboarding (`/onboarding`)
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/onboarding/status` | Check if current user has completed onboarding |
+| POST | `/onboarding/classify-themes` | LLM-powered ETF theme classification |
+| POST | `/onboarding/correlations` | Dual correlation analysis (price + holdings overlap) |
+| POST | `/onboarding/advisor` | LLM-powered rankings and replacement suggestions for correlated pairs |
+| POST | `/onboarding/complete` | Create portfolio with themes and positions, mark user as onboarded |
+
+### Meta (`/meta`)
+| Method | Endpoint | Description |
+|---|---|---|
+| GET | `/meta/og?url=` | Fetch Open Graph metadata (title, description, image, favicon) for a URL |
 
 ### Admin (`/admin`) — requires `admin` role
 | Method | Endpoint | Description |
@@ -654,7 +701,7 @@ erDiagram
 
 ## API Structure
 
-All 12 routers and their endpoints, grouped by domain.
+All 14 routers and their endpoints, grouped by domain.
 
 ```mermaid
 graph TD
@@ -672,6 +719,8 @@ graph TD
     GW --> R_EV["/events"]
     GW --> R_NOTIF["/notifications"]
     GW --> R_USER["/users"]
+    GW --> R_ONBOARD["/onboarding"]
+    GW --> R_META["/meta"]
     GW --> R_ADMIN["/admin 🔒"]
 
     R_AUTH --> A1["POST /login/passwordless/start"]
@@ -726,6 +775,14 @@ graph TD
     R_USER --> U1["GET  /users/me"]
     R_USER --> U2["PUT  /users/me/preferences"]
 
+    R_ONBOARD --> OB1_API["GET  /onboarding/status"]
+    R_ONBOARD --> OB2_API["POST /onboarding/classify-themes"]
+    R_ONBOARD --> OB3_API["POST /onboarding/correlations"]
+    R_ONBOARD --> OB4_API["POST /onboarding/advisor"]
+    R_ONBOARD --> OB5_API["POST /onboarding/complete"]
+
+    R_META --> M1["GET  /meta/og?url="]
+
     R_ADMIN --> AD1["POST /admin/connectors/:name/run"]
     R_ADMIN --> AD2["POST /admin/agents/run"]
     R_ADMIN --> AD3["GET  /admin/costs"]
@@ -758,12 +815,12 @@ flowchart TD
 
     %% ── ONBOARDING ────────────────────────────────────────
     ONBOARD["Onboarding Wizard /onboarding"]
-    ONBOARD --> OB1["Step 1: Portfolio name"]
-    OB1 --> OB2["Step 2: ETF search\nGET /etfs/search"]
-    OB2 --> OB3["Step 3: Assign themes\nAI Stack / Gold / Defence / Other"]
-    OB3 --> OB4["Step 4: Position details\nshares · entry price · target alloc"]
-    OB4 --> OB5["Step 5: Confirm & Create\nPOST /portfolios + POST /portfolios/:id/positions"]
-    OB5 --> DASH
+    ONBOARD --> OB1["Step 1: ETF search\nGET /etfs/search"]
+    OB1 --> OB2["Step 2: LLM theme classification\nPOST /onboarding/classify-themes"]
+    OB2 --> OB2B["Step 2b: Correlation analysis\nPOST /onboarding/correlations\n+ POST /onboarding/advisor"]
+    OB2B --> OB3["Step 3: Position details\nshares · entry price · target alloc"]
+    OB3 --> OB4["Step 4: Confirm & Create\nPOST /onboarding/complete"]
+    OB4 --> DASH
 
     %% ── DASHBOARD ─────────────────────────────────────────
     PORT_CHECK -->|"Yes"| DASH["Dashboard /dashboard"]
@@ -810,11 +867,9 @@ flowchart TD
         AG8["Agent 8 — Judge\nevaluates past predictions\nweb search grounded\n→ writes judge_overall_score"]
         AG8 --> AG_PAR1
 
-        subgraph AG_PAR1 ["Research Agents — parallel"]
-            AG1["Agent 1\nAI Stack Analyst"]
-            AG2["Agent 2\nGold Analyst"]
-            AG3["Agent 3\nDefence Analyst"]
-            AG4["Agent 4\nMacro Analyst"]
+        subgraph AG_PAR1 ["Research Agents — parallel (asyncio.gather)"]
+            AG_DYN["Dynamic Theme Agents\n(built from portfolio themes)"]
+            AG4["Macro Analyst\n(covers entire portfolio)"]
         end
 
         AG_PAR1 -->|"reflection loop\n(loads own Judge score)"| AG5["Agent 5 — Risk Assessor"]
@@ -888,13 +943,30 @@ ETF_IQ/
 │
 ├── unified-api/                 # FastAPI backend
 │   ├── app/
-│   │   ├── main.py              # App bootstrap, routers, rate limiting
+│   │   ├── main.py              # App bootstrap, 14 routers, rate limiting
 │   │   ├── auth/                # Auth0 OTP, JWT, dependencies, role guards
-│   │   ├── routers/             # portfolios, etfs, prices, analytics, chat, reports, alerts, …
-│   │   ├── agents/              # 8 AI agents, orchestrator, judge, chat agent, RAG store
-│   │   ├── models/              # SQLAlchemy ORM models
+│   │   ├── routers/             # portfolios, etfs, prices, analytics, chat, reports, alerts, onboarding, meta, …
+│   │   ├── agents/
+│   │   │   ├── base_agent.py    # BaseAgent ABC with reflection loop
+│   │   │   ├── orchestrator.py  # WeeklyOrchestrator (4-phase pipeline)
+│   │   │   ├── report_orchestrator.py  # ReportOrchestrator (on-demand PDF)
+│   │   │   ├── report_writer.py # PDF generation (ReportLab)
+│   │   │   ├── chat_agent.py    # LangChain ReAct chatbot (3 tools)
+│   │   │   ├── judge.py         # JudgeAgent (evaluates predictions)
+│   │   │   ├── risk_assessor.py # Risk synthesis agent
+│   │   │   ├── recommender.py   # Action recommendations agent
+│   │   │   ├── event_mapper.py  # Chart event extraction agent
+│   │   │   ├── context_builder.py # Portfolio context for prompts
+│   │   │   ├── llm_client.py    # Gemini API wrapper
+│   │   │   ├── research/        # DynamicThemeAgent, MacroAgent, AI Stack, Gold, Defence
+│   │   │   ├── onboarding/      # Theme classifier, correlation analysis, advisor
+│   │   │   ├── prompts/v1/      # Versioned prompt templates
+│   │   │   └── tools/           # rag_store.py (pgvector), report_history.py
+│   │   ├── models/              # SQLAlchemy ORM models (19 tables)
+│   │   ├── schemas/             # Pydantic request/response models
+│   │   ├── services/            # email.py (Resend), cost_tracker.py (Gemini token costs)
 │   │   └── config.py            # Pydantic settings
-│   ├── alembic/                 # Database migrations (7 versions)
+│   ├── alembic/                 # Database migrations
 │   ├── entrypoint.sh            # Startup: migrate → seed → backfill → serve
 │   └── Dockerfile
 │
