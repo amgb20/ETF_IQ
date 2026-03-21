@@ -1,0 +1,39 @@
+{
+  "name": "etf-iq-video",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "studio": "remotion studio",
+    "render:teaser": "remotion render ETFIQTeaser out/etf-iq-teaser.mp4",
+    "render:full": "remotion render ETFIQFull out/etf-iq-full.mp4",
+    "render:teaser:webm": "remotion render ETFIQTeaser out/etf-iq-teaser.webm --codec=vp8",
+    "render:full:webm": "remotion render ETFIQFull out/etf-iq-full.webm --codec=vp8",
+    "render:all": "npm run render:teaser && npm run render:full",
+    "generate-voiceover": "npx tsx src/audio/generate-voiceover.ts"
+  },
+  "dependencies": {
+    "@react-three/drei": "^10.0.0",
+    "@react-three/fiber": "^9.0.0",
+    "@remotion/cli": "^4.0.0",
+    "@remotion/google-fonts": "^4.0.0",
+    "@remotion/paths": "^4.0.0",
+    "@remotion/player": "^4.0.0",
+    "@remotion/three": "^4.0.0",
+    "@remotion/transitions": "^4.0.0",
+    "elevenlabs": "^1.0.0",
+    "lucide-react": "^0.577.0",
+    "react": "^19.0.0",
+    "react-dom": "^19.0.0",
+    "recharts": "^2.15.0",
+    "remotion": "^4.0.0",
+    "three": "^0.183.0"
+  },
+  "devDependencies": {
+    "@types/react": "^19.0.0",
+    "@types/react-dom": "^19.0.0",
+    "@types/three": "^0.183.0",
+    "tsx": "^4.0.0",
+    "typescript": "^5.7.0"
+  }
+}
