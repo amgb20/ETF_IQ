@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,9 +23,11 @@ from app.agents.onboarding.correlation_advisor import (
 from app.agents.onboarding.theme_classifier import classify_themes
 from app.auth.dependencies import RequireAuth
 from app.database import get_db
+from app.models.alert import Alert, AlertEvent
 from app.models.etf import ETF
-from app.models.portfolio import Portfolio, PortfolioTheme
-from app.models.position import Position
+from app.models.portfolio import Portfolio, PortfolioSnapshot, PortfolioTheme
+from app.models.position import Position, Transaction
+from app.models.report import Report
 from app.schemas.onboarding import (
     AdvisorRequest,
     AdvisorResponse,
@@ -265,6 +268,48 @@ async def advisor_endpoint(
     return AdvisorResponse(rankings=rankings, replacements=replacements)
 
 
+async def _delete_user_portfolios(user_id: uuid.UUID, db: AsyncSession) -> int:
+    """Delete all portfolios for a user, handling tables that lack CASCADE FKs."""
+    result = await db.execute(select(Portfolio).where(Portfolio.user_id == user_id))
+    old_portfolios = result.scalars().all()
+    if not old_portfolios:
+        return 0
+
+    old_ids = [p.id for p in old_portfolios]
+
+    # Tables without ondelete CASCADE that reference children of portfolio
+    await db.execute(
+        delete(AlertEvent).where(
+            AlertEvent.alert_id.in_(select(Alert.id).where(Alert.portfolio_id.in_(old_ids)))
+        )
+    )
+    await db.execute(
+        delete(Transaction).where(
+            Transaction.position_id.in_(select(Position.id).where(Position.portfolio_id.in_(old_ids)))
+        )
+    )
+    await db.execute(delete(PortfolioSnapshot).where(PortfolioSnapshot.portfolio_id.in_(old_ids)))
+
+    # Clean up report files from disk before DB delete
+    report_result = await db.execute(select(Report.file_path).where(Report.portfolio_id.in_(old_ids)))
+    for (fpath,) in report_result.all():
+        if fpath:
+            Path(fpath).unlink(missing_ok=True)
+
+    # Detach positions from themes (positions.theme_id FK has no CASCADE)
+    await db.execute(
+        delete(Position).where(Position.portfolio_id.in_(old_ids))
+    )
+
+    # Now delete portfolios — CASCADE handles themes, alerts, agent_outputs,
+    # chart_events, reports, chat_sessions, rag_chunks
+    for p in old_portfolios:
+        await db.delete(p)
+    await db.flush()
+
+    return len(old_portfolios)
+
+
 @router.post("/complete", status_code=201)
 async def complete_onboarding(
     body: OnboardingCompleteRequest,
@@ -273,10 +318,15 @@ async def complete_onboarding(
 ):
     """Create portfolio with themes and positions, then mark user as onboarded.
 
-    This runs as a single DB transaction (auto-commit via get_db dependency).
+    Deletes any existing portfolios for this user first so re-onboarding
+    produces a clean state. Runs as a single DB transaction.
     """
     if not body.themes:
         raise HTTPException(status_code=400, detail="At least one theme is required")
+
+    deleted = await _delete_user_portfolios(user.id, db)
+    if deleted:
+        logger.info("Deleted %d old portfolio(s) for user %s", deleted, user.id)
 
     # Create portfolio
     portfolio = Portfolio(
