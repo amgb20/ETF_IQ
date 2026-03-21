@@ -40,7 +40,11 @@ def _slugify(name: str) -> str:
 @router.get("", response_model=list[PortfolioResponse])
 async def list_portfolios(user: RequireAuth, db: AsyncSession = Depends(get_db)):
     logger.info("GET /portfolios  user=%s", user.id)
-    result = await db.execute(select(Portfolio).where(Portfolio.user_id == user.id))
+    result = await db.execute(
+        select(Portfolio)
+        .where(Portfolio.user_id == user.id)
+        .order_by(desc(Portfolio.created_at))
+    )
     portfolios = result.scalars().all()
     logger.info("GET /portfolios  user=%s  returning %d portfolios", user.id, len(portfolios))
     return [

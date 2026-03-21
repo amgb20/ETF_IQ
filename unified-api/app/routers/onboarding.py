@@ -4,9 +4,10 @@ from __future__ import annotations
 
 import logging
 import uuid
+from pathlib import Path
 
 from fastapi import APIRouter, Depends, HTTPException
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
@@ -22,9 +23,11 @@ from app.agents.onboarding.correlation_advisor import (
 from app.agents.onboarding.theme_classifier import classify_themes
 from app.auth.dependencies import RequireAuth
 from app.database import get_db
+from app.models.alert import Alert, AlertEvent
 from app.models.etf import ETF
-from app.models.portfolio import Portfolio, PortfolioTheme
-from app.models.position import Position
+from app.models.portfolio import Portfolio, PortfolioSnapshot, PortfolioTheme
+from app.models.position import Position, Transaction
+from app.models.report import Report
 from app.schemas.onboarding import (
     AdvisorRequest,
     AdvisorResponse,
@@ -47,6 +50,8 @@ from app.schemas.onboarding import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/onboarding", tags=["onboarding"])
+
+REPORTS_DIR = Path(__file__).resolve().parent.parent.parent / "reports"
 
 
 # ── Helpers ─────────────────────────────────────────────────────────
@@ -78,6 +83,59 @@ async def _load_etfs_by_ids(
         )
 
     return etf_map
+
+
+async def _delete_user_portfolios(
+    user_id: uuid.UUID, db: AsyncSession
+) -> tuple[int, list[Path]]:
+    """Delete all portfolios for a user, handling tables that lack CASCADE FKs.
+
+    Returns the count of deleted portfolios and a list of report file paths
+    to clean up.  Callers must delete files only **after** the DB transaction
+    commits so that a rollback never leaves the filesystem out of sync.
+    """
+    result = await db.execute(select(Portfolio).where(Portfolio.user_id == user_id))
+    old_portfolios = result.scalars().all()
+    if not old_portfolios:
+        return 0, []
+
+    old_ids = [p.id for p in old_portfolios]
+
+    # AlertEvent lacks a direct CASCADE from Portfolio; delete explicitly.
+    # Alert (the direct child of Portfolio) *is* covered by CASCADE.
+    await db.execute(
+        delete(AlertEvent).where(
+            AlertEvent.alert_id.in_(select(Alert.id).where(Alert.portfolio_id.in_(old_ids)))
+        )
+    )
+    await db.execute(
+        delete(Transaction).where(
+            Transaction.position_id.in_(select(Position.id).where(Position.portfolio_id.in_(old_ids)))
+        )
+    )
+    await db.execute(delete(PortfolioSnapshot).where(PortfolioSnapshot.portfolio_id.in_(old_ids)))
+
+    # Collect report file paths for post-commit cleanup
+    report_result = await db.execute(select(Report.file_path).where(Report.portfolio_id.in_(old_ids)))
+    files_to_delete: list[Path] = []
+    for (fpath,) in report_result.all():
+        if not fpath:
+            continue
+        resolved = Path(fpath).resolve()
+        if resolved.is_relative_to(REPORTS_DIR.resolve()):
+            files_to_delete.append(resolved)
+        else:
+            logger.warning("Skipping report file outside REPORTS_DIR: %s", fpath)
+
+    # Detach positions from themes (positions.theme_id FK has no CASCADE)
+    await db.execute(delete(Position).where(Position.portfolio_id.in_(old_ids)))
+
+    # Bulk-delete portfolios — CASCADE handles themes, alerts, agent_outputs,
+    # chart_events, reports, chat_sessions, rag_chunks
+    await db.execute(delete(Portfolio).where(Portfolio.id.in_(old_ids)))
+    await db.flush()
+
+    return len(old_portfolios), files_to_delete
 
 
 # ── Endpoints ───────────────────────────────────────────────────────
@@ -273,10 +331,15 @@ async def complete_onboarding(
 ):
     """Create portfolio with themes and positions, then mark user as onboarded.
 
-    This runs as a single DB transaction (auto-commit via get_db dependency).
+    Deletes any existing portfolios for this user first so re-onboarding
+    produces a clean state. Runs as a single DB transaction.
     """
     if not body.themes:
         raise HTTPException(status_code=400, detail="At least one theme is required")
+
+    deleted, report_files = await _delete_user_portfolios(user.id, db)
+    if deleted:
+        logger.info("Deleted %d old portfolio(s) for user %s", deleted, user.id)
 
     # Create portfolio
     portfolio = Portfolio(
@@ -324,7 +387,13 @@ async def complete_onboarding(
     user.is_onboarded = True
     db.add(user)
 
-    await db.flush()
+    await db.commit()
+
+    for fpath in report_files:
+        try:
+            fpath.unlink(missing_ok=True)
+        except OSError:
+            logger.warning("Failed to delete orphaned report file: %s", fpath)
 
     logger.info(
         "Onboarding complete: user=%s portfolio=%s themes=%d",
