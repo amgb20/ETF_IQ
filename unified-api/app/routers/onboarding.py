@@ -85,9 +85,7 @@ async def _load_etfs_by_ids(
     return etf_map
 
 
-async def _delete_user_portfolios(
-    user_id: uuid.UUID, db: AsyncSession
-) -> tuple[int, list[Path]]:
+async def _delete_user_portfolios(user_id: uuid.UUID, db: AsyncSession) -> tuple[int, list[Path]]:
     """Delete all portfolios for a user, handling tables that lack CASCADE FKs.
 
     Returns the count of deleted portfolios and a list of report file paths
@@ -104,9 +102,7 @@ async def _delete_user_portfolios(
     # AlertEvent lacks a direct CASCADE from Portfolio; delete explicitly.
     # Alert (the direct child of Portfolio) *is* covered by CASCADE.
     await db.execute(
-        delete(AlertEvent).where(
-            AlertEvent.alert_id.in_(select(Alert.id).where(Alert.portfolio_id.in_(old_ids)))
-        )
+        delete(AlertEvent).where(AlertEvent.alert_id.in_(select(Alert.id).where(Alert.portfolio_id.in_(old_ids))))
     )
     await db.execute(
         delete(Transaction).where(

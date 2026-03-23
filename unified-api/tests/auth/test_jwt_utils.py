@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import uuid
 from datetime import datetime, timedelta, timezone
 
 import pytest
@@ -10,7 +9,6 @@ from jose import jwt as jose_jwt
 
 from app.auth.jwt_utils import ALGORITHM, create_internal_token, verify_internal_token
 from app.config import get_settings
-
 
 # ---------------------------------------------------------------------------
 # create_internal_token
@@ -107,6 +105,7 @@ def test_verify_internal_token_raises_on_expired_token():
 def test_verify_internal_token_raises_on_tampered_signature():
     token = create_internal_token({"x": "y"})
     import base64
+
     header, payload, _ = token.split(".")
     bad_sig = base64.urlsafe_b64encode(b"X" * 32).rstrip(b"=").decode()
     tampered = f"{header}.{payload}.{bad_sig}"

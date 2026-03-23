@@ -29,7 +29,7 @@ from .auth0 import start_passwordless, verify_passwordless
 from .dependencies import get_current_user
 from .jwt import create_access_token, decode_token
 from .otp_limiter import check_otp_rate_limit, check_start_rate_limit, reset_otp_rate_limit
-from .token_blocklist import block_token
+from .token_blocklist import block_token, is_token_blocked
 
 logger = logging.getLogger(__name__)
 
@@ -64,6 +64,9 @@ def _set_auth_cookies(response: Response, user: User, token: str, settings) -> N
     """Write the HttpOnly access_token and the JS-readable access_token_js cookie."""
     opts = _cookie_opts(settings)
     response.set_cookie(key="access_token", value=token, httponly=True, **opts)
+    # Intentionally JS-readable: the frontend UserContext reads role + username
+    # from this cookie for conditional rendering (e.g. admin sidebar).  The
+    # actual auth check always uses the HttpOnly access_token above.
     js_payload = json.dumps(
         {
             "id": str(user.id),
@@ -76,14 +79,17 @@ def _set_auth_cookies(response: Response, user: User, token: str, settings) -> N
 
 
 def _client_ip(request: Request) -> str | None:
-    """Return the real client IP, honouring X-Forwarded-For behind a proxy.
+    """Return the real client IP, honouring X-Forwarded-For only behind a trusted proxy.
 
-    Only use the forwarded header when the application is behind a trusted
-    reverse proxy — otherwise this header can be spoofed by clients.
+    X-Forwarded-For is trivially spoofable by clients.  We only trust it
+    when TRUSTED_PROXY=true, meaning the app sits behind a known reverse proxy
+    (e.g. Nginx, Vercel, AWS ALB) that overwrites the header.
     """
-    forwarded_for = request.headers.get("X-Forwarded-For")
-    if forwarded_for:
-        return forwarded_for.split(",")[0].strip()
+    settings = get_settings()
+    if settings.TRUSTED_PROXY:
+        forwarded_for = request.headers.get("X-Forwarded-For")
+        if forwarded_for:
+            return forwarded_for.split(",")[0].strip()
     return request.client.host if request.client else None
 
 
@@ -220,6 +226,16 @@ async def refresh_token(
     user_id = payload.get("sub")
     old_jti = payload.get("jti")
     old_exp = payload.get("exp", 0)
+
+    # Reject revoked tokens — mirrors the check in get_current_user.
+    if old_jti and await is_token_blocked(old_jti):
+        await log_auth_event(
+            AuthEvent.TOKEN_REVOKED,
+            user_id=user_id,
+            ip=ip,
+            detail="blocked token presented to /refresh",
+        )
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
 
     result = await db.execute(select(User).where(User.id == user_id))
     user = result.scalar_one_or_none()

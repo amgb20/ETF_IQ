@@ -42,4 +42,5 @@ unified-api/alembic/versions/__pycache__/
 # pytest
 .pytest_cache/
 .coverage
+coverage.json
 htmlcov/

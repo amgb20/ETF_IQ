@@ -16,51 +16,25 @@ from __future__ import annotations
 
 import logging
 import time
-from typing import Optional
 
 from fastapi import HTTPException, status
 
 from app.auth.audit import AuthEvent
+from app.auth.redis import get_redis as _get_redis
 
 logger = logging.getLogger(__name__)
 
 # /verify limits
-OTP_WINDOW_SECONDS: int = 600   # 10-minute sliding window
+OTP_WINDOW_SECONDS: int = 600  # 10-minute sliding window
 OTP_MAX_ATTEMPTS: int = 5
 
 # /start limits
 START_WINDOW_SECONDS: int = 3600  # 1-hour sliding window
 START_MAX_ATTEMPTS: int = 3
 
-# Module-level Redis client (connection pool).  Created lazily on first use
-# and reused for the lifetime of the process — never closed mid-operation.
-_redis_client: Optional[object] = None
-
 
 def _redis_key(prefix: str, email: str) -> str:
     return f"otp:{prefix}:{email.lower().strip()}"
-
-
-async def _get_redis():
-    """Return the shared Redis pool, creating it on first call.
-
-    Returns None when Redis is not configured or the pool cannot be created.
-    The pool is shared across all calls — callers must NOT call aclose().
-    """
-    global _redis_client
-    if _redis_client is not None:
-        return _redis_client
-    try:
-        from app.config import get_settings
-        settings = get_settings()
-        if not settings.USE_REDIS or not settings.REDIS_URL:
-            return None
-        import redis.asyncio as aioredis
-        _redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        return _redis_client
-    except Exception as exc:
-        logger.warning("OTP limiter: could not create Redis pool: %s", exc)
-        return None
 
 
 async def _sliding_window_check(
@@ -82,18 +56,22 @@ async def _sliding_window_check(
 
         pipe = redis.pipeline()
         pipe.zremrangebyscore(key, "-inf", window_start)  # Evict expired entries.
-        pipe.zadd(key, {str(now): now})                   # Record this attempt.
-        pipe.zcard(key)                                    # Count remaining.
-        pipe.expire(key, window_seconds)                   # Auto-clean the key.
+        pipe.zadd(key, {str(now): now})  # Record this attempt.
+        pipe.zcard(key)  # Count remaining.
+        pipe.expire(key, window_seconds)  # Auto-clean the key.
         results = await pipe.execute()
         count = results[2]  # ZCARD result
 
         if count > max_attempts:
             logger.warning(
                 "OTP limiter: %s rate limit exceeded for %s (%d attempts in %ds window)",
-                event.value, email, count, window_seconds,
+                event.value,
+                email,
+                count,
+                window_seconds,
             )
             from app.auth.audit import log_auth_event
+
             await log_auth_event(
                 event,
                 email=email,

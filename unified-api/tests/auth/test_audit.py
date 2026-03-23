@@ -7,12 +7,11 @@ from __future__ import annotations
 
 import json
 import logging
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 
-from app.auth.audit import AuthEvent, _FAILURE_EVENTS, _persist, log_auth_event
-
+from app.auth.audit import _FAILURE_EVENTS, AuthEvent, _persist, log_auth_event
 
 # ---------------------------------------------------------------------------
 # log_auth_event — log level routing

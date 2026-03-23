@@ -12,7 +12,6 @@ from httpx import ASGITransport, AsyncClient
 from app.auth.jwt import create_access_token
 from tests.auth.conftest import _make_user, make_mock_db
 
-
 # ---------------------------------------------------------------------------
 # Helpers — build minimal apps per test scenario
 # ---------------------------------------------------------------------------
@@ -35,7 +34,6 @@ def _build_app_with_user(user=None, *, no_user: bool = False):
 
     @app.get("/me")
     async def _me(current_user=None):
-        from fastapi import Depends
         return {"id": str(current_user.id), "role": current_user.role}
 
     # Wire the dependency manually on the probe route
@@ -108,6 +106,7 @@ async def test_get_current_user_raises_401_when_token_has_no_sub():
     settings = get_settings()
     # Build a valid-signature token but with no 'sub' field
     import uuid
+
     payload = {
         "email": "u@example.com",
         "role": "user",
@@ -327,7 +326,6 @@ async def test_verify_portfolio_owner_returns_portfolio_when_owner():
 
 @pytest.mark.asyncio
 async def test_verify_portfolio_owner_raises_404_when_not_found():
-    from fastapi import HTTPException
 
     from app.auth.dependencies import verify_portfolio_owner
 
@@ -342,7 +340,6 @@ async def test_verify_portfolio_owner_raises_404_when_not_found():
 
 @pytest.mark.asyncio
 async def test_verify_portfolio_owner_raises_403_when_not_owner():
-    from fastapi import HTTPException
 
     from app.auth.dependencies import verify_portfolio_owner
 

@@ -92,11 +92,25 @@ async def _get_jwks(*, force_refresh: bool = False) -> list:
             return _JWKS_CACHE
 
         settings = get_settings()
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(
-                f"https://{settings.AUTH0_DOMAIN}/.well-known/jwks.json",
-                timeout=10,
-            )
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"https://{settings.AUTH0_DOMAIN}/.well-known/jwks.json",
+                    timeout=10,
+                )
+            if resp.status_code != 200:
+                logger.error("JWKS fetch failed: HTTP %s", resp.status_code)
+                if _JWKS_CACHE:
+                    logger.warning("JWKS fetch failed — returning stale cache")
+                    return _JWKS_CACHE
+                raise ValueError("Auth0 JWKS endpoint unavailable")
+        except (httpx.HTTPError, OSError) as exc:
+            logger.error("JWKS fetch network error: %s", exc)
+            if _JWKS_CACHE:
+                logger.warning("JWKS fetch failed — returning stale cache")
+                return _JWKS_CACHE
+            raise ValueError("Auth0 JWKS endpoint unavailable") from exc
+
         _JWKS_CACHE = resp.json().get("keys", [])
         _JWKS_CACHE_AT = time.monotonic()
         return _JWKS_CACHE

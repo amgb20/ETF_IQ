@@ -17,7 +17,6 @@ from app.auth.token_blocklist import (
     is_token_blocked,
 )
 
-
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
@@ -73,7 +72,7 @@ async def test_block_token_skips_when_ttl_zero():
 
 @pytest.mark.asyncio
 async def test_block_token_skips_when_ttl_negative():
-    redis_mock = _make_redis_mock()
+    _make_redis_mock()
 
     with patch("app.auth.token_blocklist._get_redis", new_callable=AsyncMock) as mock_get_redis:
         await block_token("jti-neg", ttl_seconds=-10)
@@ -169,21 +168,19 @@ async def test_is_token_blocked_fails_open_on_redis_exception(caplog):
 
 @pytest.mark.asyncio
 async def test_get_redis_returns_none_when_use_redis_false(monkeypatch):
-    """When USE_REDIS=false, _get_redis must return None."""
+    """When USE_REDIS=false, get_redis must return None."""
     from app import config as config_module
 
     config_module.get_settings.cache_clear()
     monkeypatch.setenv("USE_REDIS", "false")
     config_module.get_settings.cache_clear()
 
-    from app.auth.token_blocklist import _get_redis
+    from app.auth.redis import get_redis
 
-    # Patch the singleton to None so we exercise the creation path.
-    with patch("app.auth.token_blocklist._redis_client", None):
-        result = await _get_redis()
+    with patch("app.auth.redis._redis_client", None):
+        result = await get_redis()
     assert result is None
 
-    # Restore
     config_module.get_settings.cache_clear()
     monkeypatch.setenv("USE_REDIS", "true")
     config_module.get_settings.cache_clear()
@@ -198,13 +195,12 @@ async def test_get_redis_returns_none_when_redis_url_empty(monkeypatch):
     monkeypatch.setenv("REDIS_URL", "")
     config_module.get_settings.cache_clear()
 
-    from app.auth.token_blocklist import _get_redis
+    from app.auth.redis import get_redis
 
-    with patch("app.auth.token_blocklist._redis_client", None):
-        result = await _get_redis()
+    with patch("app.auth.redis._redis_client", None):
+        result = await get_redis()
     assert result is None
 
-    # Restore
     config_module.get_settings.cache_clear()
     monkeypatch.setenv("REDIS_URL", "redis://localhost:6379/0")
     config_module.get_settings.cache_clear()
@@ -212,7 +208,7 @@ async def test_get_redis_returns_none_when_redis_url_empty(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_get_redis_returns_none_on_import_exception(monkeypatch, caplog):
-    """If the redis.asyncio import or from_url raises, _get_redis must return None."""
+    """If the redis.asyncio import or from_url raises, get_redis must return None."""
     from app import config as config_module
 
     config_module.get_settings.cache_clear()
@@ -221,11 +217,11 @@ async def test_get_redis_returns_none_on_import_exception(monkeypatch, caplog):
     config_module.get_settings.cache_clear()
 
     with patch("redis.asyncio.from_url", side_effect=Exception("connection refused")):
-        from app.auth.token_blocklist import _get_redis
+        from app.auth.redis import get_redis
 
-        with patch("app.auth.token_blocklist._redis_client", None):
-            with caplog.at_level(logging.WARNING, logger="app.auth.token_blocklist"):
-                result = await _get_redis()
+        with patch("app.auth.redis._redis_client", None):
+            with caplog.at_level(logging.WARNING, logger="app.auth.redis"):
+                result = await get_redis()
 
     assert result is None
 

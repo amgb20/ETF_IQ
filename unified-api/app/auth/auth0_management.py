@@ -50,12 +50,12 @@ async def _get_management_token() -> str:
             return _mgmt_token
 
         from app.config import get_settings
+
         settings = get_settings()
 
         if not settings.AUTH0_MGMT_CLIENT_ID or not settings.AUTH0_MGMT_CLIENT_SECRET:
             raise RuntimeError(
-                "AUTH0_MGMT_CLIENT_ID and AUTH0_MGMT_CLIENT_SECRET must be set "
-                "to use the Auth0 Management API."
+                "AUTH0_MGMT_CLIENT_ID and AUTH0_MGMT_CLIENT_SECRET must be set to use the Auth0 Management API."
             )
 
         audience = f"https://{settings.AUTH0_DOMAIN}/api/v2/"
@@ -72,9 +72,7 @@ async def _get_management_token() -> str:
             )
 
         if resp.status_code != 200:
-            raise RuntimeError(
-                f"Failed to obtain Auth0 Management token: {resp.status_code} {resp.text}"
-            )
+            raise RuntimeError(f"Failed to obtain Auth0 Management token: {resp.status_code} {resp.text}")
 
         data = resp.json()
         _mgmt_token = data["access_token"]
@@ -86,6 +84,7 @@ async def _get_management_token() -> str:
 async def _mgmt_request(method: str, path: str, **kwargs: Any) -> dict:
     """Execute an authenticated request against the Management API v2."""
     from app.config import get_settings
+
     settings = get_settings()
     token = await _get_management_token()
     base_url = f"https://{settings.AUTH0_DOMAIN}/api/v2"
@@ -100,9 +99,7 @@ async def _mgmt_request(method: str, path: str, **kwargs: Any) -> dict:
         )
 
     if resp.status_code >= 400:
-        raise RuntimeError(
-            f"Auth0 Management API {method} {path} failed: {resp.status_code} {resp.text}"
-        )
+        raise RuntimeError(f"Auth0 Management API {method} {path} failed: {resp.status_code} {resp.text}")
 
     # 204 No Content responses have no body.
     return resp.json() if resp.content else {}

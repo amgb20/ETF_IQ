@@ -6,11 +6,9 @@ All HTTP calls are mocked — no real Auth0 network access.
 from __future__ import annotations
 
 import time
-import uuid
 from unittest.mock import AsyncMock, MagicMock, patch
 
 import pytest
-from jose import jwt as jose_jwt
 
 import app.auth.auth0 as auth0_module
 from app.auth.auth0 import (
@@ -19,7 +17,6 @@ from app.auth.auth0 import (
     start_passwordless,
     verify_passwordless,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -220,6 +217,72 @@ async def test_get_jwks_refetches_after_ttl_expires():
 
     assert result == new_keys
     mock_client.get.assert_called_once()
+
+
+# ---------------------------------------------------------------------------
+# _get_jwks — error handling
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.asyncio
+async def test_get_jwks_keeps_stale_cache_on_http_error():
+    """If Auth0 returns non-200, the stale cache must be returned instead of empty."""
+    stale_keys = [{"kid": "stale-key", "kty": "RSA"}]
+    auth0_module._JWKS_CACHE = stale_keys
+    auth0_module._JWKS_CACHE_AT = time.monotonic() - 7201  # expired TTL
+
+    mock_resp = _make_httpx_response(503, {"error": "service unavailable"})
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await _get_jwks(force_refresh=True)
+
+    assert result == stale_keys
+
+
+@pytest.mark.asyncio
+async def test_get_jwks_raises_on_error_with_empty_cache():
+    """If Auth0 returns non-200 and there is no stale cache, must raise ValueError."""
+    auth0_module._JWKS_CACHE = []
+    auth0_module._JWKS_CACHE_AT = 0.0
+
+    mock_resp = _make_httpx_response(503, {"error": "service unavailable"})
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(return_value=mock_resp)
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        with pytest.raises(ValueError, match="JWKS endpoint unavailable"):
+            await _get_jwks(force_refresh=True)
+
+
+@pytest.mark.asyncio
+async def test_get_jwks_keeps_stale_cache_on_network_error():
+    """On network errors, stale cache must be returned."""
+    import httpx as httpx_mod
+
+    stale_keys = [{"kid": "stale-key", "kty": "RSA"}]
+    auth0_module._JWKS_CACHE = stale_keys
+    auth0_module._JWKS_CACHE_AT = time.monotonic() - 7201
+
+    with patch("httpx.AsyncClient") as mock_client_cls:
+        mock_client = AsyncMock()
+        mock_client.get = AsyncMock(side_effect=httpx_mod.ConnectError("connection refused"))
+        mock_client.__aenter__ = AsyncMock(return_value=mock_client)
+        mock_client.__aexit__ = AsyncMock(return_value=False)
+        mock_client_cls.return_value = mock_client
+
+        result = await _get_jwks(force_refresh=True)
+
+    assert result == stale_keys
 
 
 # ---------------------------------------------------------------------------

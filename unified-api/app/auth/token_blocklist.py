@@ -12,37 +12,12 @@ logged so the condition is visible in monitoring.
 from __future__ import annotations
 
 import logging
-from typing import Optional
+
+from app.auth.redis import get_redis as _get_redis
 
 logger = logging.getLogger(__name__)
 
 _BLOCKED_KEY_PREFIX = "token:blocked:"
-
-# Module-level Redis client (connection pool).  Created lazily on first use
-# and reused for the lifetime of the process — never closed mid-operation.
-_redis_client: Optional[object] = None
-
-
-async def _get_redis():
-    """Return the shared Redis pool, creating it on first call.
-
-    Returns None when Redis is not configured or the pool cannot be created.
-    The pool is shared across all calls — callers must NOT call aclose().
-    """
-    global _redis_client
-    if _redis_client is not None:
-        return _redis_client
-    try:
-        from app.config import get_settings
-        settings = get_settings()
-        if not settings.USE_REDIS or not settings.REDIS_URL:
-            return None
-        import redis.asyncio as aioredis
-        _redis_client = aioredis.from_url(settings.REDIS_URL, decode_responses=True)
-        return _redis_client
-    except Exception as exc:
-        logger.warning("Token blocklist: could not create Redis pool: %s", exc)
-        return None
 
 
 async def block_token(jti: str, ttl_seconds: int) -> None:

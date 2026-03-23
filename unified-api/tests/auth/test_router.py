@@ -6,14 +6,13 @@ The test app is built from app.auth.router alone — app.main is never imported.
 
 from __future__ import annotations
 
-import uuid
-from unittest.mock import AsyncMock, MagicMock, patch
+from unittest.mock import AsyncMock, patch
 
 import pytest
 from httpx import ASGITransport, AsyncClient
 
 from app.auth.jwt import create_access_token
-from tests.auth.conftest import _make_user, build_test_app, make_mock_db
+from tests.auth.conftest import _make_user, make_mock_db
 
 # ---------------------------------------------------------------------------
 # App / client builders
@@ -23,6 +22,7 @@ from tests.auth.conftest import _make_user, build_test_app, make_mock_db
 def _make_client_with_user(user=None, *, no_user: bool = False):
     """Build a test AsyncClient whose DB always returns ``user``."""
     from fastapi import FastAPI
+
     from app.auth.router import router as auth_router
     from app.database import get_db
 
@@ -321,6 +321,19 @@ async def test_refresh_returns_401_on_invalid_token():
     assert resp.status_code == 401
 
 
+@pytest.mark.asyncio
+async def test_refresh_returns_401_when_token_blocklisted():
+    """A revoked token must not be accepted by /refresh."""
+    user = _make_user()
+    token = create_access_token(str(user.id), user.email, user.role)
+    client, _ = _make_client_with_user(user)
+    async with client:
+        with patch("app.auth.router.is_token_blocked", new_callable=AsyncMock, return_value=True):
+            with patch("app.auth.router.log_auth_event", new_callable=AsyncMock):
+                resp = await client.post("/auth/refresh", cookies={"access_token": token})
+    assert resp.status_code == 401
+
+
 # ---------------------------------------------------------------------------
 # POST /auth/logout
 # ---------------------------------------------------------------------------
@@ -370,9 +383,11 @@ async def test_logout_clears_access_token_cookie():
             with patch("app.auth.router.log_auth_event", new_callable=AsyncMock):
                 resp = await client.post("/auth/logout", cookies={"access_token": token})
     # After logout, the set-cookie header should clear the cookie (max-age=0 or expires in past)
-    set_cookie_headers = resp.headers.get_list("set-cookie") if hasattr(resp.headers, "get_list") else [
-        v for k, v in resp.headers.items() if k.lower() == "set-cookie"
-    ]
+    set_cookie_headers = (
+        resp.headers.get_list("set-cookie")
+        if hasattr(resp.headers, "get_list")
+        else [v for k, v in resp.headers.items() if k.lower() == "set-cookie"]
+    )
     cookie_names = " ".join(set_cookie_headers)
     assert "access_token" in cookie_names
 

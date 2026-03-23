@@ -83,10 +83,12 @@ async def _persist(record: dict, db) -> None:
     """Write the audit record to the database (best-effort, never raises)."""
     try:
         from app.config import get_settings
+
         if not get_settings().PERSIST_AUDIT_LOG:
             return
 
         from sqlalchemy import text
+
         await db.execute(
             text(
                 "INSERT INTO auth_audit_log (event, email, user_id, ip_address, detail) "

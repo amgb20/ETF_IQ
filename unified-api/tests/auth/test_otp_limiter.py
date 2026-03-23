@@ -10,15 +10,12 @@ from fastapi import HTTPException
 
 from app.auth.otp_limiter import (
     OTP_MAX_ATTEMPTS,
-    OTP_WINDOW_SECONDS,
     START_MAX_ATTEMPTS,
-    START_WINDOW_SECONDS,
     _redis_key,
     check_otp_rate_limit,
     check_start_rate_limit,
     reset_otp_rate_limit,
 )
-
 
 # ---------------------------------------------------------------------------
 # Helpers
@@ -254,11 +251,10 @@ async def test_otp_get_redis_returns_none_when_use_redis_false(monkeypatch):
     monkeypatch.setenv("USE_REDIS", "false")
     config_module.get_settings.cache_clear()
 
-    from app.auth.otp_limiter import _get_redis
+    from app.auth.redis import get_redis
 
-    # Patch the singleton to None so we exercise the creation path.
-    with patch("app.auth.otp_limiter._redis_client", None):
-        result = await _get_redis()
+    with patch("app.auth.redis._redis_client", None):
+        result = await get_redis()
     assert result is None
 
     config_module.get_settings.cache_clear()
@@ -268,7 +264,7 @@ async def test_otp_get_redis_returns_none_when_use_redis_false(monkeypatch):
 
 @pytest.mark.asyncio
 async def test_otp_get_redis_returns_none_on_exception(monkeypatch, caplog):
-    """If redis.asyncio.from_url raises, _get_redis must return None and log WARNING."""
+    """If redis.asyncio.from_url raises, get_redis must return None and log WARNING."""
     from app import config as config_module
 
     config_module.get_settings.cache_clear()
@@ -277,11 +273,11 @@ async def test_otp_get_redis_returns_none_on_exception(monkeypatch, caplog):
     config_module.get_settings.cache_clear()
 
     with patch("redis.asyncio.from_url", side_effect=Exception("otp redis error")):
-        from app.auth.otp_limiter import _get_redis
+        from app.auth.redis import get_redis
 
-        with patch("app.auth.otp_limiter._redis_client", None):
-            with caplog.at_level(logging.WARNING, logger="app.auth.otp_limiter"):
-                result = await _get_redis()
+        with patch("app.auth.redis._redis_client", None):
+            with caplog.at_level(logging.WARNING, logger="app.auth.redis"):
+                result = await get_redis()
 
     assert result is None
 

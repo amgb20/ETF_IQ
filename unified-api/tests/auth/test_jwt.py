@@ -15,7 +15,6 @@ from jose import jwt as jose_jwt
 from app.auth.jwt import _ALGORITHM, _ISSUER, create_access_token, decode_token
 from app.config import get_settings
 
-
 # ---------------------------------------------------------------------------
 # create_access_token
 # ---------------------------------------------------------------------------
@@ -144,6 +143,7 @@ def test_decode_token_raises_on_tampered_signature():
     # Replace the signature segment (third JWT part) with junk bytes
     header, payload, _ = token.split(".")
     import base64
+
     bad_sig = base64.urlsafe_b64encode(b"X" * 32).rstrip(b"=").decode()
     tampered = f"{header}.{payload}.{bad_sig}"
     with pytest.raises(ValueError, match="Invalid token"):
@@ -152,7 +152,7 @@ def test_decode_token_raises_on_tampered_signature():
 
 def test_decode_token_raises_on_wrong_secret():
     """A token signed with a different secret must be rejected."""
-    settings = get_settings()
+    get_settings()
     payload = {
         "sub": "uid",
         "email": "u@example.com",

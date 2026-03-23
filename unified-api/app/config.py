@@ -20,7 +20,10 @@ class Settings(BaseSettings):
 
     # Internal JWT
     JWT_SECRET_KEY: str = "change-me-in-production"
-    ACCESS_TOKEN_EXPIRE_MINUTES: int = 600
+    ACCESS_TOKEN_EXPIRE_MINUTES: int = 30
+
+    # Proxy — set to true when behind a trusted reverse proxy (e.g. Nginx, Vercel)
+    TRUSTED_PROXY: bool = False
 
     # Redis (token blocklist, OTP rate limiting, distributed rate limiting)
     REDIS_URL: str = ""
@@ -48,7 +51,7 @@ class Settings(BaseSettings):
         if v == "change-me-in-production":
             raise ValueError(
                 "JWT_SECRET_KEY must be overridden before use. "
-                "Generate one with: python -c \"import secrets; print(secrets.token_hex(32))\""
+                'Generate one with: python -c "import secrets; print(secrets.token_hex(32))"'
             )
         return v
 
