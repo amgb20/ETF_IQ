@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import logging
+import uuid
 from typing import Annotated
 
 from fastapi import Depends, HTTPException, Request, status
@@ -10,9 +11,11 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app.models import Portfolio
 from app.models.user import User
 
 from .jwt import decode_token
+from .token_blocklist import is_token_blocked
 
 logger = logging.getLogger(__name__)
 
@@ -34,16 +37,32 @@ async def get_current_user(
     try:
         payload = decode_token(token)
     except ValueError as exc:
+        logger.warning("Token decode failed: %s", exc)
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
+            detail="Not authenticated",
         ) from exc
 
     user_id = payload.get("sub")
     if not user_id:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Invalid token payload",
+            detail="Not authenticated",
+        )
+
+    # All valid tokens must carry a jti for revocation support.
+    jti = payload.get("jti")
+    if not jti:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
+        )
+
+    # Check token revocation blocklist (Redis-backed).
+    if await is_token_blocked(jti):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Not authenticated",
         )
 
     result = await db.execute(select(User).where(User.id == user_id))
@@ -52,7 +71,7 @@ async def get_current_user(
     if not user or not user.is_active:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="User not found or account disabled",
+            detail="Not authenticated",
         )
 
     return user
@@ -83,10 +102,6 @@ async def verify_portfolio_owner(
     db: AsyncSession,
 ):
     """Load a portfolio and verify the current user owns it. Returns the portfolio or raises 403."""
-    import uuid
-
-    from app.models import Portfolio
-
     pid = portfolio_id if isinstance(portfolio_id, uuid.UUID) else uuid.UUID(str(portfolio_id))
     portfolio = await db.get(Portfolio, pid)
     if not portfolio:

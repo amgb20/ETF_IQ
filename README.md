@@ -101,9 +101,16 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 - Light / Dark / System theme (persisted to DB)
 - Email notifications and weekly digest toggle
 
-### Authentication
-- Auth0 passwordless email OTP — no passwords
-- Internal HS256 JWT session cookies after OTP verification
+### Authentication & Security
+- **Auth0 passwordless email OTP** — no passwords, 6-digit code sent to email
+- **Internal HS256 JWT** session cookies after OTP verification (HttpOnly `access_token` + JS-readable `access_token_js`)
+- **Token revocation** — Redis-backed blocklist; tokens revoked on logout and refresh (fails open if Redis is down)
+- **OTP rate limiting** — Redis sliding-window: max 3 `/start` requests per email per hour, max 5 `/verify` attempts per email per 10 minutes
+- **Security audit logging** — structured JSON events (`LOGIN_SUCCESS`, `LOGIN_FAILURE`, `LOGOUT`, `TOKEN_REFRESH`, `OTP_RATE_LIMITED`, etc.) to stdout; optionally persisted to `auth_audit_log` DB table
+- **Algorithm confusion guard** — rejects any Auth0 token not signed with RS256
+- **JWKS caching** — Auth0 public keys cached 1 hour with async lock and emergency key rotation support
+- **Auth0 Management API** — async client for admin user CRUD (create, disable, enable, lookup)
+- **Global rate limiting** — slowapi (60 req/min per user), Redis-backed when available
 - Role hierarchy: `user → admin → super_admin`
 - Terms of Service acceptance gate (blocking modal on first login)
 
@@ -121,7 +128,8 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 | **Data** | Yahoo Finance (`yfinance`), JustETF (`justetf-scraping` + custom HTML scraper) |
 | **Scheduler** | APScheduler (`AsyncIOScheduler`) |
 | **Email** | Resend API (transactional — weekly digests, alert notifications) |
-| **Containers** | Docker + Docker Compose (3 services: postgres, unified-api, frontend/Nginx) |
+| **Cache** | Redis 7 (token revocation blocklist, OTP rate limiting, distributed rate limits) |
+| **Containers** | Docker + Docker Compose (4 services: postgres, redis, unified-api, frontend/Nginx) |
 
 ---
 
@@ -137,7 +145,7 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 ┌───────────────────▼─────────────────────────────┐
 │  Backend — unified-api (FastAPI, port 8000)      │
 │  - 14 API routers                                │
-│  - Auth0 OTP + internal JWT auth                 │
+│  - Auth0 OTP + internal JWT + token revocation   │
 │  - APScheduler (3 cron jobs)                     │
 │  - 8 Gemini-powered AI agents                    │
 │  - LangChain ReAct chat agent                    │
@@ -150,11 +158,20 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 │  - 19 tables                                     │
 │  - IVFFlat cosine index on rag_chunks            │
 └─────────────────────────────────────────────────┘
+                    │ redis-py async
+┌───────────────────▼─────────────────────────────┐
+│  Redis 7 (port 6379)                             │
+│  - Token revocation blocklist (TTL-based)        │
+│  - OTP sliding-window rate limiters              │
+│  - Global rate limit store (slowapi)             │
+└─────────────────────────────────────────────────┘
 ```
 
 **Data connectors** run as part of the backend process (same container), triggered by APScheduler or admin API endpoints.
 
 ---
+
+this is just a test
 
 ## Pages and User Flows
 
@@ -245,10 +262,11 @@ All connectors implement the `BaseConnector` ABC: `fetch()` → `normalize()` �
 ### Authentication (`/auth`)
 | Method | Endpoint | Description |
 |---|---|---|
-| POST | `/auth/login/passwordless/start` | Send OTP email |
-| POST | `/auth/login/passwordless/verify` | Verify OTP, set session cookies |
+| POST | `/auth/login/passwordless/start` | Send OTP email (rate-limited: 3/hour per email) |
+| POST | `/auth/login/passwordless/verify` | Verify OTP, issue JWT, set session cookies (rate-limited: 5/10min per email) |
+| POST | `/auth/refresh` | Slide token expiry — revokes old token, issues new one |
 | GET | `/auth/get-auth-role` | Get current user id/email/role |
-| POST | `/auth/logout` | Clear session cookies |
+| POST | `/auth/logout` | Revoke token, clear session cookies |
 
 ### Portfolios (`/portfolios`)
 | Method | Endpoint | Description |
@@ -355,7 +373,7 @@ All connectors implement the `BaseConnector` ABC: `fetch()` → `normalize()` �
 
 ## Database Schema
 
-19 tables across PostgreSQL 15 + pgvector:
+20 tables across PostgreSQL 15 + pgvector:
 
 | Table | Purpose |
 |---|---|
@@ -378,6 +396,7 @@ All connectors implement the `BaseConnector` ABC: `fetch()` → `normalize()` �
 | `reports` | Generated PDF report metadata |
 | `rag_chunks` | Vector embeddings (768-dim) for semantic search |
 | `notifications` | In-app notification feed |
+| `auth_audit_log` | Security audit events (login, logout, rate limits, token revocation) |
 
 ---
 
@@ -395,8 +414,9 @@ All connectors implement the `BaseConnector` ABC: `fetch()` → `normalize()` �
 
 ### Prerequisites
 - Docker and Docker Compose
-- Auth0 account (passwordless email OTP enabled)
+- Auth0 account (passwordless email OTP connection enabled)
 - Google AI API key (Gemini)
+- Redis 7 (included in Docker Compose — required for token revocation and OTP rate limiting)
 
 ### 1. Clone and configure
 
@@ -414,11 +434,11 @@ docker compose up --build
 ```
 
 This will:
-1. Start PostgreSQL with pgvector
+1. Start PostgreSQL with pgvector and Redis 7
 2. Run Alembic migrations (`alembic upgrade head`)
 3. Seed 7 default ETFs
 4. Backfill RAG embeddings for existing data
-5. Start the FastAPI backend on port 8000
+5. Start the FastAPI backend on port 8000 (with Redis-backed token blocklist and OTP rate limiting)
 6. Build and serve the React frontend via Nginx on port 3000
 
 ### 3. Access the app
@@ -428,7 +448,7 @@ This will:
 
 ### 4. First login
 
-The app uses Auth0 passwordless email OTP. Users must be pre-created in the `users` table with `is_active=true` before they can log in (Auth0 acts as the OTP provider; the backend validates against the local user table).
+The app uses Auth0 passwordless email OTP. Users must be pre-created in the `users` table with `is_active=true` before they can log in — Auth0 acts as the OTP delivery provider, but the backend validates the email against the local user allowlist. On first successful OTP, the user's `auth0_id` is linked automatically.
 
 ---
 
@@ -442,12 +462,17 @@ The app uses Auth0 passwordless email OTP. Users must be pre-created in the `use
 | `DATABASE_URL` | Yes | Full asyncpg connection string |
 | `GOOGLE_API_KEY` | Yes | Gemini API key |
 | `GEMINI_MODEL` | No | Model name (default: `models/gemini-3.1-pro-preview`) |
-| `AUTH0_DOMAIN` | Yes | Auth0 domain |
-| `AUTH0_CLIENT_ID` | Yes | Auth0 client ID |
-| `AUTH0_CLIENT_SECRET` | Yes | Auth0 client secret |
-| `AUTH0_AUDIENCE` | Yes | Auth0 API audience |
-| `JWT_SECRET_KEY` | Yes | Secret for internal HS256 JWT signing |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Session duration (default: 600) |
+| `AUTH0_DOMAIN` | Yes | Auth0 tenant domain (e.g. `your-tenant.auth0.com`) |
+| `AUTH0_CLIENT_ID` | Yes | Auth0 application client ID |
+| `AUTH0_CLIENT_SECRET` | Yes | Auth0 application client secret |
+| `AUTH0_AUDIENCE` | Yes | Auth0 API identifier |
+| `AUTH0_MGMT_CLIENT_ID` | No | Auth0 Management API M2M client ID (for admin user CRUD) |
+| `AUTH0_MGMT_CLIENT_SECRET` | No | Auth0 Management API M2M client secret |
+| `JWT_SECRET_KEY` | Yes | Secret for internal HS256 JWT signing — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Session duration in minutes (default: 600) |
+| `REDIS_URL` | No | Redis connection URL (default: `redis://localhost:6379/0`; auto-set in Docker Compose) |
+| `USE_REDIS` | No | Enable Redis for token blocklist and OTP rate limiting (default: `false`; auto-set to `true` in Docker Compose) |
+| `PERSIST_AUDIT_LOG` | No | Persist auth audit events to `auth_audit_log` DB table (default: `false`; always logged to stdout) |
 | `RESEND_API_KEY` | No | Resend API key for transactional email |
 | `EMAIL_FROM` | No | Sender address for digest/alert emails |
 | `GATEWAY_PORT` | No | Backend port mapping (default: 8000) |
@@ -459,7 +484,7 @@ Optional data source keys: `FRED_API_KEY`, `METALS_API_KEY`, `NEWSDATA_API_KEY`,
 
 ## Database Diagram
 
-Full entity-relationship diagram of all 19 tables.
+Full entity-relationship diagram of all 20 tables.
 
 ```mermaid
 erDiagram
@@ -673,6 +698,15 @@ erDiagram
         uuid ref_id
         timestamptz created_at
     }
+    AUTH_AUDIT_LOG {
+        uuid id PK
+        varchar event
+        varchar email
+        uuid user_id
+        varchar ip_address
+        text detail
+        timestamptz created_at
+    }
 
     USERS ||--o{ PORTFOLIOS : "owns"
     USERS ||--o{ NOTIFICATIONS : "receives"
@@ -725,8 +759,9 @@ graph TD
 
     R_AUTH --> A1["POST /login/passwordless/start"]
     R_AUTH --> A2["POST /login/passwordless/verify"]
-    R_AUTH --> A3["GET  /get-auth-role"]
-    R_AUTH --> A4["POST /logout"]
+    R_AUTH --> A3["POST /refresh"]
+    R_AUTH --> A4["GET  /get-auth-role"]
+    R_AUTH --> A5["POST /logout"]
 
     R_PORT --> P1["GET  /portfolios"]
     R_PORT --> P2["POST /portfolios"]
@@ -805,7 +840,7 @@ flowchart TD
     START(["User visits app"]) --> LOGIN["Login page\n/login"]
     LOGIN -->|"Enter email"| OTP_SEND["POST /auth/login/passwordless/start\n→ Auth0 sends 6-digit OTP email"]
     OTP_SEND --> OTP_INPUT["Enter 6-digit OTP"]
-    OTP_INPUT --> OTP_VERIFY["POST /auth/login/passwordless/verify\n→ Auth0 validates → internal HS256 JWT set as httpOnly cookie"]
+    OTP_INPUT --> OTP_VERIFY["POST /auth/login/passwordless/verify\n→ Auth0 validates → internal HS256 JWT\nset as httpOnly cookie + JS cookie"]
     OTP_VERIFY -->|"Invalid"| OTP_INPUT
     OTP_VERIFY -->|"Valid"| TOS_CHECK{{"accepted_tos?"}}
     TOS_CHECK -->|"No"| TOS_MODAL["TosModal overlay\n→ PUT /users/me/preferences"]
@@ -928,7 +963,7 @@ flowchart TD
 
 ```
 ETF_IQ/
-├── docker-compose.yaml          # Service orchestration (postgres, api, frontend)
+├── docker-compose.yaml          # Service orchestration (postgres, redis, api, frontend)
 ├── .env.example                 # Environment variable template
 │
 ├── frontend/                    # React SPA
@@ -944,7 +979,7 @@ ETF_IQ/
 ├── unified-api/                 # FastAPI backend
 │   ├── app/
 │   │   ├── main.py              # App bootstrap, 14 routers, rate limiting
-│   │   ├── auth/                # Auth0 OTP, JWT, dependencies, role guards
+│   │   ├── auth/                # Auth0 OTP, JWT, token blocklist, OTP rate limiter, audit log, management API
 │   │   ├── routers/             # portfolios, etfs, prices, analytics, chat, reports, alerts, onboarding, meta, …
 │   │   ├── agents/
 │   │   │   ├── base_agent.py    # BaseAgent ABC with reflection loop
@@ -962,7 +997,7 @@ ETF_IQ/
 │   │   │   ├── onboarding/      # Theme classifier, correlation analysis, advisor
 │   │   │   ├── prompts/v1/      # Versioned prompt templates
 │   │   │   └── tools/           # rag_store.py (pgvector), report_history.py
-│   │   ├── models/              # SQLAlchemy ORM models (19 tables)
+│   │   ├── models/              # SQLAlchemy ORM models (20 tables)
 │   │   ├── schemas/             # Pydantic request/response models
 │   │   ├── services/            # email.py (Resend), cost_tracker.py (Gemini token costs)
 │   │   └── config.py            # Pydantic settings

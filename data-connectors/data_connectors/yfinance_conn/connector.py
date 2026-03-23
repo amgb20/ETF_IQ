@@ -164,6 +164,8 @@ class YFinanceConnector(BaseConnector):
 
         Only updates columns that are currently NULL in the DB so that
         data already scraped from justETF is preserved.
+        Skips tickers without an exchange suffix (bare European symbols
+        that Yahoo Finance cannot resolve).
         Returns the number of ETFs updated.
         """
         result = await session.execute(
@@ -171,8 +173,12 @@ class YFinanceConnector(BaseConnector):
         )
         rows = result.all()
         updated = 0
+        skipped = 0
 
         for isin, ticker_yf in rows:
+            if not _is_yf_resolvable(ticker_yf):
+                skipped += 1
+                continue
             try:
                 info = yf.Ticker(ticker_yf).info or {}
             except Exception:
@@ -204,7 +210,10 @@ class YFinanceConnector(BaseConnector):
             updated += 1
 
         await session.commit()
-        logger.info("yfinance enrich_metadata: updated %d ETFs", updated)
+        logger.info(
+            "yfinance enrich_metadata: updated %d ETFs, skipped %d (unresolvable ticker)",
+            updated, skipped,
+        )
         return updated
 
     # ------------------------------------------------------------------
@@ -293,10 +302,19 @@ class YFinanceConnector(BaseConnector):
     # ------------------------------------------------------------------
 
     async def _db_tickers(self, session: AsyncSession) -> list[str]:
-        """Pull all ticker_yf values from the etfs table."""
+        """Pull all ticker_yf values from the etfs table.
+
+        Filters out bare tickers without an exchange suffix since
+        Yahoo Finance cannot resolve them.
+        """
         result = await session.execute(text("SELECT ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL"))
-        tickers = [row[0] for row in result.all()]
-        logger.info("yfinance _db_tickers: found %d tickers in DB: %s", len(tickers), tickers)
+        all_tickers = [row[0] for row in result.all()]
+        tickers = [t for t in all_tickers if _is_yf_resolvable(t)]
+        if len(tickers) < len(all_tickers):
+            logger.info(
+                "yfinance _db_tickers: filtered %d/%d tickers (skipped bare symbols)",
+                len(tickers), len(all_tickers),
+            )
         if not tickers:
             tickers = ["XAIX.L", "SMGB.L", "VPNG.L", "URNG.L", "AUCP.L", "SGLN.L", "ARMG.L"]
             logger.info("yfinance _db_tickers: using hardcoded fallback tickers")
@@ -314,6 +332,15 @@ class YFinanceConnector(BaseConnector):
         """Build a ticker_yf -> etf_id mapping from the etfs table."""
         result = await session.execute(text("SELECT id, ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL"))
         return {row.ticker_yf: str(row.id) for row in result}
+
+
+def _is_yf_resolvable(ticker: str) -> bool:
+    """Return True if the ticker has an exchange suffix or is a special Yahoo symbol.
+
+    Bare European ticker codes (e.g. 'QDVE', 'VDIV') are not recognised
+    by Yahoo Finance — they need a suffix like '.DE' or '.L'.
+    """
+    return "." in ticker or "=" in ticker
 
 
 def _safe_float(val: Any) -> float | None:

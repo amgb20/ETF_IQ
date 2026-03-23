@@ -84,6 +84,7 @@ jobs:
           --health-retries=5
     env:
       DATABASE_URL: postgresql+asyncpg://portfolioiq:portfolioiq@localhost:5432/portfolioiq_test
+      JWT_SECRET_KEY: ${{ secrets.JWT_SECRET_KEY }}
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5

@@ -23,9 +23,6 @@ alembic upgrade head
 echo "Seeding ETF data..."
 python seed.py
 
-echo "Enriching ETF metadata & computing risk fields..."
-python scripts/enrich_etfs.py
-
 echo "Backfilling RAG chunks for existing data..."
 python scripts/backfill_rag.py
 
