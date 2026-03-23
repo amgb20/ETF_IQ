@@ -1,3 +1,4 @@
+import sys
 from contextlib import asynccontextmanager
 
 from data_connectors.scheduler import start_scheduler, stop_scheduler
@@ -5,6 +6,21 @@ from fastapi import FastAPI, Request
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.util import get_remote_address
+
+# Fail fast on missing Auth0 credentials and validate Settings (JWT_SECRET_KEY is
+# validated by the Pydantic field_validator in config.py and will raise on import
+# if the default is still set).
+def _check_secrets() -> None:
+    from app.config import get_settings
+    s = get_settings()
+    if not s.AUTH0_DOMAIN or not s.AUTH0_CLIENT_ID or not s.AUTH0_CLIENT_SECRET:
+        print(
+            "FATAL: AUTH0_DOMAIN, AUTH0_CLIENT_ID, and AUTH0_CLIENT_SECRET must all be set.",
+            file=sys.stderr,
+        )
+        sys.exit(1)
+
+_check_secrets()
 
 
 def _rate_limit_key(request: Request) -> str:
@@ -20,7 +36,18 @@ def _rate_limit_key(request: Request) -> str:
     return get_remote_address(request)
 
 
-limiter = Limiter(key_func=_rate_limit_key, default_limits=["60/minute"])
+def _build_limiter():
+    from app.config import get_settings
+    settings = get_settings()
+    if settings.USE_REDIS and settings.REDIS_URL:
+        return Limiter(
+            key_func=_rate_limit_key,
+            default_limits=["60/minute"],
+            storage_uri=settings.REDIS_URL,
+        )
+    return Limiter(key_func=_rate_limit_key, default_limits=["60/minute"])
+
+limiter = _build_limiter()
 
 
 @asynccontextmanager

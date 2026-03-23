@@ -4,24 +4,32 @@ Endpoints
 ---------
 POST /auth/login/passwordless/start   — send OTP to email
 POST /auth/login/passwordless/verify  — verify OTP, issue JWT, set cookies
+POST /auth/refresh                    — slide token expiry without re-OTP
 GET  /auth/get-auth-role              — return current user info (requires auth)
-POST /auth/logout                     — clear auth cookies
+POST /auth/logout                     — revoke token, clear auth cookies
 """
 
 import json
 import logging
+import math
+import time as _time
 
-from fastapi import APIRouter, Depends, HTTPException, Response, status
-from pydantic import BaseModel
+from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
+from jose import jwt as jose_jwt
+from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.config import get_settings
 from app.database import get_db
 from app.models.user import User
 
+from .audit import AuthEvent, log_auth_event
 from .auth0 import start_passwordless, verify_passwordless
 from .dependencies import get_current_user
-from .jwt import create_access_token
+from .jwt import create_access_token, decode_token
+from .otp_limiter import check_otp_rate_limit, check_start_rate_limit, reset_otp_rate_limit
+from .token_blocklist import block_token
 
 logger = logging.getLogger(__name__)
 
@@ -29,75 +37,33 @@ router = APIRouter(prefix="/auth", tags=["auth"])
 
 
 class StartRequest(BaseModel):
-    email: str
+    email: EmailStr
 
 
 class VerifyRequest(BaseModel):
-    email: str
+    email: EmailStr
     code: str
 
 
-@router.post("/login/passwordless/start")
-async def passwordless_start(body: StartRequest):
-    """Send a 6-digit OTP to the provided email address via Auth0."""
-    try:
-        await start_passwordless(body.email)
-        return {"success": True}
-    except ValueError as exc:
-        raise HTTPException(status_code=400, detail=str(exc)) from exc
-    except Exception as exc:
-        logger.error("Passwordless start error: %s", exc)
-        raise HTTPException(status_code=500, detail="Failed to send OTP") from exc
+def _cookie_opts(settings) -> dict:
+    """Shared cookie options — single source of truth.
 
-
-@router.post("/login/passwordless/verify")
-async def passwordless_verify(
-    body: VerifyRequest,
-    response: Response,
-    db: AsyncSession = Depends(get_db),
-):
-    """Verify OTP, look up pre-authorized user, issue internal JWT cookies."""
-    try:
-        claims = await verify_passwordless(body.email, body.code)
-    except ValueError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=str(exc),
-        ) from exc
-
-    email = claims.get("email") or body.email
-    auth0_sub = claims.get("sub", "")
-
-    result = await db.execute(select(User).where(User.email == email))
-    user = result.scalar_one_or_none()
-
-    if not user:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Access denied. Your email is not authorized. Contact the administrator.",
-        )
-
-    if not user.is_active:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Account is disabled.",
-        )
-
-    if not user.auth0_id and auth0_sub:
-        user.auth0_id = auth0_sub
-        db.add(user)
-        await db.flush()
-
-    token = create_access_token(
-        user_id=str(user.id),
-        email=user.email,
-        role=user.role,
+    max_age is derived from ACCESS_TOKEN_EXPIRE_MINUTES so the cookie
+    and the JWT always expire at the same time.
+    """
+    is_prod = not getattr(settings, "DEBUG", False)
+    return dict(
+        samesite="lax",
+        max_age=settings.ACCESS_TOKEN_EXPIRE_MINUTES * 60,
+        path="/",
+        secure=is_prod,
     )
 
-    cookie_opts: dict = dict(samesite="lax", max_age=36000, path="/")
 
-    response.set_cookie(key="access_token", value=token, httponly=True, **cookie_opts)
-
+def _set_auth_cookies(response: Response, user: User, token: str, settings) -> None:
+    """Write the HttpOnly access_token and the JS-readable access_token_js cookie."""
+    opts = _cookie_opts(settings)
+    response.set_cookie(key="access_token", value=token, httponly=True, **opts)
     js_payload = json.dumps(
         {
             "id": str(user.id),
@@ -106,7 +72,176 @@ async def passwordless_verify(
             "username": user.display_name or user.email.split("@")[0],
         }
     )
-    response.set_cookie(key="access_token_js", value=js_payload, httponly=False, **cookie_opts)
+    response.set_cookie(key="access_token_js", value=js_payload, httponly=False, **opts)
+
+
+def _client_ip(request: Request) -> str | None:
+    """Return the real client IP, honouring X-Forwarded-For behind a proxy.
+
+    Only use the forwarded header when the application is behind a trusted
+    reverse proxy — otherwise this header can be spoofed by clients.
+    """
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else None
+
+
+@router.post("/login/passwordless/start")
+async def passwordless_start(body: StartRequest, request: Request):
+    """Send a 6-digit OTP to the provided email address via Auth0."""
+    await check_start_rate_limit(body.email)
+    try:
+        await start_passwordless(body.email)
+        return {"success": True}
+    except ValueError as exc:
+        logger.warning("Passwordless start error for %s: %s", body.email, exc)
+        raise HTTPException(status_code=400, detail="Failed to send verification code") from exc
+    except Exception as exc:
+        logger.error("Passwordless start unexpected error: %s", exc)
+        raise HTTPException(status_code=500, detail="Failed to send verification code") from exc
+
+
+@router.post("/login/passwordless/verify")
+async def passwordless_verify(
+    body: VerifyRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify OTP, look up pre-authorized user, issue internal JWT cookies."""
+    ip = _client_ip(request)
+
+    await check_otp_rate_limit(body.email)
+
+    try:
+        claims = await verify_passwordless(body.email, body.code)
+    except ValueError as exc:
+        logger.warning("OTP verify error for %s: %s", body.email, exc)
+        await log_auth_event(
+            AuthEvent.LOGIN_FAILURE,
+            email=body.email,
+            ip=ip,
+            detail="invalid or expired OTP",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired OTP code",
+        ) from exc
+
+    # Require email from the verified Auth0 token — never trust the request body.
+    email = claims.get("email")
+    if not email:
+        logger.error("Auth0 id_token missing email claim for request email=%s", body.email)
+        await log_auth_event(AuthEvent.LOGIN_FAILURE, email=body.email, ip=ip, detail="missing email claim")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired OTP code",
+        )
+
+    auth0_sub = claims.get("sub", "")
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if not user:
+        await log_auth_event(
+            AuthEvent.LOGIN_FAILURE,
+            email=email,
+            ip=ip,
+            detail="email not in allowlist",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Access denied. Your email is not authorized. Contact the administrator.",
+        )
+
+    if not user.is_active:
+        await log_auth_event(
+            AuthEvent.ACCOUNT_DISABLED,
+            email=user.email,
+            user_id=str(user.id),
+            ip=ip,
+        )
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Account is disabled.",
+        )
+
+    if not user.auth0_id and auth0_sub:
+        user.auth0_id = auth0_sub
+        db.add(user)
+        await db.commit()
+
+    token = create_access_token(user_id=str(user.id), email=user.email, role=user.role)
+    settings = get_settings()
+    _set_auth_cookies(response, user, token, settings)
+
+    await reset_otp_rate_limit(body.email)
+    await log_auth_event(
+        AuthEvent.LOGIN_SUCCESS,
+        email=user.email,
+        user_id=str(user.id),
+        ip=ip,
+    )
+
+    return {
+        "success": True,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "username": user.display_name or user.email.split("@")[0],
+        },
+    }
+
+
+@router.post("/refresh")
+async def refresh_token(
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Issue a fresh JWT pair without requiring a new OTP.
+
+    The existing HttpOnly access_token cookie is validated and then revoked.
+    A new token is issued and written back to the cookies.
+    """
+    ip = _client_ip(request)
+    raw_token = request.cookies.get("access_token")
+    if not raw_token:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    try:
+        payload = decode_token(raw_token)
+    except ValueError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    user_id = payload.get("sub")
+    old_jti = payload.get("jti")
+    old_exp = payload.get("exp", 0)
+
+    result = await db.execute(select(User).where(User.id == user_id))
+    user = result.scalar_one_or_none()
+
+    if not user or not user.is_active:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Not authenticated")
+
+    # Revoke the old token before issuing a new one.
+    if old_jti:
+        remaining_ttl = max(1, math.ceil(old_exp - _time.time()))
+        await block_token(old_jti, remaining_ttl)
+
+    new_token = create_access_token(user_id=str(user.id), email=user.email, role=user.role)
+    settings = get_settings()
+    _set_auth_cookies(response, user, new_token, settings)
+
+    await log_auth_event(
+        AuthEvent.TOKEN_REFRESH,
+        email=user.email,
+        user_id=str(user.id),
+        ip=ip,
+    )
 
     return {
         "success": True,
@@ -131,8 +266,32 @@ async def get_auth_role(current_user: User = Depends(get_current_user)):
 
 
 @router.post("/logout")
-async def logout(response: Response):
-    """Clear auth cookies."""
+async def logout(request: Request, response: Response):
+    """Revoke the current token and clear auth cookies."""
+    raw_token = request.cookies.get("access_token")
+
+    if raw_token:
+        try:
+            # Parse unverified claims — we only need jti + exp + email for revoking and logging.
+            claims = jose_jwt.get_unverified_claims(raw_token)
+            jti = claims.get("jti")
+            exp = claims.get("exp", 0)
+            email = claims.get("email")
+            user_id = claims.get("sub")
+
+            if jti:
+                remaining_ttl = max(1, math.ceil(exp - _time.time()))
+                await block_token(jti, remaining_ttl)
+
+            await log_auth_event(
+                AuthEvent.LOGOUT,
+                email=email,
+                user_id=user_id,
+                ip=_client_ip(request),
+            )
+        except Exception as exc:
+            logger.warning("Logout: could not parse token for revocation: %s", exc)
+
     response.delete_cookie("access_token", path="/")
     response.delete_cookie("access_token_js", path="/")
     return {"success": True}

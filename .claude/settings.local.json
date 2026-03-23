@@ -5,7 +5,27 @@
       "Bash(find /c/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/unified-api/app/schemas -type f -name \"*.py\" | xargs grep -l \"user\\\\|User\" 2>/dev/null)",
       "Bash(npx tsc:*)",
       "Bash(ls C:/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/.venv/Scripts/*.exe)",
-      "Bash(\"C:/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/.venv/Scripts/python.exe\" -m pip install alembic)"
+      "Bash(\"C:/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/.venv/Scripts/python.exe\" -m pip install alembic)",
+      "Bash(python -m pytest tests/auth/ -x --tb=short -q)",
+      "Bash(pip install:*)",
+      "Bash(python -m pytest tests/auth/ --cov=app/auth --cov-report=term-missing --cov-report=json -q)",
+      "Bash(uv --version)",
+      "Bash(pip --version)",
+      "Bash(pipx --version)"
+    ]
+  },
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node C:/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/.claude/hooks/post-test-report.js"
+          }
+        ],
+        "description": "Generate report.md alongside test files after test execution"
+      }
     ]
   }
 }

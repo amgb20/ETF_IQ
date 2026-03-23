@@ -33,6 +33,61 @@ WICKET_PANEL_PATTERN = re.compile(
 )
 
 
+EXCHANGE_TO_YF_SUFFIX: dict[str, str] = {
+    "XETRA": ".DE",
+    "XETR": ".DE",
+    "gettex": ".DE",
+    "Frankfurt": ".F",
+    "LSE": ".L",
+    "London": ".L",
+    "Euronext Paris": ".PA",
+    "Paris": ".PA",
+    "Euronext Amsterdam": ".AS",
+    "Amsterdam": ".AS",
+    "Borsa Italiana": ".MI",
+    "Milan": ".MI",
+    "SIX": ".SW",
+    "Zurich": ".SW",
+    "Euronext Brussels": ".BR",
+    "BME": ".MC",
+    "Madrid": ".MC",
+    "Nasdaq Stockholm": ".ST",
+    "Stockholm": ".ST",
+    "Vienna": ".VI",
+    "Wien": ".VI",
+    "Helsinki": ".HE",
+    "Oslo": ".OL",
+    "Copenhagen": ".CO",
+    "Lisbon": ".LS",
+    "XLON": ".L",
+    "XPAR": ".PA",
+    "XAMS": ".AS",
+    "XMIL": ".MI",
+    "XSWX": ".SW",
+    "XBRU": ".BR",
+    "XMAD": ".MC",
+    "XSTO": ".ST",
+    "XWBO": ".VI",
+    "XHEL": ".HE",
+    "XOSL": ".OL",
+    "XCSE": ".CO",
+    "XLIS": ".LS",
+}
+
+
+def _qualify_ticker_for_yf(ticker: str | None, exchange: str | None) -> str | None:
+    """Append the Yahoo Finance exchange suffix if the ticker is bare."""
+    if not ticker:
+        return None
+    if "." in ticker or "=" in ticker:
+        return ticker
+    if exchange:
+        suffix = EXCHANGE_TO_YF_SUFFIX.get(exchange)
+        if suffix:
+            return f"{ticker}{suffix}"
+    return None
+
+
 class JustETFDiscoveryConnector(BaseConnector):
     name = "justetf_discovery"
 
@@ -122,12 +177,15 @@ class JustETFDiscoveryConnector(BaseConnector):
             isin = item.get("isin") or item.get("ISIN", "")
             if not isin or len(isin) != 12:
                 continue
+            raw_ticker = item.get("ticker") or item.get("tickerSymbol")
+            exchange = item.get("exchange") or item.get("listingExchange")
+            ticker_yf = _qualify_ticker_for_yf(raw_ticker, exchange)
             results.append({
                 "isin": isin,
                 "name": item.get("name") or item.get("fundName", isin),
-                "ticker_yf": item.get("ticker") or item.get("tickerSymbol"),
+                "ticker_yf": ticker_yf,
                 "currency": item.get("fundCurrency") or item.get("currency"),
-                "exchange": item.get("exchange") or item.get("listingExchange"),
+                "exchange": exchange,
                 "ter": self._parse_ter(
                     item.get("ter") or item.get("totalExpenseRatio")
                 ),

@@ -1,5 +1,6 @@
 """Internal HS256 JWT — issued after successful Auth0 OTP verification."""
 
+import uuid
 from datetime import datetime, timedelta, timezone
 
 from jose import JWTError, jwt
@@ -7,6 +8,7 @@ from jose import JWTError, jwt
 from app.config import get_settings
 
 _ALGORITHM = "HS256"
+_ISSUER = "portfolioiq-user"
 
 
 def create_access_token(user_id: str, email: str, role: str) -> str:
@@ -17,6 +19,8 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
         "email": email,
         "role": role,
         "exp": expire,
+        "iss": _ISSUER,
+        "jti": str(uuid.uuid4()),  # Unique token ID — used for revocation.
     }
     return jwt.encode(payload, settings.JWT_SECRET_KEY, algorithm=_ALGORITHM)
 
@@ -24,6 +28,11 @@ def create_access_token(user_id: str, email: str, role: str) -> str:
 def decode_token(token: str) -> dict:
     settings = get_settings()
     try:
-        return jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[_ALGORITHM])
+        payload = jwt.decode(token, settings.JWT_SECRET_KEY, algorithms=[_ALGORITHM])
     except JWTError as exc:
         raise ValueError(f"Invalid token: {exc}") from exc
+
+    if payload.get("iss") != _ISSUER:
+        raise ValueError("Invalid token issuer")
+
+    return payload
