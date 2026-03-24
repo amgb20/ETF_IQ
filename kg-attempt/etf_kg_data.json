@@ -1,0 +1,1877 @@
+{
+  "nodes": [
+    {
+      "id": "etf:IE00BGV5VN51",
+      "type": "ETF",
+      "props": {
+        "name": "Xtrackers AI & Big Data UCITS ETF 1C",
+        "ticker": "XAIX.L",
+        "isin": "IE00BGV5VN51",
+        "ter": 0.0034999999999999996,
+        "aum_eur": null,
+        "replication": "Physical",
+        "distribution": "Accumulating",
+        "holdings_count": null,
+        "investment_focus": "Equity, World, Technology, Social/Environmental",
+        "domicile": "Ireland"
+      }
+    },
+    {
+      "id": "provider:xtrackers",
+      "type": "Provider",
+      "props": {
+        "name": "Xtrackers"
+      }
+    },
+    {
+      "id": "index:nasdaq_global_artificial_intelligence_and_big_data",
+      "type": "Index",
+      "props": {
+        "name": "Nasdaq Global Artificial Intelligence and Big Data"
+      }
+    },
+    {
+      "id": "exchange:lse",
+      "type": "Exchange",
+      "props": {
+        "name": "LSE"
+      }
+    },
+    {
+      "id": "holding:samsung_electronics",
+      "type": "Holding",
+      "props": {
+        "name": "Samsung Electronics",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:micron_technology",
+      "type": "Holding",
+      "props": {
+        "name": "Micron Technology",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:alibaba_group_holding_ltd_adr",
+      "type": "Holding",
+      "props": {
+        "name": "Alibaba Group Holding Ltd. ADR",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:meta_platforms",
+      "type": "Holding",
+      "props": {
+        "name": "Meta Platforms",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:alphabet_inc_a",
+      "type": "Holding",
+      "props": {
+        "name": "Alphabet, Inc. A",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:amazon_com",
+      "type": "Holding",
+      "props": {
+        "name": "Amazon com",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:nvidia_corp",
+      "type": "Holding",
+      "props": {
+        "name": "NVIDIA Corp",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:bofa_corp",
+      "type": "Holding",
+      "props": {
+        "name": "BofA Corp",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:apple",
+      "type": "Holding",
+      "props": {
+        "name": "Apple",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:sk_hynix",
+      "type": "Holding",
+      "props": {
+        "name": "SK hynix",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "country:united_states",
+      "type": "Country",
+      "props": {
+        "name": "United States"
+      }
+    },
+    {
+      "id": "country:south_korea",
+      "type": "Country",
+      "props": {
+        "name": "South Korea"
+      }
+    },
+    {
+      "id": "country:germany",
+      "type": "Country",
+      "props": {
+        "name": "Germany"
+      }
+    },
+    {
+      "id": "country:china",
+      "type": "Country",
+      "props": {
+        "name": "China"
+      }
+    },
+    {
+      "id": "country:other",
+      "type": "Country",
+      "props": {
+        "name": "Other"
+      }
+    },
+    {
+      "id": "sector:technology",
+      "type": "Sector",
+      "props": {
+        "name": "Technology"
+      }
+    },
+    {
+      "id": "sector:telecommunication",
+      "type": "Sector",
+      "props": {
+        "name": "Telecommunication"
+      }
+    },
+    {
+      "id": "sector:financials",
+      "type": "Sector",
+      "props": {
+        "name": "Financials"
+      }
+    },
+    {
+      "id": "sector:consumer_discretionary",
+      "type": "Sector",
+      "props": {
+        "name": "Consumer Discretionary"
+      }
+    },
+    {
+      "id": "sector:other",
+      "type": "Sector",
+      "props": {
+        "name": "Other"
+      }
+    },
+    {
+      "id": "etf:IE00BMC38736",
+      "type": "ETF",
+      "props": {
+        "name": "iShares MSCI Global Semiconductors UCITS ETF",
+        "ticker": "SMGB.L",
+        "isin": "IE00BMC38736",
+        "ter": 0.0034999999999999996,
+        "aum_eur": null,
+        "replication": "Physical",
+        "distribution": "Accumulating",
+        "holdings_count": null,
+        "investment_focus": "Equity, World, Technology, Social/Environmental",
+        "domicile": "Ireland"
+      }
+    },
+    {
+      "id": "provider:vaneck",
+      "type": "Provider",
+      "props": {
+        "name": "VanEck"
+      }
+    },
+    {
+      "id": "index:mvis_us_listed_semiconductor_10_capped_esg",
+      "type": "Index",
+      "props": {
+        "name": "MVIS US Listed Semiconductor 10% Capped ESG"
+      }
+    },
+    {
+      "id": "holding:asml_holding",
+      "type": "Holding",
+      "props": {
+        "name": "ASML Holding",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:taiwan_semicon_mfg",
+      "type": "Holding",
+      "props": {
+        "name": "Taiwan Semicon Mfg",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:amd",
+      "type": "Holding",
+      "props": {
+        "name": "AMD",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:broadcom",
+      "type": "Holding",
+      "props": {
+        "name": "Broadcom",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:lam_research",
+      "type": "Holding",
+      "props": {
+        "name": "Lam Research",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:applied_materials",
+      "type": "Holding",
+      "props": {
+        "name": "Applied Materials",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:intel",
+      "type": "Holding",
+      "props": {
+        "name": "Intel",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:texas_instruments",
+      "type": "Holding",
+      "props": {
+        "name": "Texas Instruments",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "country:netherlands",
+      "type": "Country",
+      "props": {
+        "name": "Netherlands"
+      }
+    },
+    {
+      "id": "etf:IE00BMH5Y327",
+      "type": "ETF",
+      "props": {
+        "name": "Global X Data Center REITs & Digital Infra UCITS ETF",
+        "ticker": "VPNG.L",
+        "isin": "IE00BMH5Y327",
+        "ter": 0.005,
+        "aum_eur": null,
+        "replication": "Physical",
+        "distribution": "Accumulating",
+        "holdings_count": null,
+        "investment_focus": "Equity, World",
+        "domicile": "Ireland"
+      }
+    },
+    {
+      "id": "provider:global_x",
+      "type": "Provider",
+      "props": {
+        "name": "Global X"
+      }
+    },
+    {
+      "id": "index:solactive_data_center_reits_digital_infrastructure",
+      "type": "Index",
+      "props": {
+        "name": "Solactive Data Center REITs & Digital Infrastructure"
+      }
+    },
+    {
+      "id": "holding:winbond_electronics",
+      "type": "Holding",
+      "props": {
+        "name": "Winbond Electronics",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:equinix",
+      "type": "Holding",
+      "props": {
+        "name": "Equinix",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:applied_digital",
+      "type": "Holding",
+      "props": {
+        "name": "Applied Digital",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:digital_realty_trust",
+      "type": "Holding",
+      "props": {
+        "name": "Digital Realty Trust",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:american_tower",
+      "type": "Holding",
+      "props": {
+        "name": "American Tower",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:crown_castle",
+      "type": "Holding",
+      "props": {
+        "name": "Crown Castle",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:gds_holdings",
+      "type": "Holding",
+      "props": {
+        "name": "GDS Holdings",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:keppel_dc_reit",
+      "type": "Holding",
+      "props": {
+        "name": "Keppel DC REIT",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "country:taiwan",
+      "type": "Country",
+      "props": {
+        "name": "Taiwan"
+      }
+    },
+    {
+      "id": "country:singapore",
+      "type": "Country",
+      "props": {
+        "name": "Singapore"
+      }
+    },
+    {
+      "id": "sector:real_estate",
+      "type": "Sector",
+      "props": {
+        "name": "Real Estate"
+      }
+    },
+    {
+      "id": "etf:IE000NDWFGA5",
+      "type": "ETF",
+      "props": {
+        "name": "Global X Uranium UCITS ETF",
+        "ticker": "URNG.L",
+        "isin": "IE000NDWFGA5",
+        "ter": 0.006500000000000001,
+        "aum_eur": null,
+        "replication": "Physical",
+        "distribution": "Accumulating",
+        "holdings_count": null,
+        "investment_focus": "Equity, World",
+        "domicile": "Ireland"
+      }
+    },
+    {
+      "id": "index:solactive_global_uranium_nuclear_components",
+      "type": "Index",
+      "props": {
+        "name": "Solactive Global Uranium & Nuclear Components"
+      }
+    },
+    {
+      "id": "holding:cameco",
+      "type": "Holding",
+      "props": {
+        "name": "Cameco",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:uranium_energy",
+      "type": "Holding",
+      "props": {
+        "name": "Uranium Energy",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:oklo",
+      "type": "Holding",
+      "props": {
+        "name": "Oklo",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:nexgen_energy",
+      "type": "Holding",
+      "props": {
+        "name": "NexGen Energy",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:nac_kazatomprom",
+      "type": "Holding",
+      "props": {
+        "name": "NAC Kazatomprom",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:energy_fuels",
+      "type": "Holding",
+      "props": {
+        "name": "Energy Fuels",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:centrus_energy",
+      "type": "Holding",
+      "props": {
+        "name": "Centrus Energy",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:paladin_energy",
+      "type": "Holding",
+      "props": {
+        "name": "Paladin Energy",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:denison_mines_corp",
+      "type": "Holding",
+      "props": {
+        "name": "Denison Mines Corp",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:sibanye_stillwater",
+      "type": "Holding",
+      "props": {
+        "name": "Sibanye Stillwater",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "country:canada",
+      "type": "Country",
+      "props": {
+        "name": "Canada"
+      }
+    },
+    {
+      "id": "country:australia",
+      "type": "Country",
+      "props": {
+        "name": "Australia"
+      }
+    },
+    {
+      "id": "sector:energy",
+      "type": "Sector",
+      "props": {
+        "name": "Energy"
+      }
+    },
+    {
+      "id": "sector:industrials",
+      "type": "Sector",
+      "props": {
+        "name": "Industrials"
+      }
+    },
+    {
+      "id": "sector:basic_materials",
+      "type": "Sector",
+      "props": {
+        "name": "Basic Materials"
+      }
+    },
+    {
+      "id": "etf:IE00B3CNHG25",
+      "type": "ETF",
+      "props": {
+        "name": "L&G Gold Mining UCITS ETF",
+        "ticker": "AUCP.L",
+        "isin": "IE00B3CNHG25",
+        "ter": 0.0055000000000000005,
+        "aum_eur": null,
+        "replication": "Physical",
+        "distribution": "Accumulating",
+        "holdings_count": null,
+        "investment_focus": "Equity, World, Basic Materials",
+        "domicile": "Ireland"
+      }
+    },
+    {
+      "id": "provider:legal_general_lgim",
+      "type": "Provider",
+      "props": {
+        "name": "Legal & General (LGIM)"
+      }
+    },
+    {
+      "id": "index:stoxx_global_gold_miners",
+      "type": "Index",
+      "props": {
+        "name": "STOXX Global Gold Miners"
+      }
+    },
+    {
+      "id": "holding:newmont_corp",
+      "type": "Holding",
+      "props": {
+        "name": "Newmont Corp",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:agnico_eagle_mines",
+      "type": "Holding",
+      "props": {
+        "name": "Agnico Eagle Mines",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:anglogold_ashanti",
+      "type": "Holding",
+      "props": {
+        "name": "Anglogold Ashanti",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:kinross_gold",
+      "type": "Holding",
+      "props": {
+        "name": "Kinross Gold",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:gold_fields",
+      "type": "Holding",
+      "props": {
+        "name": "Gold Fields",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:harmony_gold_mining",
+      "type": "Holding",
+      "props": {
+        "name": "Harmony Gold Mining",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:northern_star_resources",
+      "type": "Holding",
+      "props": {
+        "name": "Northern Star Resources",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:pan_american_silver",
+      "type": "Holding",
+      "props": {
+        "name": "Pan American Silver",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:b2gold",
+      "type": "Holding",
+      "props": {
+        "name": "B2Gold",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:evolution_mining",
+      "type": "Holding",
+      "props": {
+        "name": "Evolution Mining",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "country:south_africa",
+      "type": "Country",
+      "props": {
+        "name": "South Africa"
+      }
+    },
+    {
+      "id": "etf:IE00B4ND3602",
+      "type": "ETF",
+      "props": {
+        "name": "iShares Physical Gold ETC",
+        "ticker": "SGLN.L",
+        "isin": "IE00B4ND3602",
+        "ter": 0.0012,
+        "aum_eur": null,
+        "replication": "Physical",
+        "distribution": "Accumulating",
+        "holdings_count": null,
+        "investment_focus": "Precious Metals, Gold",
+        "domicile": "Ireland"
+      }
+    },
+    {
+      "id": "provider:ishares",
+      "type": "Provider",
+      "props": {
+        "name": "iShares"
+      }
+    },
+    {
+      "id": "index:gold",
+      "type": "Index",
+      "props": {
+        "name": "Gold"
+      }
+    },
+    {
+      "id": "etf:IE000JCW3DZ3",
+      "type": "ETF",
+      "props": {
+        "name": "Global X Defence Tech UCITS ETF",
+        "ticker": "ARMG.L",
+        "isin": "IE000JCW3DZ3",
+        "ter": 0.005,
+        "aum_eur": null,
+        "replication": "Physical",
+        "distribution": "Accumulating",
+        "holdings_count": null,
+        "investment_focus": "Equity, World, Industrials",
+        "domicile": "Ireland"
+      }
+    },
+    {
+      "id": "index:mirae_asset_defence_tech",
+      "type": "Index",
+      "props": {
+        "name": "Mirae Asset Defence Tech"
+      }
+    },
+    {
+      "id": "holding:lockheed_martin",
+      "type": "Holding",
+      "props": {
+        "name": "Lockheed Martin",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:northrop_grumman",
+      "type": "Holding",
+      "props": {
+        "name": "Northrop Grumman",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:l3harris_technologies",
+      "type": "Holding",
+      "props": {
+        "name": "L3Harris Technologies",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:bae_systems",
+      "type": "Holding",
+      "props": {
+        "name": "BAE Systems",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:rtx",
+      "type": "Holding",
+      "props": {
+        "name": "RTX",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:rheinmetall",
+      "type": "Holding",
+      "props": {
+        "name": "Rheinmetall",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:general_dynamics",
+      "type": "Holding",
+      "props": {
+        "name": "General Dynamics",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:palantir_technologies",
+      "type": "Holding",
+      "props": {
+        "name": "Palantir Technologies",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:hanwha_aerospace",
+      "type": "Holding",
+      "props": {
+        "name": "Hanwha Aerospace",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "holding:saab",
+      "type": "Holding",
+      "props": {
+        "name": "SAAB",
+        "isin": null,
+        "ticker": null
+      }
+    },
+    {
+      "id": "country:united_kingdom",
+      "type": "Country",
+      "props": {
+        "name": "United Kingdom"
+      }
+    }
+  ],
+  "edges": [
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "ISSUED_BY",
+      "target": "provider:xtrackers",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "TRACKS",
+      "target": "index:nasdaq_global_artificial_intelligence_and_big_data",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "LISTED_ON",
+      "target": "exchange:lse",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:samsung_electronics",
+      "properties": {
+        "weight": 0.058899999999999994
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:micron_technology",
+      "properties": {
+        "weight": 0.0536
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:alibaba_group_holding_ltd_adr",
+      "properties": {
+        "weight": 0.051699999999999996
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:meta_platforms",
+      "properties": {
+        "weight": 0.048600000000000004
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:alphabet_inc_a",
+      "properties": {
+        "weight": 0.047
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:amazon_com",
+      "properties": {
+        "weight": 0.0455
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:nvidia_corp",
+      "properties": {
+        "weight": 0.0449
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:bofa_corp",
+      "properties": {
+        "weight": 0.042
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:apple",
+      "properties": {
+        "weight": 0.041299999999999996
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "HOLDS",
+      "target": "holding:sk_hynix",
+      "properties": {
+        "weight": 0.039599999999999996
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "EXPOSED_TO",
+      "target": "country:united_states",
+      "properties": {
+        "percentage": 73.35
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "EXPOSED_TO",
+      "target": "country:south_korea",
+      "properties": {
+        "percentage": 10.46
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "EXPOSED_TO",
+      "target": "country:germany",
+      "properties": {
+        "percentage": 2.94
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "EXPOSED_TO",
+      "target": "country:china",
+      "properties": {
+        "percentage": 1.55
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "EXPOSED_TO",
+      "target": "country:other",
+      "properties": {
+        "percentage": 11.7
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "INVESTS_IN",
+      "target": "sector:technology",
+      "properties": {
+        "percentage": 66.25
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "INVESTS_IN",
+      "target": "sector:telecommunication",
+      "properties": {
+        "percentage": 14.6
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "INVESTS_IN",
+      "target": "sector:financials",
+      "properties": {
+        "percentage": 5.42
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "INVESTS_IN",
+      "target": "sector:consumer_discretionary",
+      "properties": {
+        "percentage": 5.03
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "INVESTS_IN",
+      "target": "sector:other",
+      "properties": {
+        "percentage": 8.7
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "ISSUED_BY",
+      "target": "provider:vaneck",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "TRACKS",
+      "target": "index:mvis_us_listed_semiconductor_10_capped_esg",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "LISTED_ON",
+      "target": "exchange:lse",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:asml_holding",
+      "properties": {
+        "weight": 0.1148
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:taiwan_semicon_mfg",
+      "properties": {
+        "weight": 0.0962
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:micron_technology",
+      "properties": {
+        "weight": 0.0958
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:nvidia_corp",
+      "properties": {
+        "weight": 0.09390000000000001
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:amd",
+      "properties": {
+        "weight": 0.09
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:broadcom",
+      "properties": {
+        "weight": 0.0724
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:lam_research",
+      "properties": {
+        "weight": 0.0668
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:applied_materials",
+      "properties": {
+        "weight": 0.0593
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:intel",
+      "properties": {
+        "weight": 0.048600000000000004
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "HOLDS",
+      "target": "holding:texas_instruments",
+      "properties": {
+        "weight": 0.0452
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "EXPOSED_TO",
+      "target": "country:united_states",
+      "properties": {
+        "percentage": 70.59
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "EXPOSED_TO",
+      "target": "country:netherlands",
+      "properties": {
+        "percentage": 1.1
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "EXPOSED_TO",
+      "target": "country:other",
+      "properties": {
+        "percentage": 28.31
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "INVESTS_IN",
+      "target": "sector:technology",
+      "properties": {
+        "percentage": 71.69
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "INVESTS_IN",
+      "target": "sector:other",
+      "properties": {
+        "percentage": 28.31
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "ISSUED_BY",
+      "target": "provider:global_x",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "TRACKS",
+      "target": "index:solactive_data_center_reits_digital_infrastructure",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "LISTED_ON",
+      "target": "exchange:lse",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:winbond_electronics",
+      "properties": {
+        "weight": 0.1015
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:equinix",
+      "properties": {
+        "weight": 0.0975
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:applied_digital",
+      "properties": {
+        "weight": 0.0959
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:digital_realty_trust",
+      "properties": {
+        "weight": 0.0877
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:american_tower",
+      "properties": {
+        "weight": 0.0742
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:crown_castle",
+      "properties": {
+        "weight": 0.0571
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:micron_technology",
+      "properties": {
+        "weight": 0.0542
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:sk_hynix",
+      "properties": {
+        "weight": 0.0418
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:gds_holdings",
+      "properties": {
+        "weight": 0.041299999999999996
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "HOLDS",
+      "target": "holding:keppel_dc_reit",
+      "properties": {
+        "weight": 0.0369
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "EXPOSED_TO",
+      "target": "country:united_states",
+      "properties": {
+        "percentage": 61.72
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "EXPOSED_TO",
+      "target": "country:taiwan",
+      "properties": {
+        "percentage": 12.35
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "EXPOSED_TO",
+      "target": "country:south_korea",
+      "properties": {
+        "percentage": 4.18
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "EXPOSED_TO",
+      "target": "country:singapore",
+      "properties": {
+        "percentage": 3.69
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "EXPOSED_TO",
+      "target": "country:other",
+      "properties": {
+        "percentage": 18.06
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "INVESTS_IN",
+      "target": "sector:technology",
+      "properties": {
+        "percentage": 48.06
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "INVESTS_IN",
+      "target": "sector:real_estate",
+      "properties": {
+        "percentage": 38.08
+      }
+    },
+    {
+      "source": "etf:IE00BMH5Y327",
+      "relation": "INVESTS_IN",
+      "target": "sector:other",
+      "properties": {
+        "percentage": 13.86
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "ISSUED_BY",
+      "target": "provider:global_x",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "TRACKS",
+      "target": "index:solactive_global_uranium_nuclear_components",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "LISTED_ON",
+      "target": "exchange:lse",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:cameco",
+      "properties": {
+        "weight": 0.1697
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:uranium_energy",
+      "properties": {
+        "weight": 0.084
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:oklo",
+      "properties": {
+        "weight": 0.08349999999999999
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:nexgen_energy",
+      "properties": {
+        "weight": 0.0704
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:nac_kazatomprom",
+      "properties": {
+        "weight": 0.056900000000000006
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:energy_fuels",
+      "properties": {
+        "weight": 0.0525
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:centrus_energy",
+      "properties": {
+        "weight": 0.0479
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:paladin_energy",
+      "properties": {
+        "weight": 0.0404
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:denison_mines_corp",
+      "properties": {
+        "weight": 0.0385
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "HOLDS",
+      "target": "holding:sibanye_stillwater",
+      "properties": {
+        "weight": 0.031200000000000002
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "EXPOSED_TO",
+      "target": "country:canada",
+      "properties": {
+        "percentage": 30.9
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "EXPOSED_TO",
+      "target": "country:united_states",
+      "properties": {
+        "percentage": 29.82
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "EXPOSED_TO",
+      "target": "country:australia",
+      "properties": {
+        "percentage": 10.22
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "EXPOSED_TO",
+      "target": "country:south_korea",
+      "properties": {
+        "percentage": 9.48
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "EXPOSED_TO",
+      "target": "country:other",
+      "properties": {
+        "percentage": 19.58
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "INVESTS_IN",
+      "target": "sector:energy",
+      "properties": {
+        "percentage": 56.84
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "INVESTS_IN",
+      "target": "sector:industrials",
+      "properties": {
+        "percentage": 19.13
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "INVESTS_IN",
+      "target": "sector:basic_materials",
+      "properties": {
+        "percentage": 5.8
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "INVESTS_IN",
+      "target": "sector:technology",
+      "properties": {
+        "percentage": 1.03
+      }
+    },
+    {
+      "source": "etf:IE000NDWFGA5",
+      "relation": "INVESTS_IN",
+      "target": "sector:other",
+      "properties": {
+        "percentage": 17.2
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "ISSUED_BY",
+      "target": "provider:legal_general_lgim",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "TRACKS",
+      "target": "index:stoxx_global_gold_miners",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "LISTED_ON",
+      "target": "exchange:lse",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:newmont_corp",
+      "properties": {
+        "weight": 0.1523
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:agnico_eagle_mines",
+      "properties": {
+        "weight": 0.1143
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:anglogold_ashanti",
+      "properties": {
+        "weight": 0.08869999999999999
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:kinross_gold",
+      "properties": {
+        "weight": 0.0765
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:gold_fields",
+      "properties": {
+        "weight": 0.07490000000000001
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:harmony_gold_mining",
+      "properties": {
+        "weight": 0.0548
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:northern_star_resources",
+      "properties": {
+        "weight": 0.0546
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:pan_american_silver",
+      "properties": {
+        "weight": 0.0362
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:b2gold",
+      "properties": {
+        "weight": 0.0277
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "HOLDS",
+      "target": "holding:evolution_mining",
+      "properties": {
+        "weight": 0.0276
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "EXPOSED_TO",
+      "target": "country:canada",
+      "properties": {
+        "percentage": 41.2
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "EXPOSED_TO",
+      "target": "country:united_states",
+      "properties": {
+        "percentage": 15.23
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "EXPOSED_TO",
+      "target": "country:australia",
+      "properties": {
+        "percentage": 15.01
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "EXPOSED_TO",
+      "target": "country:south_africa",
+      "properties": {
+        "percentage": 13.51
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "INVESTS_IN",
+      "target": "sector:basic_materials",
+      "properties": {
+        "percentage": 84.95
+      }
+    },
+    {
+      "source": "etf:IE00B3CNHG25",
+      "relation": "INVESTS_IN",
+      "target": "sector:other",
+      "properties": {
+        "percentage": 15.05
+      }
+    },
+    {
+      "source": "etf:IE00B4ND3602",
+      "relation": "ISSUED_BY",
+      "target": "provider:ishares",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00B4ND3602",
+      "relation": "TRACKS",
+      "target": "index:gold",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE00B4ND3602",
+      "relation": "LISTED_ON",
+      "target": "exchange:lse",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "ISSUED_BY",
+      "target": "provider:global_x",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "TRACKS",
+      "target": "index:mirae_asset_defence_tech",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "LISTED_ON",
+      "target": "exchange:lse",
+      "properties": {}
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:lockheed_martin",
+      "properties": {
+        "weight": 0.08810000000000001
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:northrop_grumman",
+      "properties": {
+        "weight": 0.08259999999999999
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:l3harris_technologies",
+      "properties": {
+        "weight": 0.0791
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:bae_systems",
+      "properties": {
+        "weight": 0.077
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:rtx",
+      "properties": {
+        "weight": 0.07690000000000001
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:rheinmetall",
+      "properties": {
+        "weight": 0.0726
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:general_dynamics",
+      "properties": {
+        "weight": 0.0689
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:palantir_technologies",
+      "properties": {
+        "weight": 0.061
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:hanwha_aerospace",
+      "properties": {
+        "weight": 0.036000000000000004
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "HOLDS",
+      "target": "holding:saab",
+      "properties": {
+        "weight": 0.0341
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "EXPOSED_TO",
+      "target": "country:united_states",
+      "properties": {
+        "percentage": 59.62
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "EXPOSED_TO",
+      "target": "country:united_kingdom",
+      "properties": {
+        "percentage": 9.44
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "EXPOSED_TO",
+      "target": "country:germany",
+      "properties": {
+        "percentage": 7.98
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "EXPOSED_TO",
+      "target": "country:south_korea",
+      "properties": {
+        "percentage": 5.71
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "EXPOSED_TO",
+      "target": "country:other",
+      "properties": {
+        "percentage": 17.25
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "INVESTS_IN",
+      "target": "sector:industrials",
+      "properties": {
+        "percentage": 86.63
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "INVESTS_IN",
+      "target": "sector:technology",
+      "properties": {
+        "percentage": 7.12
+      }
+    },
+    {
+      "source": "etf:IE000JCW3DZ3",
+      "relation": "INVESTS_IN",
+      "target": "sector:other",
+      "properties": {
+        "percentage": 6.25
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "OVERLAPS_WITH",
+      "target": "etf:IE00BMC38736",
+      "properties": {
+        "shared_count": 2,
+        "shared_holdings": [
+          "holding:micron_technology",
+          "holding:nvidia_corp"
+        ]
+      }
+    },
+    {
+      "source": "etf:IE00BGV5VN51",
+      "relation": "OVERLAPS_WITH",
+      "target": "etf:IE00BMH5Y327",
+      "properties": {
+        "shared_count": 2,
+        "shared_holdings": [
+          "holding:micron_technology",
+          "holding:sk_hynix"
+        ]
+      }
+    },
+    {
+      "source": "etf:IE00BMC38736",
+      "relation": "OVERLAPS_WITH",
+      "target": "etf:IE00BMH5Y327",
+      "properties": {
+        "shared_count": 1,
+        "shared_holdings": [
+          "holding:micron_technology"
+        ]
+      }
+    }
+  ]
+}
