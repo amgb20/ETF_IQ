@@ -29,7 +29,7 @@ function CorrelationBar({
       </div>
       <div className="h-2 rounded-full bg-muted overflow-hidden">
         <div
-          className={`h-full rounded-full transition-all duration-700 ${colorClass}`}
+          className={`h-full rounded-full transition-[width] duration-700 ${colorClass}`}
           style={{ width: `${pct}%` }}
         />
       </div>

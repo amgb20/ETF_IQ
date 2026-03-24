@@ -17,7 +17,7 @@ export function QuickActions() {
           key={path}
           to={`/${userId}/${path}`}
           className="group flex flex-col gap-2 rounded-lg border border-border bg-secondary/50 p-4
-                     hover:border-primary/40 hover:bg-primary/5 transition-all duration-200"
+                     hover:border-primary/40 hover:bg-primary/5 transition-[border-color,background-color] duration-200"
         >
           <div className="flex h-8 w-8 items-center justify-center rounded-full bg-primary/10 group-hover:bg-primary/20 transition-colors">
             <Icon className="h-4 w-4 text-primary" />

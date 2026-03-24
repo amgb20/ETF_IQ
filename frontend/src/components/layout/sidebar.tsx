@@ -37,7 +37,7 @@ export function Sidebar({ collapsed, onToggle }: SidebarProps) {
     <TooltipProvider delayDuration={0}>
       <aside
         className={cn(
-          "hidden md:flex flex-col h-full border-r border-border bg-card/50 transition-all duration-200 shrink-0",
+          "hidden md:flex flex-col h-full border-r border-border bg-card/50 transition-[width] duration-200 shrink-0",
           collapsed ? "w-16" : "w-60",
         )}
       >

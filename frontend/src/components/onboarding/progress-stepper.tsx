@@ -28,7 +28,7 @@ export function ProgressStepper({ current }: ProgressStepperProps) {
               <div className="flex flex-col items-center gap-1">
                 <div
                   className={cn(
-                    "h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium transition-all duration-300",
+                    "h-8 w-8 rounded-full flex items-center justify-center text-xs font-medium transition-[background-color,border-color,color] duration-300",
                     isComplete && "bg-primary text-primary-foreground",
                     isCurrent && "bg-primary/20 border-2 border-primary text-primary",
                     !isComplete && !isCurrent && "bg-muted text-muted-foreground"

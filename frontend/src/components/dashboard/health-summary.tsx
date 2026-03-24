@@ -64,7 +64,7 @@ export function HealthSummary({ totalValue, pnlPct, loading, portfolioId }: Prop
       <CardContent className="flex flex-wrap items-center gap-6 p-4">
         <div>
           <p className="text-sm text-muted-foreground">Portfolio Value</p>
-          <p className="text-2xl font-bold">{formatCurrency(totalValue)}</p>
+          <p className="text-2xl font-bold tabular-nums">{formatCurrency(totalValue)}</p>
         </div>
 
         <div>
@@ -81,7 +81,7 @@ export function HealthSummary({ totalValue, pnlPct, loading, portfolioId }: Prop
           <TooltipProvider>
             <UITooltip>
               <TooltipTrigger asChild>
-                <p className={`text-lg font-semibold cursor-help ${confidenceColor}`}>
+                <p className={`text-lg font-semibold cursor-help tabular-nums ${confidenceColor}`}>
                   {average != null ? `${average.toFixed(1)} / 10` : "— / 10"}
                 </p>
               </TooltipTrigger>
@@ -93,9 +93,9 @@ export function HealthSummary({ totalValue, pnlPct, loading, portfolioId }: Prop
                       <div key={b.agent} className="flex justify-between gap-4">
                         <span>{b.agent}</span>
                         <span
-                          className={
+                          className={`tabular-nums ${
                             b.avg >= 7 ? "text-positive" : b.avg >= 5 ? "text-warning" : "text-negative"
-                          }
+                          }`}
                         >
                           {b.avg.toFixed(1)}
                         </span>

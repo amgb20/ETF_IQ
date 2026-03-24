@@ -277,7 +277,7 @@ export default function LandingPage() {
           <div className="flex flex-wrap justify-center gap-3 mb-10">
             {SCENARIOS.map((s) => (
               <button key={s.id} onClick={() => handleScenario(s)}
-                className="lp-mono text-xs px-4 py-2 transition-all"
+                className="lp-mono text-xs px-4 py-2 transition-[border-color,color,background-color]"
                 style={{
                   border: `1px solid ${demoMode === s.id ? CYAN : `${GOLD}38`}`,
                   color:  demoMode === s.id ? CYAN : `${GOLD}99`,

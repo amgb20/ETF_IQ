@@ -74,7 +74,7 @@ export function ChatbotBar() {
       <button
         data-chatbot-toggle
         onClick={() => setIsOpen((v) => !v)}
-        className={`group flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-all duration-200
+        className={`group flex h-14 w-14 items-center justify-center rounded-full shadow-lg transition-[transform,background-color,box-shadow] duration-200
           ${isOpen
             ? "bg-muted text-muted-foreground hover:bg-secondary"
             : "bg-primary text-primary-foreground hover:scale-105 hover:shadow-xl"
