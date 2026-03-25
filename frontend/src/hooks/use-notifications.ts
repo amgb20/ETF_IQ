@@ -16,7 +16,7 @@ export function useNotifications() {
   return useQuery<AppNotification[]>({
     queryKey: ["notifications"],
     queryFn: () => apiFetch("/notifications"),
-    refetchInterval: 30_000,
+    refetchInterval: 15_000,
   });
 }
 

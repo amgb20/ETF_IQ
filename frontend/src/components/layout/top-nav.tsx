@@ -1,11 +1,14 @@
+import { useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Popover, PopoverTrigger, PopoverContent } from "@/components/ui/popover";
 import { MessageSquare, Bell, FileText, AlertTriangle, CheckCheck, Menu } from "lucide-react";
+import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 import { useUserContext } from "@/contexts/UserContext";
 import { useNotifications, useMarkRead, useMarkAllRead } from "@/hooks/use-notifications";
 import type { AppNotification } from "@/hooks/use-notifications";
+import { downloadReportUrl } from "@/hooks/use-reports";
 
 function timeAgo(dateStr: string | null): string {
   if (!dateStr) return "";
@@ -47,10 +50,58 @@ export function TopNav({ onMenuClick }: TopNavProps) {
   const unreadCount = (notifications ?? []).filter((n) => !n.is_read).length;
   const prefix = user ? `/${user.id}` : "";
 
+  const seenIdsRef = useRef<Set<string>>(new Set());
+
+  useEffect(() => {
+    if (!notifications) return;
+
+    const currentIds = new Set(notifications.map((n) => n.id));
+
+    if (seenIdsRef.current.size === 0) {
+      seenIdsRef.current = currentIds;
+      return;
+    }
+
+    for (const n of notifications) {
+      if (seenIdsRef.current.has(n.id) || n.is_read) continue;
+
+      if (n.type === "report_ready") {
+        toast.success(n.title, {
+          description: n.message ?? "Your report is ready to view.",
+          duration: 15_000,
+          action: {
+            label: "View report",
+            onClick: () => {
+              if (n.ref_id) {
+                window.open(downloadReportUrl(n.ref_id), "_blank");
+              }
+              navigate(`${prefix}/reports`);
+            },
+          },
+        });
+      } else if (n.type === "alert_triggered") {
+        toast.warning(n.title, {
+          description: n.message ?? "A price alert was triggered.",
+          duration: 10_000,
+          action: {
+            label: "View alerts",
+            onClick: () => navigate(`${prefix}/analysis/alerts`),
+          },
+        });
+      }
+    }
+
+    seenIdsRef.current = currentIds;
+  }, [notifications, navigate, prefix]);
+
   const handleNotifClick = (n: AppNotification) => {
     if (!n.is_read) markRead.mutate(n.id);
-    if (n.type === "report_ready") navigate(`${prefix}/reports`);
-    else navigate(`${prefix}/analysis/alerts`);
+    if (n.type === "report_ready") {
+      navigate(`${prefix}/reports`);
+      if (n.ref_id) window.open(downloadReportUrl(n.ref_id), "_blank");
+    } else {
+      navigate(`${prefix}/analysis/alerts`);
+    }
   };
 
   return (
