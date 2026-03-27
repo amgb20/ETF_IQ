@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { Loader2, ArrowLeft } from "lucide-react";
 import { useUserContext } from "@/contexts/UserContext";
@@ -140,6 +140,12 @@ export default function LoginPage() {
                 >
                   {loading ? <Loader2 className="h-4 w-4 animate-spin" /> : "ACCESS TERMINAL"}
                 </Button>
+                <p className="text-center text-xs text-zinc-500 mt-2">
+                  Don&apos;t have an account?{" "}
+                  <Link to="/signup" className="text-primary hover:underline">
+                    Sign up
+                  </Link>
+                </p>
               </form>
             ) : (
               <div className="space-y-6">

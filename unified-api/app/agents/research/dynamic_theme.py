@@ -69,7 +69,7 @@ class DynamicThemeAgent(BaseAgent):
         return THEME_AGENT_PROMPT_TEMPLATE.format(
             theme_name=self._theme_name,
             coverage_block="\n".join(coverage_lines) or "- No ETFs loaded for this theme",
-            top_holdings=", ".join(dict.fromkeys(all_holdings)[:15]) or "N/A",
+            top_holdings=", ".join(list(dict.fromkeys(all_holdings))[:15]) or "N/A",
         )
 
     def build_prompt(

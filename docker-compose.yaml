@@ -66,7 +66,8 @@ services:
     depends_on:
       - unified-api
     healthcheck:
-      test: ["CMD", "wget", "-q", "--spider", "http://localhost:80/health"]
+      # Use 127.0.0.1 — localhost may resolve to ::1 first while nginx only listens on IPv4.
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:80/health"]
       interval: 10s
       timeout: 5s
       retries: 3

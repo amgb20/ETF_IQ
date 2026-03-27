@@ -1,5 +1,14 @@
+import logging
 import sys
 from contextlib import asynccontextmanager
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s %(levelname)-8s [%(name)s] %(message)s",
+    datefmt="%H:%M:%S",
+)
+logging.getLogger("httpx").setLevel(logging.WARNING)
+logging.getLogger("httpcore").setLevel(logging.WARNING)
 
 from data_connectors.scheduler import start_scheduler, stop_scheduler
 from fastapi import FastAPI, Request
