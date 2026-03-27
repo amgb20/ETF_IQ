@@ -124,6 +124,8 @@ async def signup(
     email = body.email.lower().strip()
     ip = _client_ip(request)
 
+    await check_start_rate_limit(email)
+
     result = await db.execute(select(User).where(User.email == email))
     if result.scalar_one_or_none():
         raise HTTPException(
@@ -198,6 +200,15 @@ async def signup_verify(
         )
 
     auth0_sub = claims.get("sub", "")
+
+    # Mark Auth0 email as verified now that OTP succeeded
+    if auth0_sub:
+        from .auth0_management import mark_auth0_email_verified
+
+        try:
+            await mark_auth0_email_verified(auth0_sub)
+        except RuntimeError as exc:
+            logger.error("Failed to mark email_verified for %s: %s", auth0_sub, exc)
 
     result = await db.execute(select(User).where(User.email == email))
     user = result.scalar_one_or_none()

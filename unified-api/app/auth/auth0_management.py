@@ -126,7 +126,7 @@ async def create_auth0_user(email: str, name: str | None = None) -> Optional[dic
     user_data: dict = {
         "email": email,
         "connection": "email",
-        "email_verified": True,
+        "email_verified": False,
     }
     if name:
         user_data["name"] = name
@@ -164,6 +164,18 @@ async def _get_user_by_email(email: str) -> Optional[dict]:
         if users:
             return users[0]
     return None
+
+
+async def mark_auth0_email_verified(auth0_id: str) -> None:
+    """Set email_verified=True on an Auth0 user after OTP verification succeeds."""
+    resp = await _mgmt_request(
+        "PATCH", f"/users/{auth0_id}", json={"email_verified": True}
+    )
+    if resp.status_code >= 400:
+        raise RuntimeError(
+            f"Auth0 PATCH email_verified failed: {resp.status_code} {resp.text}"
+        )
+    logger.info("Auth0: marked email_verified=True for %s", auth0_id)
 
 
 async def get_auth0_user(auth0_id: str) -> dict:
