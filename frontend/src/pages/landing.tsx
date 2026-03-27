@@ -181,9 +181,14 @@ export default function LandingPage() {
             <a href="#demo"     className="hover:text-white transition-colors">DEMO</a>
             <a href="#how"      className="hover:text-white transition-colors">HOW IT WORKS</a>
           </div>
-          <Link to="/login" className="lp-btn-cyan lp-mono text-xs px-4 py-2">
-            SIGN IN →
-          </Link>
+          <div className="flex items-center gap-3">
+            <Link to="/signup" className="lp-btn-gold lp-mono text-xs px-4 py-2">
+              SIGN UP
+            </Link>
+            <Link to="/login" className="lp-btn-cyan lp-mono text-xs px-4 py-2">
+              SIGN IN →
+            </Link>
+          </div>
         </div>
       </nav>
 
@@ -228,7 +233,7 @@ export default function LandingPage() {
             7 AI agents. Real-time analytics.<br />One conversational advisor.
           </p>
           <div className="flex flex-col sm:flex-row gap-4 mt-3">
-            <Link to="/login"
+            <Link to="/signup"
               className="lp-btn-gold lp-mono text-xs px-8 py-3 inline-flex items-center gap-2">
               GET STARTED <ArrowRight size={13} />
             </Link>
@@ -593,7 +598,7 @@ export default function LandingPage() {
           <p className="lp-mono text-sm mb-10" style={{ color: "rgba(240,237,230,0.45)" }}>
             Join investors using ETF IQ for smarter, AI-driven portfolio decisions.
           </p>
-          <Link to="/login"
+          <Link to="/signup"
             className="lp-btn-gold lp-glow-gold lp-mono inline-flex items-center gap-3 text-sm px-12 py-4">
             START FREE <ArrowRight size={16} />
           </Link>

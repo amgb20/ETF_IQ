@@ -18,6 +18,8 @@ class UserProfileResponse(BaseModel):
     email: str
     display_name: str | None = None
     base_currency: str
+    investment_goal: str | None = None
+    risk_tolerance: str | None = None
     theme: str
     role: str
     notify_email: bool
@@ -34,6 +36,8 @@ class PreferencesUpdate(BaseModel):
     accepted_tos: bool | None = None
     display_name: str | None = None
     base_currency: str | None = None
+    investment_goal: str | None = None
+    risk_tolerance: str | None = None
     theme: str | None = None
 
 
@@ -46,6 +50,8 @@ async def get_profile(
         email=user.email,
         display_name=user.display_name,
         base_currency=user.base_currency,
+        investment_goal=user.investment_goal,
+        risk_tolerance=user.risk_tolerance,
         theme=user.theme,
         role=user.role,
         notify_email=user.notify_email,
@@ -71,6 +77,10 @@ async def update_preferences(
         user.display_name = body.display_name
     if body.base_currency is not None:
         user.base_currency = body.base_currency
+    if body.investment_goal is not None:
+        user.investment_goal = body.investment_goal
+    if body.risk_tolerance is not None:
+        user.risk_tolerance = body.risk_tolerance
     if body.theme is not None:
         user.theme = body.theme
 
@@ -83,6 +93,8 @@ async def update_preferences(
         email=user.email,
         display_name=user.display_name,
         base_currency=user.base_currency,
+        investment_goal=user.investment_goal,
+        risk_tolerance=user.risk_tolerance,
         theme=user.theme,
         role=user.role,
         notify_email=user.notify_email,

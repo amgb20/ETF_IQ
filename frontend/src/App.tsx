@@ -9,6 +9,7 @@ import { useUser } from "@/hooks/use-user";
 import { TosModal } from "@/components/legal/tos-modal";
 import { useTheme, type Theme } from "@/contexts/ThemeContext";
 import LoginPage from "@/pages/login";
+import SignupPage from "@/pages/signup";
 import LandingPage from "@/pages/landing";
 import DashboardPage from "@/pages/dashboard";
 import AnalysisPage from "@/pages/analysis";
@@ -95,6 +96,7 @@ export default function App() {
       <Routes>
         <Route path="/" element={<RootPage />} />
         <Route path="/login" element={<LoginPage />} />
+        <Route path="/signup" element={<SignupPage />} />
         <Route path="/terms" element={<TermsPage />} />
         <Route path="/privacy" element={<PrivacyPage />} />
 

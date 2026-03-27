@@ -58,6 +58,11 @@ SEED_ETFS = [
     },
 ]
 
+SEED_USERS = [
+    {"email": "alexandre.benoit4000@gmail.com", "role": "super_admin"},
+    {"email": "kaki128500@gmail.com", "role": "user"},
+]
+
 
 async def seed():
     async with engine.begin() as conn:
@@ -74,17 +79,18 @@ async def seed():
             )
         print(f"Seeded {len(SEED_ETFS)} ETFs.")
 
-        await conn.execute(
-            text(
-                """
-                INSERT INTO users (email, role, is_active)
-                VALUES (:email, :role, true)
-                ON CONFLICT (email) DO NOTHING
-                """
-            ),
-            {"email": "alexandre.benoit4000@gmail.com", "role": "super_admin"},
-        )
-        print("Seeded admin user.")
+        for row in SEED_USERS:
+            await conn.execute(
+                text(
+                    """
+                    INSERT INTO users (email, role, is_active)
+                    VALUES (:email, :role, true)
+                    ON CONFLICT (email) DO NOTHING
+                    """
+                ),
+                row,
+            )
+        print(f"Seeded {len(SEED_USERS)} allowlist user(s).")
 
     await engine.dispose()
 

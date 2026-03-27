@@ -29,6 +29,11 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
 
   const refresh = useCallback(async () => {
+    if (!Cookies.get("access_token_js")) {
+      setUser(null);
+      setIsLoading(false);
+      return;
+    }
     try {
       const res = await fetch("/auth/get-auth-role", { credentials: "include" });
       if (res.ok) {

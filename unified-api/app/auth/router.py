@@ -18,6 +18,7 @@ from fastapi import APIRouter, Depends, HTTPException, Request, Response, status
 from jose import jwt as jose_jwt
 from pydantic import BaseModel, EmailStr
 from sqlalchemy import select
+from sqlalchemy.exc import IntegrityError
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.config import get_settings
@@ -43,6 +44,14 @@ class StartRequest(BaseModel):
 class VerifyRequest(BaseModel):
     email: EmailStr
     code: str
+
+
+class SignupRequest(BaseModel):
+    email: EmailStr
+    display_name: str | None = None
+    base_currency: str = "EUR"
+    investment_goal: str | None = None
+    risk_tolerance: str | None = None
 
 
 def _cookie_opts(settings) -> dict:
@@ -91,6 +100,81 @@ def _client_ip(request: Request) -> str | None:
         if forwarded_for:
             return forwarded_for.split(",")[0].strip()
     return request.client.host if request.client else None
+
+
+@router.post("/signup")
+async def signup(
+    body: SignupRequest,
+    request: Request,
+    db: AsyncSession = Depends(get_db),
+):
+    """Register a new user: create in Auth0 + local DB, then send OTP.
+
+    Flow:
+      1. Check email not already in local DB.
+      2. Create the user in Auth0 via Management API (handles "already exists").
+      3. Insert a row into the local ``users`` table.
+      4. Send a passwordless OTP so the user can verify immediately.
+    """
+    email = body.email.lower().strip()
+    ip = _client_ip(request)
+
+    result = await db.execute(select(User).where(User.email == email))
+    if result.scalar_one_or_none():
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists. Please sign in.",
+        )
+
+    # ── Auth0 user creation ─────────────────────────────────────────
+    from .auth0_management import create_auth0_user
+
+    auth0_id = None
+    try:
+        auth0_user = await create_auth0_user(email, name=body.display_name)
+        if auth0_user:
+            auth0_id = auth0_user.get("user_id")
+    except RuntimeError as exc:
+        logger.error("Auth0 user creation failed for %s: %s", email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
+            detail="Failed to create account. Please try again.",
+        ) from exc
+
+    # ── Local DB user creation ──────────────────────────────────────
+    user = User(
+        email=email,
+        display_name=body.display_name,
+        base_currency=body.base_currency,
+        investment_goal=body.investment_goal,
+        risk_tolerance=body.risk_tolerance,
+        role="user",
+        is_active=True,
+        auth0_id=auth0_id,
+    )
+    db.add(user)
+    try:
+        await db.commit()
+    except IntegrityError:
+        await db.rollback()
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists. Please sign in.",
+        )
+
+    # ── Send OTP ────────────────────────────────────────────────────
+    try:
+        await start_passwordless(email)
+    except ValueError as exc:
+        logger.warning("Failed to send OTP after signup for %s: %s", email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Account created but failed to send verification code. Please try signing in.",
+        ) from exc
+
+    await log_auth_event(AuthEvent.LOGIN_SUCCESS, email=email, ip=ip, detail="signup")
+    logger.info("New user registered: %s (display_name=%s)", email, body.display_name)
+    return {"success": True}
 
 
 @router.post("/login/passwordless/start")
