@@ -23,6 +23,7 @@ export interface ChatSession {
   title: string | null;
   started_at: string | null;
   last_message_at: string | null;
+  last_message_snippet: string | null;
 }
 
 interface SSEEvent {
@@ -68,7 +69,7 @@ export function useChat(portfolioId: string | undefined) {
   useEffect(() => {
     if (!sessionId || !portfolioId) return;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    apiFetch<{ id: string; role: string; content: string; tools_used: any }[]>(
+    apiFetch<{ id: string; role: string; content: string; tools_used: any; sources: any }[]>(
       `/chat/sessions/${sessionId}/messages`,
     )
       .then((history) => {
@@ -78,6 +79,7 @@ export function useChat(portfolioId: string | undefined) {
             role: m.role as "user" | "assistant",
             content: m.content,
             tools_used: m.tools_used,
+            sources: m.sources ?? undefined,
           })),
         );
       })

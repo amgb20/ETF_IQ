@@ -4,6 +4,7 @@ import { GenerateReportForm } from "@/components/reports/generate-report-form";
 import { ProgressIndicator } from "@/components/reports/progress-indicator";
 import { ReportArchiveTable } from "@/components/reports/report-archive-table";
 import { AgentMemoryExplorer } from "@/components/reports/agent-memory-explorer";
+import { PageHeader } from "@/components/layout/page-header";
 
 export default function ReportsPage() {
   const { data: portfolios } = usePortfolios();
@@ -11,11 +12,9 @@ export default function ReportsPage() {
   const [activeReportId, setActiveReportId] = useState<string | null>(null);
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-end justify-between">
-        <h1 className="text-3xl font-semibold">Reports</h1>
-        <p className="text-xs text-muted-foreground pb-1 tracking-wider">AI-generated analysis</p>
-      </div>
+    <>
+      <PageHeader title="Reports" />
+      <div className="container mx-auto max-w-7xl px-4 py-6 space-y-6">
       <GenerateReportForm
         portfolioId={portfolioId}
         onGenerated={(id) => setActiveReportId(id)}
@@ -24,5 +23,6 @@ export default function ReportsPage() {
       <ReportArchiveTable portfolioId={portfolioId} />
       <AgentMemoryExplorer portfolioId={portfolioId} />
     </div>
+    </>
   );
 }

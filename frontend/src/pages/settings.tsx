@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +17,7 @@ import {
   type ThemeBrief,
 } from "@/hooks/use-portfolios";
 import { Sun, Moon, Monitor, Plus, Pencil, Trash2, Check, X } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 
 const CURRENCIES = ["EUR", "USD", "GBP", "CHF", "JPY", "CAD"];
 
@@ -70,11 +72,9 @@ export default function SettingsPage() {
   }
 
   return (
-    <div className="container mx-auto max-w-2xl py-8 px-4 space-y-6">
-      <div>
-        <h1 className="text-2xl font-bold">Settings</h1>
-        <p className="text-muted-foreground text-sm mt-1">Manage your account preferences</p>
-      </div>
+    <>
+      <PageHeader title="Account" />
+      <div className="container mx-auto max-w-2xl py-6 px-4 space-y-6">
 
       {/* Account */}
       <Card>
@@ -194,7 +194,22 @@ export default function SettingsPage() {
       </Card>
 
       <ThemeManagementSection />
+
+      <div className="border-t border-border pt-4 pb-2 flex flex-col items-center gap-1 sm:flex-row sm:justify-between">
+        <p className="text-xs text-muted-foreground text-center">
+          Not financial advice. Informational only. ETF IQ is for educational and research purposes.
+        </p>
+        <div className="flex gap-3 text-xs">
+          <Link to="/terms" className="text-muted-foreground hover:text-foreground sidebar-transition">
+            Terms of Service
+          </Link>
+          <Link to="/privacy" className="text-muted-foreground hover:text-foreground sidebar-transition">
+            Privacy Policy
+          </Link>
+        </div>
+      </div>
     </div>
+    </>
   );
 }
 

@@ -7,16 +7,24 @@ import uuid
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import delete, desc, select
+from sqlalchemy import delete, desc, func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.agents.chat_agent import ChatAgent
 from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 from app.database import get_db
 from app.models.chat import ChatMessage, ChatSession
-from app.schemas.chat import ChatMessageResponse, ChatRequest, ChatSessionResponse, ChatSessionUpdate
+from app.schemas.chat import (
+    ChatMessageResponse,
+    ChatRequest,
+    ChatSessionBatchDelete,
+    ChatSessionResponse,
+    ChatSessionUpdate,
+)
 
 router = APIRouter(prefix="/chat", tags=["chat"])
+
+SNIPPET_LENGTH = 200
 
 
 async def _sse_generator(agent: ChatAgent, message: str):
@@ -55,11 +63,36 @@ async def list_sessions(
 ):
     await verify_portfolio_owner(portfolio_id, user, db)
 
-    result = await db.execute(
-        select(ChatSession).where(ChatSession.portfolio_id == portfolio_id).order_by(desc(ChatSession.last_message_at))
+    snippet_sq = (
+        select(func.left(ChatMessage.content, SNIPPET_LENGTH))
+        .where(
+            ChatMessage.session_id == ChatSession.id,
+            ChatMessage.role == "assistant",
+        )
+        .order_by(desc(ChatMessage.created_at))
+        .limit(1)
+        .correlate(ChatSession)
+        .scalar_subquery()
+        .label("last_message_snippet")
     )
-    sessions = result.scalars().all()
-    return [ChatSessionResponse.model_validate(s) for s in sessions]
+
+    result = await db.execute(
+        select(ChatSession, snippet_sq)
+        .where(ChatSession.portfolio_id == portfolio_id)
+        .order_by(desc(ChatSession.last_message_at))
+    )
+    rows = result.all()
+    return [
+        ChatSessionResponse(
+            id=session.id,
+            portfolio_id=session.portfolio_id,
+            title=session.title,
+            started_at=session.started_at,
+            last_message_at=session.last_message_at,
+            last_message_snippet=snippet,
+        )
+        for session, snippet in rows
+    ]
 
 
 @router.patch("/sessions/{session_id}", response_model=ChatSessionResponse)
@@ -93,6 +126,28 @@ async def delete_session(
 
     await db.execute(delete(ChatMessage).where(ChatMessage.session_id == session_id))
     await db.execute(delete(ChatSession).where(ChatSession.id == session_id))
+    await db.commit()
+
+
+@router.post("/sessions/batch-delete", status_code=204)
+async def batch_delete_sessions(
+    body: ChatSessionBatchDelete,
+    user: RequireAuth = ...,
+    db: AsyncSession = Depends(get_db),
+):
+    if not body.session_ids:
+        return
+
+    result = await db.execute(
+        select(ChatSession).where(ChatSession.id.in_(body.session_ids))
+    )
+    sessions = result.scalars().all()
+    for s in sessions:
+        await verify_portfolio_owner(s.portfolio_id, user, db)
+
+    ids = [s.id for s in sessions]
+    await db.execute(delete(ChatMessage).where(ChatMessage.session_id.in_(ids)))
+    await db.execute(delete(ChatSession).where(ChatSession.id.in_(ids)))
     await db.commit()
 
 

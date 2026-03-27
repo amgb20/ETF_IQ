@@ -258,6 +258,7 @@ class ChatAgent:
             # 5. ReAct streaming loop (max 4 turns)
             full_text = ""
             tools_used: list[dict] = []
+            all_sources: list[dict] = []
 
             for _turn in range(4):
                 all_chunks: list[AIMessageChunk] = []
@@ -329,6 +330,7 @@ class ChatAgent:
                             parsed = json.loads(result_str)
                             sources = parsed.get("sources", [])
                             if sources:
+                                all_sources.extend(sources)
                                 yield {"type": "sources", "sources": sources}
                         except (json.JSONDecodeError, AttributeError):
                             pass
@@ -340,6 +342,7 @@ class ChatAgent:
                     role="assistant",
                     content=full_text,
                     tools_used=tools_used if tools_used else None,
+                    sources=all_sources if all_sources else None,
                 )
             )
             await session.execute(

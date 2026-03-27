@@ -23,9 +23,11 @@
             "type": "command",
             "command": "node C:/Users/AlexandreBenoit/Documents/Personal/ETF_IQ/.claude/hooks/post-test-report.js"
           }
-        ],
-        "description": "Generate report.md alongside test files after test execution"
+        ]
       }
     ]
+  },
+  "enabledPlugins": {
+    "mpp-inspector@mpp-inspector": true
   }
 }

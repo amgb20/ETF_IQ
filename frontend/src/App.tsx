@@ -17,10 +17,12 @@ import OnboardingPage from "@/pages/onboarding";
 import TermsPage from "@/pages/terms";
 import PrivacyPage from "@/pages/privacy";
 import SettingsPage from "@/pages/settings";
+import CharlesPage from "@/pages/charles";
+import HistoryPage from "@/pages/history";
 
 function RootPage() {
   const { user, isLoading } = useUserContext();
-  if (isLoading) return <div style={{ background: "#0A0A0F", minHeight: "100vh" }} />;
+  if (isLoading) return <div style={{ background: "#F5F0E8", minHeight: "100vh" }} />;
   if (user) return <Navigate to={`/${user.id}/dashboard`} replace />;
   return <LandingPage />;
 }
@@ -113,7 +115,11 @@ export default function App() {
             <Route path="dashboard" element={<DashboardPage />} />
             <Route path="analysis/*" element={<AnalysisPage />} />
             <Route path="reports" element={<ReportsPage />} />
-            <Route path="settings" element={<SettingsPage />} />
+            <Route path="charles" element={<CharlesPage />} />
+            <Route path="history" element={<HistoryPage />} />
+            <Route path="account" element={<SettingsPage />} />
+            {/* Legacy redirect: /settings → /account */}
+            <Route path="settings" element={<Navigate to="../account" replace />} />
             <Route index element={<Navigate to="dashboard" replace />} />
           </Route>
         </Route>

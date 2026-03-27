@@ -26,4 +26,5 @@ class ChatMessage(Base):
     role: Mapped[str] = mapped_column(String(10), nullable=False)
     content: Mapped[str] = mapped_column(Text, nullable=False)
     tools_used: Mapped[dict | None] = mapped_column(JSONB)
+    sources: Mapped[list | None] = mapped_column(JSONB, nullable=True)
     created_at: Mapped[str] = mapped_column(server_default=func.now())

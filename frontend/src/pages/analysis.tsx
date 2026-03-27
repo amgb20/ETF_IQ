@@ -13,6 +13,7 @@ import { AlertsTab } from "@/components/analysis/alerts-tab";
 import { QuoteTab } from "@/components/analysis/quote-tab";
 import { AddPositionModal } from "@/components/analysis/add-position-modal";
 import { RefreshCw } from "lucide-react";
+import { PageHeader } from "@/components/layout/page-header";
 import type { ETFListItem } from "@/hooks/use-etfs";
 
 const VALID_TABS = ["quote", "etf-detail", "agent-reports", "alerts"] as const;
@@ -109,9 +110,8 @@ export default function AnalysisPage() {
   }
 
   return (
-    <div className="space-y-6">
-      <div className="flex items-center justify-between">
-        <h1 className="text-3xl font-semibold">Analysis</h1>
+    <>
+      <PageHeader title="Analysis">
         <span className="text-xs text-muted-foreground flex items-center gap-1">
           {syncMutation.isPending ? (
             <><RefreshCw className="h-3 w-3 animate-spin" /> Syncing prices...</>
@@ -119,7 +119,8 @@ export default function AnalysisPage() {
             <>Prices as of {priceStatus.latest_date}</>
           ) : null}
         </span>
-      </div>
+      </PageHeader>
+      <div className="container mx-auto max-w-7xl px-4 py-6 space-y-6">
 
       <ChartWorkspace
         etfs={portfolioEtfs}
@@ -166,5 +167,6 @@ export default function AnalysisPage() {
         />
       )}
     </div>
+    </>
   );
 }

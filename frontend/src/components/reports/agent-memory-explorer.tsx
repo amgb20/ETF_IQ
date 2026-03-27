@@ -40,21 +40,51 @@ export function AgentMemoryExplorer({ portfolioId }: Props) {
   }, [portfolio?.themes]);
 
   const { weeks, grid } = useMemo(() => {
-    if (!scores || scores.length === 0) return { weeks: [] as string[], grid: {} as Record<string, Record<string, number>> };
+    // Always generate the last 8 Monday dates so the grid is never empty
+    const getMondayOfWeek = (d: Date): Date => {
+      const copy = new Date(d);
+      const day = copy.getDay();
+      const diff = day === 0 ? 6 : day - 1; // Monday = 0 offset
+      copy.setDate(copy.getDate() - diff);
+      copy.setHours(0, 0, 0, 0);
+      return copy;
+    };
 
-    const allDates = [...new Set(scores.map((s) => s.run_date))].sort();
-    const latestWeeks = allDates.slice(-8);
+    const today = new Date();
+    const thisMonday = getMondayOfWeek(today);
+    const mondayDates: string[] = [];
+    for (let i = 7; i >= 0; i--) {
+      const d = new Date(thisMonday);
+      d.setDate(d.getDate() - i * 7);
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      mondayDates.push(`${dd}/${mm}`);
+    }
+
+    // Map score run_dates to their week's Monday label for grid lookup
+    const dateToWeekLabel = (iso: string): string => {
+      const d = new Date(iso);
+      const mon = getMondayOfWeek(d);
+      const dd = String(mon.getDate()).padStart(2, "0");
+      const mm = String(mon.getMonth() + 1).padStart(2, "0");
+      return `${dd}/${mm}`;
+    };
 
     const g: Record<string, Record<string, number>> = {};
     for (const agent of researchAgents) {
       g[agent] = {};
     }
-    for (const s of scores) {
-      if (researchAgents.includes(s.agent_name) && latestWeeks.includes(s.run_date)) {
-        g[s.agent_name][s.run_date] = s.score;
+    if (scores) {
+      for (const s of scores) {
+        if (researchAgents.includes(s.agent_name)) {
+          const label = dateToWeekLabel(s.run_date);
+          if (mondayDates.includes(label)) {
+            g[s.agent_name][label] = s.score;
+          }
+        }
       }
     }
-    return { weeks: latestWeeks, grid: g };
+    return { weeks: mondayDates, grid: g };
   }, [scores, researchAgents]);
 
   const latestPredictions = useMemo(() => {
@@ -82,7 +112,7 @@ export function AgentMemoryExplorer({ portfolioId }: Props) {
     return result;
   }, [outputs, researchAgents]);
 
-  const hasScores = weeks.length > 0;
+  const hasScores = scores != null && scores.length > 0;
   const hasOutputs = outputs != null && outputs.length > 0;
   const hasPredictions = Object.keys(latestPredictions).length > 0;
 
@@ -98,43 +128,31 @@ export function AgentMemoryExplorer({ portfolioId }: Props) {
             <thead>
               <tr>
                 <th className="text-left font-medium text-muted-foreground py-2 pr-4 w-36">Agent</th>
-                {hasScores
-                  ? weeks.map((w) => (
-                      <th key={w} className="text-center font-medium text-muted-foreground py-2 px-2 w-20 text-xs">
-                        {w}
-                      </th>
-                    ))
-                  : Array.from({ length: 8 }, (_, i) => (
-                      <th key={i} className="text-center font-medium text-muted-foreground py-2 px-2 w-16">
-                        W{i + 1}
-                      </th>
-                    ))}
+                {weeks.map((w) => (
+                  <th key={w} className="text-center font-medium text-muted-foreground py-2 px-2 w-16 text-xs">
+                    {w}
+                  </th>
+                ))}
               </tr>
             </thead>
             <tbody>
               {researchAgents.map((agent) => (
                 <tr key={agent} className="border-t border-border">
                   <td className="py-2 pr-4 text-xs font-medium">{agentLabels[agent] ?? agent}</td>
-                  {hasScores
-                    ? weeks.map((w) => {
-                        const score = grid[agent]?.[w];
-                        return (
-                          <td key={w} className="py-2 px-2 text-center">
-                            {score != null ? (
-                              <span className={`inline-flex h-7 w-full items-center justify-center rounded text-xs font-semibold ${scoreColor(score)}`}>
-                                {score.toFixed(1)}
-                              </span>
-                            ) : (
-                              <span className="text-xs text-muted-foreground">&mdash;</span>
-                            )}
-                          </td>
-                        );
-                      })
-                    : Array.from({ length: 8 }, (_, i) => (
-                        <td key={i} className="py-2 px-2 text-center">
+                  {weeks.map((w) => {
+                    const score = grid[agent]?.[w];
+                    return (
+                      <td key={w} className="py-2 px-2 text-center">
+                        {score != null ? (
+                          <span className={`inline-flex h-7 w-full items-center justify-center rounded text-xs font-semibold ${scoreColor(score)}`}>
+                            {score.toFixed(1)}
+                          </span>
+                        ) : (
                           <span className="text-xs text-muted-foreground">&mdash;</span>
-                        </td>
-                      ))}
+                        )}
+                      </td>
+                    );
+                  })}
                 </tr>
               ))}
             </tbody>
