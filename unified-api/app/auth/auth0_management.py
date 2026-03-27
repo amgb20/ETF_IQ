@@ -168,13 +168,9 @@ async def _get_user_by_email(email: str) -> Optional[dict]:
 
 async def mark_auth0_email_verified(auth0_id: str) -> None:
     """Set email_verified=True on an Auth0 user after OTP verification succeeds."""
-    resp = await _mgmt_request(
-        "PATCH", f"/users/{auth0_id}", json={"email_verified": True}
-    )
+    resp = await _mgmt_request("PATCH", f"/users/{auth0_id}", json={"email_verified": True})
     if resp.status_code >= 400:
-        raise RuntimeError(
-            f"Auth0 PATCH email_verified failed: {resp.status_code} {resp.text}"
-        )
+        raise RuntimeError(f"Auth0 PATCH email_verified failed: {resp.status_code} {resp.text}")
     logger.info("Auth0: marked email_verified=True for %s", auth0_id)
 
 
