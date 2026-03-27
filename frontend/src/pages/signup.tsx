@@ -98,9 +98,6 @@ export default function SignupPage() {
         body: JSON.stringify({
           email: email.trim(),
           display_name: displayName.trim() || null,
-          base_currency: baseCurrency,
-          investment_goal: investmentGoal,
-          risk_tolerance: riskTolerance,
         }),
       });
       if (!res.ok) {
@@ -150,11 +147,18 @@ export default function SignupPage() {
     setLoading(true);
     setError("");
     try {
-      const res = await fetch("/auth/login/passwordless/verify", {
+      const res = await fetch("/auth/signup/verify", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ email: email.trim(), code: fullCode }),
+        body: JSON.stringify({
+          email: email.trim(),
+          code: fullCode,
+          display_name: displayName.trim() || null,
+          base_currency: baseCurrency,
+          investment_goal: investmentGoal,
+          risk_tolerance: riskTolerance,
+        }),
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));

@@ -2,8 +2,10 @@
 
 Endpoints
 ---------
-POST /auth/login/passwordless/start   — send OTP to email
-POST /auth/login/passwordless/verify  — verify OTP, issue JWT, set cookies
+POST /auth/signup                     — create Auth0 user, send OTP (no local DB row)
+POST /auth/signup/verify              — verify signup OTP, create local user, issue JWT
+POST /auth/login/passwordless/start   — send OTP to email (existing users)
+POST /auth/login/passwordless/verify  — verify OTP, issue JWT, set cookies (existing users)
 POST /auth/refresh                    — slide token expiry without re-OTP
 GET  /auth/get-auth-role              — return current user info (requires auth)
 POST /auth/logout                     — revoke token, clear auth cookies
@@ -49,7 +51,13 @@ class VerifyRequest(BaseModel):
 class SignupRequest(BaseModel):
     email: EmailStr
     display_name: str | None = None
-    base_currency: str = "EUR"
+
+
+class SignupVerifyRequest(BaseModel):
+    email: EmailStr
+    code: str
+    display_name: str | None = None
+    base_currency: str = "USD"
     investment_goal: str | None = None
     risk_tolerance: str | None = None
 
@@ -108,13 +116,10 @@ async def signup(
     request: Request,
     db: AsyncSession = Depends(get_db),
 ):
-    """Register a new user: create in Auth0 + local DB, then send OTP.
+    """Begin signup: ensure Auth0 user exists and send OTP.
 
-    Flow:
-      1. Check email not already in local DB.
-      2. Create the user in Auth0 via Management API (handles "already exists").
-      3. Insert a row into the local ``users`` table.
-      4. Send a passwordless OTP so the user can verify immediately.
+    The local DB record is NOT created here — it is created in the
+    /verify endpoint after the OTP is successfully validated.
     """
     email = body.email.lower().strip()
     ip = _client_ip(request)
@@ -129,11 +134,8 @@ async def signup(
     # ── Auth0 user creation ─────────────────────────────────────────
     from .auth0_management import create_auth0_user
 
-    auth0_id = None
     try:
-        auth0_user = await create_auth0_user(email, name=body.display_name)
-        if auth0_user:
-            auth0_id = auth0_user.get("user_id")
+        await create_auth0_user(email, name=body.display_name)
     except RuntimeError as exc:
         logger.error("Auth0 user creation failed for %s: %s", email, exc)
         raise HTTPException(
@@ -141,7 +143,71 @@ async def signup(
             detail="Failed to create account. Please try again.",
         ) from exc
 
-    # ── Local DB user creation ──────────────────────────────────────
+    # ── Send OTP ────────────────────────────────────────────────────
+    try:
+        await start_passwordless(email)
+    except ValueError as exc:
+        logger.warning("Failed to send OTP after signup for %s: %s", email, exc)
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="Failed to send verification code. Please try again.",
+        ) from exc
+
+    await log_auth_event(AuthEvent.LOGIN_SUCCESS, email=email, ip=ip, detail="signup_otp_sent")
+    logger.info("Signup OTP sent: %s (display_name=%s)", email, body.display_name)
+    return {"success": True}
+
+
+@router.post("/signup/verify")
+async def signup_verify(
+    body: SignupVerifyRequest,
+    request: Request,
+    response: Response,
+    db: AsyncSession = Depends(get_db),
+):
+    """Verify signup OTP, create the local user record, and issue JWT cookies.
+
+    This is separate from /login/passwordless/verify so that login stays
+    clean and signup profile fields are only accepted here.
+    """
+    ip = _client_ip(request)
+
+    await check_otp_rate_limit(body.email)
+
+    try:
+        claims = await verify_passwordless(body.email, body.code)
+    except ValueError as exc:
+        logger.warning("Signup OTP verify error for %s: %s", body.email, exc)
+        await log_auth_event(
+            AuthEvent.LOGIN_FAILURE,
+            email=body.email,
+            ip=ip,
+            detail="invalid or expired OTP",
+        )
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired OTP code",
+        ) from exc
+
+    email = claims.get("email")
+    if not email:
+        logger.error("Auth0 id_token missing email claim for signup email=%s", body.email)
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid or expired OTP code",
+        )
+
+    auth0_sub = claims.get("sub", "")
+
+    result = await db.execute(select(User).where(User.email == email))
+    user = result.scalar_one_or_none()
+
+    if user:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="An account with this email already exists. Please sign in.",
+        )
+
     user = User(
         email=email,
         display_name=body.display_name,
@@ -150,7 +216,7 @@ async def signup(
         risk_tolerance=body.risk_tolerance,
         role="user",
         is_active=True,
-        auth0_id=auth0_id,
+        auth0_id=auth0_sub or None,
     )
     db.add(user)
     try:
@@ -161,20 +227,31 @@ async def signup(
             status_code=status.HTTP_409_CONFLICT,
             detail="An account with this email already exists. Please sign in.",
         )
+    await db.refresh(user)
 
-    # ── Send OTP ────────────────────────────────────────────────────
-    try:
-        await start_passwordless(email)
-    except ValueError as exc:
-        logger.warning("Failed to send OTP after signup for %s: %s", email, exc)
-        raise HTTPException(
-            status_code=status.HTTP_400_BAD_REQUEST,
-            detail="Account created but failed to send verification code. Please try signing in.",
-        ) from exc
+    token = create_access_token(user_id=str(user.id), email=user.email, role=user.role)
+    settings = get_settings()
+    _set_auth_cookies(response, user, token, settings)
 
-    await log_auth_event(AuthEvent.LOGIN_SUCCESS, email=email, ip=ip, detail="signup")
-    logger.info("New user registered: %s (display_name=%s)", email, body.display_name)
-    return {"success": True}
+    await reset_otp_rate_limit(body.email)
+    await log_auth_event(
+        AuthEvent.LOGIN_SUCCESS,
+        email=user.email,
+        user_id=str(user.id),
+        ip=ip,
+        detail="signup_verified",
+    )
+    logger.info("New user created after signup verify: %s", email)
+
+    return {
+        "success": True,
+        "user": {
+            "id": str(user.id),
+            "email": user.email,
+            "role": user.role,
+            "username": user.display_name or user.email.split("@")[0],
+        },
+    }
 
 
 @router.post("/login/passwordless/start")
