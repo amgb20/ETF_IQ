@@ -14,6 +14,7 @@ from sqlalchemy.orm import selectinload
 from app.auth.dependencies import RequireAuth, verify_portfolio_owner
 from app.database import get_db
 from app.models import ETF, Portfolio, PortfolioSnapshot, Position, Price
+from app.models.position import Transaction
 from app.models.portfolio import PortfolioTheme
 from app.schemas.portfolio import (
     OverlapResponse,
@@ -26,7 +27,7 @@ from app.schemas.portfolio import (
     ThemeCreate,
     ThemeUpdate,
 )
-from app.schemas.position import PositionCreate, PositionResponse
+from app.schemas.position import PositionCreate, PositionResponse, PositionSell, TransactionResponse
 
 logger = logging.getLogger(__name__)
 
@@ -212,21 +213,186 @@ async def add_position(
         except Exception:
             logger.warning("Auto-classify failed for ETF %s, proceeding without theme", body.etf_id, exc_info=True)
 
-    position = Position(
-        portfolio_id=portfolio_id,
-        etf_id=body.etf_id,
-        theme_id=theme_id,
-        layer_label=body.layer_label,
-        target_allocation=body.target_allocation,
-        entry_date=body.entry_date,
-        entry_price=body.entry_price,
-        shares=body.shares,
-        invested_amount=body.invested_amount,
+    existing_result = await db.execute(
+        select(Position).where(
+            Position.portfolio_id == portfolio_id,
+            Position.etf_id == body.etf_id,
+            Position.is_active == True,  # noqa: E712
+        )
     )
-    db.add(position)
+    existing_pos = existing_result.scalar_one_or_none()
+
+    if existing_pos:
+        old_shares = float(existing_pos.shares)
+        old_invested = float(existing_pos.invested_amount)
+        new_shares = old_shares + body.shares
+        new_invested = old_invested + body.invested_amount
+        existing_pos.shares = new_shares
+        existing_pos.invested_amount = new_invested
+        existing_pos.entry_price = new_invested / new_shares if new_shares else 0
+        position = existing_pos
+    else:
+        position = Position(
+            portfolio_id=portfolio_id,
+            etf_id=body.etf_id,
+            theme_id=theme_id,
+            layer_label=body.layer_label,
+            target_allocation=body.target_allocation,
+            entry_date=body.entry_date,
+            entry_price=body.entry_price,
+            shares=body.shares,
+            invested_amount=body.invested_amount,
+        )
+        db.add(position)
+
     await db.flush()
     await db.refresh(position)
+
+    buy_txn = Transaction(
+        position_id=position.id,
+        type="buy",
+        date=body.entry_date,
+        price=body.entry_price,
+        shares=body.shares,
+        amount=body.invested_amount,
+    )
+    db.add(buy_txn)
+    await db.flush()
+
     return PositionResponse.model_validate(position)
+
+
+# ── Sell / Transactions ───────────────────────────────────────────────
+
+
+@router.post("/{portfolio_id}/positions/{position_id}/sell", response_model=TransactionResponse, status_code=201)
+async def sell_position(
+    portfolio_id: uuid.UUID,
+    position_id: uuid.UUID,
+    body: PositionSell,
+    user: RequireAuth,
+    db: AsyncSession = Depends(get_db),
+):
+    await verify_portfolio_owner(portfolio_id, user, db)
+
+    result = await db.execute(
+        select(Position)
+        .options(selectinload(Position.etf))
+        .where(Position.id == position_id, Position.portfolio_id == portfolio_id)
+    )
+    position = result.scalar_one_or_none()
+    if not position:
+        raise HTTPException(status_code=404, detail="Position not found")
+    if not position.is_active:
+        raise HTTPException(status_code=400, detail="Position is already closed")
+    if body.shares > float(position.shares):
+        raise HTTPException(status_code=400, detail="Cannot sell more shares than held")
+
+    from datetime import date as date_type
+
+    sell_date = body.trade_date or date_type.today()
+    sell_amount = round(body.shares * body.price, 2)
+
+    cost_per_share = float(position.invested_amount) / float(position.shares) if float(position.shares) else 0
+    cost_basis = round(cost_per_share * body.shares, 2)
+    realized_pnl = round(sell_amount - cost_basis, 2)
+    realized_pnl_pct = round((realized_pnl / cost_basis) * 100, 2) if cost_basis else None
+
+    txn = Transaction(
+        position_id=position.id,
+        type="sell",
+        date=sell_date,
+        price=body.price,
+        shares=body.shares,
+        amount=sell_amount,
+        notes=body.notes,
+    )
+    db.add(txn)
+
+    remaining = float(position.shares) - body.shares
+    position.shares = remaining
+    position.invested_amount = round(cost_per_share * remaining, 2)
+
+    if remaining <= 0:
+        position.is_active = False
+        position.exit_date = sell_date
+        position.exit_price = body.price
+
+    await db.flush()
+    await db.refresh(txn)
+
+    return TransactionResponse(
+        id=txn.id,
+        position_id=txn.position_id,
+        type=txn.type,
+        trade_date=txn.date,
+        price=float(txn.price),
+        shares=float(txn.shares),
+        amount=float(txn.amount),
+        notes=txn.notes,
+        created_at=txn.created_at,
+        etf_isin=position.etf.isin,
+        etf_name=position.etf.name,
+        ticker_yf=position.etf.ticker_yf,
+        realized_pnl=realized_pnl,
+        realized_pnl_pct=realized_pnl_pct,
+    )
+
+
+@router.get("/{portfolio_id}/transactions", response_model=list[TransactionResponse])
+async def list_transactions(
+    portfolio_id: uuid.UUID,
+    user: RequireAuth,
+    db: AsyncSession = Depends(get_db),
+):
+    await verify_portfolio_owner(portfolio_id, user, db)
+
+    result = await db.execute(
+        select(Transaction)
+        .join(Position, Transaction.position_id == Position.id)
+        .options(
+            selectinload(Transaction.position).selectinload(Position.etf),
+        )
+        .where(Position.portfolio_id == portfolio_id)
+        .order_by(desc(Transaction.date), desc(Transaction.created_at))
+    )
+    txns = result.scalars().all()
+
+    responses = []
+    for t in txns:
+        pos = t.position
+        realized_pnl = None
+        realized_pnl_pct = None
+
+        if t.type == "sell":
+            buy_txns = [tx for tx in pos.transactions if tx.type == "buy"]
+            total_buy_shares = sum(float(tx.shares) for tx in buy_txns)
+            total_buy_amount = sum(float(tx.amount) for tx in buy_txns)
+            avg_buy_price = total_buy_amount / total_buy_shares if total_buy_shares else 0
+            cost_basis = round(avg_buy_price * float(t.shares), 2)
+            realized_pnl = round(float(t.amount) - cost_basis, 2)
+            realized_pnl_pct = round((realized_pnl / cost_basis) * 100, 2) if cost_basis else None
+
+        responses.append(
+            TransactionResponse(
+                id=t.id,
+                position_id=t.position_id,
+                type=t.type,
+                trade_date=t.date,
+                price=float(t.price),
+                shares=float(t.shares),
+                amount=float(t.amount),
+                notes=t.notes,
+                created_at=t.created_at,
+                etf_isin=pos.etf.isin if pos.etf else None,
+                etf_name=pos.etf.name if pos.etf else None,
+                ticker_yf=pos.etf.ticker_yf if pos.etf else None,
+                realized_pnl=realized_pnl,
+                realized_pnl_pct=realized_pnl_pct,
+            )
+        )
+
+    return responses
 
 
 # ── Theme CRUD ────────────────────────────────────────────────────────

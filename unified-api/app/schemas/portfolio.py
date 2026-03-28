@@ -52,6 +52,7 @@ class PositionBrief(BaseModel):
     entry_price: float
     entry_date: date
     invested_amount: float
+    is_active: bool = True
     current_price: float | None = None
     current_value: float | None = None
     pnl: float | None = None

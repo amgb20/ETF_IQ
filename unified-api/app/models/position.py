@@ -22,6 +22,8 @@ class Position(Base):
     shares: Mapped[float] = mapped_column(Numeric(12, 6), nullable=False)
     invested_amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+    exit_date: Mapped[date_type | None] = mapped_column(nullable=True)
+    exit_price: Mapped[float | None] = mapped_column(Numeric(12, 4), nullable=True)
     created_at: Mapped[str] = mapped_column(server_default=func.now())
 
     portfolio = relationship("Portfolio", back_populates="positions")

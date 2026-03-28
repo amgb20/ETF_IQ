@@ -11,6 +11,31 @@ export function useChatSessions(portfolioId: string | undefined) {
   });
 }
 
+export function useDeleteChatSession(portfolioId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (sessionId: string) =>
+      apiFetch(`/chat/sessions/${sessionId}`, { method: "DELETE" }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chat-sessions", portfolioId] });
+    },
+  });
+}
+
+export function useRenameChatSession(portfolioId: string | undefined) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ sessionId, title }: { sessionId: string; title: string }) =>
+      apiFetch(`/chat/sessions/${sessionId}`, {
+        method: "PATCH",
+        body: JSON.stringify({ title }),
+      }),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ["chat-sessions", portfolioId] });
+    },
+  });
+}
+
 export function useDeleteChatSessions(portfolioId: string | undefined) {
   const qc = useQueryClient();
   return useMutation({

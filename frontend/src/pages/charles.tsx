@@ -1,8 +1,15 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
-  Plus, Mic, AudioLines, Send, Trash2,
-  Sparkles, Globe, Share2, MoreHorizontal,
+  Plus,
+  Mic,
+  AudioLines,
+  Send,
+  Trash2,
+  Sparkles,
+  Globe,
+  Share2,
+  MoreHorizontal,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { ChatPanel, type ChatTab } from "@/components/chat/chat-panel";
@@ -11,7 +18,9 @@ import { useChat } from "@/hooks/use-chat";
 import { useCommands, type UserCommand } from "@/hooks/use-commands";
 import { Button } from "@/components/ui/button";
 import {
-  Popover, PopoverTrigger, PopoverContent,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
 } from "@/components/ui/popover";
 
 /* ─── Command pills row ─── */
@@ -75,7 +84,12 @@ function AddCommandPopover({
           <Plus className="h-4 w-4" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="start" sideOffset={8} className="w-80 p-0 rounded-xl">
+      <PopoverContent
+        side="top"
+        align="start"
+        sideOffset={8}
+        className="w-80 p-0 rounded-xl"
+      >
         <div className="px-4 py-3 border-b border-border">
           <p className="text-sm font-medium">Quick Commands</p>
           <p className="text-xs text-muted-foreground mt-0.5">
@@ -92,7 +106,9 @@ function AddCommandPopover({
               >
                 <div className="flex-1 min-w-0">
                   <p className="text-xs font-medium truncate">{cmd.label}</p>
-                  <p className="text-[10px] text-muted-foreground truncate">{cmd.prompt}</p>
+                  <p className="text-[10px] text-muted-foreground truncate">
+                    {cmd.prompt}
+                  </p>
                 </div>
                 <button
                   onClick={() => onRemove(cmd.id)}
@@ -106,7 +122,10 @@ function AddCommandPopover({
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="p-3 border-t border-border space-y-2">
+        <form
+          onSubmit={handleSubmit}
+          className="p-3 border-t border-border space-y-2"
+        >
           <input
             type="text"
             value={label}
@@ -172,7 +191,6 @@ function NewThreadView({
   return (
     <div className="relative flex flex-col items-center justify-center h-[calc(100vh-10rem)] md:h-[calc(100vh-7.5rem)]">
       <div className="flex flex-col items-center w-full max-w-2xl px-4">
-
         <h2 className="text-center mb-8">
           <span
             className="font-brand text-4xl md:text-5xl tracking-tight"
@@ -181,7 +199,8 @@ function NewThreadView({
             ETF IQ
           </span>
           <span className="text-4xl md:text-5xl font-light text-foreground/70">
-            {" "}&mdash;{" "}
+            {" "}
+            &mdash;{" "}
           </span>
           <span className="text-3xl md:text-4xl font-light text-foreground/80">
             Charles
@@ -201,11 +220,18 @@ function NewThreadView({
             <textarea
               ref={inputRef}
               value={input}
-              onChange={(e) => setInput(e.target.value)}
+              onChange={(e) => {
+                setInput(e.target.value);
+                // Auto-expand
+                e.target.style.height = "auto";
+                e.target.style.height =
+                  Math.min(e.target.scrollHeight, 200) + "px";
+              }}
               onKeyDown={handleKeyDown}
               placeholder="Ask anything..."
               rows={2}
               className="w-full resize-none bg-transparent px-5 pt-4 pb-2 text-sm outline-none placeholder:text-muted-foreground/60"
+              style={{ minHeight: "3.5rem", maxHeight: "200px" }}
               disabled={isStreaming}
             />
             <div className="flex items-center justify-between px-3 pb-3">
@@ -217,13 +243,32 @@ function NewThreadView({
                 />
               </div>
               <div className="flex items-center gap-1">
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground" title="Dictation (coming soon)" disabled>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg text-muted-foreground"
+                  title="Dictation (coming soon)"
+                  disabled
+                >
                   <Mic className="h-4 w-4" />
                 </Button>
-                <Button type="button" variant="ghost" size="icon" className="h-8 w-8 rounded-lg text-muted-foreground" title="Voice mode (coming soon)" disabled>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="h-8 w-8 rounded-lg text-muted-foreground"
+                  title="Voice mode (coming soon)"
+                  disabled
+                >
                   <AudioLines className="h-4 w-4" />
                 </Button>
-                <Button type="submit" size="icon" className="h-8 w-8 rounded-full" disabled={isStreaming || !input.trim()}>
+                <Button
+                  type="submit"
+                  size="icon"
+                  className="h-8 w-8 rounded-full"
+                  disabled={isStreaming || !input.trim()}
+                >
                   <Send className="h-3.5 w-3.5" />
                 </Button>
               </div>
@@ -252,7 +297,9 @@ function ChatHeader({
     <div className="sticky top-12 md:top-0 z-30 bg-background">
       <div className="container mx-auto max-w-7xl px-4 flex items-center h-11">
         {/* Left: title */}
-        <h1 className="text-sm font-medium text-foreground w-32 shrink-0">Charles</h1>
+        <h1 className="text-sm font-medium text-foreground w-32 shrink-0">
+          Charles
+        </h1>
 
         {/* Center: tabs */}
         <div className="flex-1 flex items-center justify-center gap-1">
@@ -262,7 +309,7 @@ function ChatHeader({
               "flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 sidebar-transition",
               tab === "answer"
                 ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             <Sparkles className="h-3.5 w-3.5" />
@@ -274,7 +321,7 @@ function ChatHeader({
               "flex items-center gap-1.5 px-3 py-2 text-xs font-medium border-b-2 sidebar-transition",
               tab === "links"
                 ? "border-foreground text-foreground"
-                : "border-transparent text-muted-foreground hover:text-foreground",
+                : "border-transparent text-muted-foreground hover:text-foreground"
             )}
           >
             <Globe className="h-3.5 w-3.5" />
@@ -284,10 +331,22 @@ function ChatHeader({
 
         {/* Right: actions */}
         <div className="flex items-center gap-1 w-32 justify-end shrink-0">
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" title="Share" disabled>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground"
+            title="Share"
+            disabled
+          >
             <Share2 className="h-3.5 w-3.5" />
           </Button>
-          <Button variant="ghost" size="icon" className="h-7 w-7 text-muted-foreground" title="More" disabled>
+          <Button
+            variant="ghost"
+            size="icon"
+            className="h-7 w-7 text-muted-foreground"
+            title="More"
+            disabled
+          >
             <MoreHorizontal className="h-3.5 w-3.5" />
           </Button>
         </div>
@@ -313,6 +372,7 @@ export default function CharlesPage() {
     messages,
     isStreaming,
     currentTool,
+    sessionId,
     sendMessage,
     newSession,
     switchSession,
@@ -334,6 +394,14 @@ export default function CharlesPage() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlSessionId]);
+
+  /* When a new session is created (first message sent), update the URL */
+  useEffect(() => {
+    if (sessionId && !urlSessionId) {
+      setSearchParams({ session: sessionId }, { replace: true });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sessionId]);
 
   const { addCommand } = useCommands();
 

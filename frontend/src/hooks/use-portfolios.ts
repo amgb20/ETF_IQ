@@ -21,6 +21,7 @@ export interface PositionBrief {
   entry_price: number;
   entry_date: string;
   invested_amount: number;
+  is_active: boolean;
   current_price: number | null;
   current_value: number | null;
   pnl: number | null;
@@ -63,7 +64,10 @@ export function useCreatePortfolio() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: { name: string; description?: string }) =>
-      apiFetch<Portfolio>("/portfolios", { method: "POST", body: JSON.stringify(data) }),
+      apiFetch<Portfolio>("/portfolios", {
+        method: "POST",
+        body: JSON.stringify(data),
+      }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["portfolios"] }),
   });
 }
@@ -93,7 +97,11 @@ export function useCreateTheme(portfolioId: string) {
 
 export function useUpdateTheme(portfolioId: string) {
   const qc = useQueryClient();
-  return useMutation<ThemeBrief, Error, { themeId: string; name?: string; color?: string }>({
+  return useMutation<
+    ThemeBrief,
+    Error,
+    { themeId: string; name?: string; color?: string }
+  >({
     mutationFn: ({ themeId, ...data }) =>
       apiFetch(`/portfolios/${portfolioId}/themes/${themeId}`, {
         method: "PUT",
@@ -110,7 +118,9 @@ export function useDeleteTheme(portfolioId: string) {
   const qc = useQueryClient();
   return useMutation<void, Error, string>({
     mutationFn: (themeId) =>
-      apiFetch(`/portfolios/${portfolioId}/themes/${themeId}`, { method: "DELETE" }),
+      apiFetch(`/portfolios/${portfolioId}/themes/${themeId}`, {
+        method: "DELETE",
+      }),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["portfolio-themes", portfolioId] });
       qc.invalidateQueries({ queryKey: ["portfolio", portfolioId] });
@@ -120,7 +130,11 @@ export function useDeleteTheme(portfolioId: string) {
 
 export function useReassignPositionTheme(portfolioId: string) {
   const qc = useQueryClient();
-  return useMutation<void, Error, { positionId: string; themeId: string | null }>({
+  return useMutation<
+    void,
+    Error,
+    { positionId: string; themeId: string | null }
+  >({
     mutationFn: ({ positionId, themeId }) =>
       apiFetch(`/portfolios/${portfolioId}/positions/${positionId}/theme`, {
         method: "PUT",

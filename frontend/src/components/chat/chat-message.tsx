@@ -1,20 +1,34 @@
 import { useState } from "react";
 import ReactMarkdown from "react-markdown";
 import {
-  Copy, Download, Bookmark, Check,
-  ChevronDown, Globe, BookOpen, Bell, Database,
+  Copy,
+  Download,
+  Bookmark,
+  Check,
+  ChevronDown,
+  Globe,
+  BookOpen,
+  Bell,
+  Database,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
-import type { ChatMessage as ChatMessageType, ChatSource } from "@/hooks/use-chat";
+import type {
+  ChatMessage as ChatMessageType,
+  ChatSource,
+} from "@/hooks/use-chat";
 import { SourcePills } from "./source-chips";
 
 /* ── Tool label map ── */
 function toolLabel(tool: string): { label: string; icon: typeof Globe } {
   switch (tool) {
-    case "web_search": return { label: "Web search", icon: Globe };
-    case "create_alert": return { label: "Create alert", icon: Bell };
-    case "report_history": return { label: "Report history", icon: BookOpen };
-    default: return { label: "Internal knowledge", icon: Database };
+    case "web_search":
+      return { label: "Web search", icon: Globe };
+    case "create_alert":
+      return { label: "Create alert", icon: Bell };
+    case "report_history":
+      return { label: "Report history", icon: BookOpen };
+    default:
+      return { label: "Internal knowledge", icon: Database };
   }
 }
 
@@ -28,8 +42,15 @@ function ToolSteps({ tools }: { tools: { tool: string; query?: string }[] }) {
         onClick={() => setExpanded((v) => !v)}
         className="flex items-center gap-1.5 text-xs font-medium text-primary hover:text-primary/80 sidebar-transition"
       >
-        <span>Completed {tools.length} step{tools.length !== 1 ? "s" : ""}</span>
-        <ChevronDown className={cn("h-3 w-3 transition-transform", expanded && "rotate-180")} />
+        <span>
+          Completed {tools.length} step{tools.length !== 1 ? "s" : ""}
+        </span>
+        <ChevronDown
+          className={cn(
+            "h-3 w-3 transition-transform",
+            expanded && "rotate-180"
+          )}
+        />
       </button>
 
       {expanded && (
@@ -37,7 +58,10 @@ function ToolSteps({ tools }: { tools: { tool: string; query?: string }[] }) {
           {tools.map((t, i) => {
             const { label, icon: Icon } = toolLabel(t.tool);
             return (
-              <div key={i} className="flex items-center gap-2 text-xs text-muted-foreground">
+              <div
+                key={i}
+                className="flex items-center gap-2 text-xs text-muted-foreground"
+              >
                 <Icon className="h-3 w-3 shrink-0" />
                 <span>{label}</span>
                 {t.query && (
@@ -85,20 +109,25 @@ function ResponseActions({
 
   const handleSave = () => {
     if (!userQuery || !onSaveCommand) return;
-    const label = userQuery.length > 30 ? userQuery.slice(0, 30) + "..." : userQuery;
+    const label =
+      userQuery.length > 30 ? userQuery.slice(0, 30) + "..." : userQuery;
     onSaveCommand(label, userQuery);
     setSaved(true);
     setTimeout(() => setSaved(false), 1500);
   };
 
   return (
-    <div className="flex items-center gap-1 mt-3 opacity-0 group-hover/msg:opacity-100 sidebar-transition">
+    <div className="flex items-center gap-1 mt-3">
       <button
         onClick={handleCopy}
         className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary/60 sidebar-transition"
         title="Copy response"
       >
-        {copied ? <Check className="h-3 w-3 text-positive" /> : <Copy className="h-3 w-3" />}
+        {copied ? (
+          <Check className="h-3 w-3 text-positive" />
+        ) : (
+          <Copy className="h-3 w-3" />
+        )}
         {copied ? "Copied" : "Copy"}
       </button>
       <button
@@ -115,7 +144,11 @@ function ResponseActions({
           className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:text-foreground hover:bg-secondary/60 sidebar-transition"
           title="Save query as shortcut"
         >
-          {saved ? <Check className="h-3 w-3 text-positive" /> : <Bookmark className="h-3 w-3" />}
+          {saved ? (
+            <Check className="h-3 w-3 text-positive" />
+          ) : (
+            <Bookmark className="h-3 w-3" />
+          )}
           {saved ? "Saved" : "Save shortcut"}
         </button>
       )}
@@ -137,7 +170,12 @@ interface Props {
   onNavigateToLinks?: () => void;
 }
 
-export function ChatMessage({ message, userQuery, onSaveCommand, onNavigateToLinks }: Props) {
+export function ChatMessage({
+  message,
+  userQuery,
+  onSaveCommand,
+  onNavigateToLinks,
+}: Props) {
   const isUser = message.role === "user";
 
   /* ── User message: right-aligned grey pill ── */

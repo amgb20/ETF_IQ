@@ -13,6 +13,7 @@ from langchain_core.messages import AIMessage, AIMessageChunk, HumanMessage, Sys
 from langchain_core.tools import StructuredTool
 from sqlalchemy import func, select, update
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.orm import selectinload
 
 from app.agents import llm_client
 from app.agents.context_builder import build as build_context
@@ -39,6 +40,10 @@ TOOL ROUTING RULES — choose the right source for each question:
 - create_alert: use when the user wants to set up a price alert, notification, or monitoring
   threshold for an ETF. Extract the ETF name/ticker, alert type (price_above, price_below,
   pct_change, volatility), and numeric threshold from the user's message.
+- close_trade: use when the user says they sold shares, closed a position, or wants to record
+  a sell trade. Extract the ETF name/ticker, number of shares, sell price, and optional date.
+- open_trade: use when the user says they bought shares or wants to record a purchase.
+  Extract the ETF name/ticker, number of shares, buy price, and optional date.
 - Neither tool: answer from your own knowledge for general financial concepts, definitions,
   ETF mechanics, or questions that don't require live or historical portfolio data.
 
@@ -211,7 +216,166 @@ class ChatAgent:
             ),
         )
 
-        return [web_tool, rag_tool, alert_tool]
+        async def _close_trade(etf_name_or_isin: str, shares: float, sell_price: float, date: str = "", notes: str = "") -> str:
+            """Sell (partially or fully) an ETF position in the user's portfolio.
+
+            Args:
+                etf_name_or_isin: ETF ticker, name, or ISIN to sell.
+                shares: Number of shares to sell.
+                sell_price: Price per share at which shares were sold.
+                date: Optional sell date in YYYY-MM-DD format. Defaults to today.
+                notes: Optional notes about the trade.
+            """
+            from datetime import date as date_type
+
+            from app.models.etf import ETF as ETFModel
+            from app.models.position import Position as PosModel, Transaction as TxnModel
+
+            result = await db_session.execute(
+                select(PosModel)
+                .join(ETFModel, PosModel.etf_id == ETFModel.id)
+                .options(selectinload(PosModel.etf))
+                .where(
+                    PosModel.portfolio_id == portfolio_id,
+                    PosModel.is_active == True,  # noqa: E712
+                    sa.or_(
+                        ETFModel.ticker_yf.ilike(f"%{etf_name_or_isin}%"),
+                        ETFModel.name.ilike(f"%{etf_name_or_isin}%"),
+                        ETFModel.isin.ilike(f"%{etf_name_or_isin}%"),
+                    ),
+                )
+            )
+            position = result.scalar_one_or_none()
+            if not position:
+                return f"Could not find an active position matching '{etf_name_or_isin}' in your portfolio."
+
+            held = float(position.shares)
+            if shares > held:
+                return f"You only hold {held} shares of {position.etf.name}. Cannot sell {shares}."
+
+            sell_date = date_type.fromisoformat(date) if date else date_type.today()
+            sell_amount = round(shares * sell_price, 2)
+            cost_per_share = float(position.invested_amount) / held if held else 0
+            cost_basis = round(cost_per_share * shares, 2)
+            pnl = round(sell_amount - cost_basis, 2)
+            pnl_pct = round((pnl / cost_basis) * 100, 2) if cost_basis else 0
+
+            txn = TxnModel(
+                position_id=position.id, type="sell", date=sell_date,
+                price=sell_price, shares=shares, amount=sell_amount,
+                notes=notes or None,
+            )
+            db_session.add(txn)
+
+            remaining = held - shares
+            position.shares = remaining
+            position.invested_amount = round(cost_per_share * remaining, 2)
+            if remaining <= 0:
+                position.is_active = False
+                position.exit_date = sell_date
+                position.exit_price = sell_price
+
+            await db_session.commit()
+
+            label = position.etf.ticker_yf or position.etf.name
+            status = "fully closed" if remaining <= 0 else f"{remaining} shares remaining"
+            sign = "+" if pnl >= 0 else ""
+            return (
+                f"Trade recorded: Sold {shares} shares of {label} at {sell_price} "
+                f"for {sell_amount}. Realized P&L: {sign}{pnl} ({sign}{pnl_pct}%). "
+                f"Position {status}."
+            )
+
+        close_trade_tool = StructuredTool.from_function(
+            coroutine=_close_trade,
+            name="close_trade",
+            description=(
+                "Sell or partially sell an ETF position in the user's portfolio. "
+                "Use when the user says they sold shares, closed a position, or wants to record a sell trade."
+            ),
+        )
+
+        async def _open_trade(etf_name_or_isin: str, shares: float, buy_price: float, date: str = "", notes: str = "") -> str:
+            """Record a buy trade — add shares to an existing position or open a new one.
+
+            Args:
+                etf_name_or_isin: ETF ticker, name, or ISIN to buy.
+                shares: Number of shares bought.
+                buy_price: Price per share at which shares were bought.
+                date: Optional buy date in YYYY-MM-DD format. Defaults to today.
+                notes: Optional notes about the trade.
+            """
+            from datetime import date as date_type
+
+            from app.models.etf import ETF as ETFModel
+            from app.models.position import Position as PosModel, Transaction as TxnModel
+
+            etf_result = await db_session.execute(
+                select(ETFModel).where(
+                    sa.or_(
+                        ETFModel.ticker_yf.ilike(f"%{etf_name_or_isin}%"),
+                        ETFModel.name.ilike(f"%{etf_name_or_isin}%"),
+                        ETFModel.isin.ilike(f"%{etf_name_or_isin}%"),
+                    )
+                )
+            )
+            etf = etf_result.scalar_one_or_none()
+            if not etf:
+                return f"Could not find an ETF matching '{etf_name_or_isin}'. Please check the name or ISIN."
+
+            buy_date = date_type.fromisoformat(date) if date else date_type.today()
+            buy_amount = round(shares * buy_price, 2)
+
+            existing_result = await db_session.execute(
+                select(PosModel).where(
+                    PosModel.portfolio_id == portfolio_id,
+                    PosModel.etf_id == etf.id,
+                    PosModel.is_active == True,  # noqa: E712
+                )
+            )
+            existing = existing_result.scalar_one_or_none()
+
+            if existing:
+                old_shares = float(existing.shares)
+                old_invested = float(existing.invested_amount)
+                existing.shares = old_shares + shares
+                existing.invested_amount = old_invested + buy_amount
+                existing.entry_price = (old_invested + buy_amount) / (old_shares + shares)
+                position = existing
+            else:
+                position = PosModel(
+                    portfolio_id=portfolio_id, etf_id=etf.id,
+                    entry_date=buy_date, entry_price=buy_price,
+                    shares=shares, invested_amount=buy_amount,
+                )
+                db_session.add(position)
+                await db_session.flush()
+
+            txn = TxnModel(
+                position_id=position.id, type="buy", date=buy_date,
+                price=buy_price, shares=shares, amount=buy_amount,
+                notes=notes or None,
+            )
+            db_session.add(txn)
+            await db_session.commit()
+
+            label = etf.ticker_yf or etf.name
+            action = "Added to existing position" if existing else "New position opened"
+            return (
+                f"Trade recorded: Bought {shares} shares of {label} at {buy_price} "
+                f"for {buy_amount}. {action} — now holding {float(position.shares)} shares total."
+            )
+
+        open_trade_tool = StructuredTool.from_function(
+            coroutine=_open_trade,
+            name="open_trade",
+            description=(
+                "Record a buy trade for an ETF. Adds shares to an existing position or opens a new one. "
+                "Use when the user says they bought shares or wants to record a purchase."
+            ),
+        )
+
+        return [web_tool, rag_tool, alert_tool, close_trade_tool, open_trade_tool]
 
     async def send_message(self, user_text: str) -> AsyncGenerator[dict, None]:
         """Process a user message and yield SSE event dicts."""

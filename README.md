@@ -26,13 +26,18 @@ ETF IQ is a full-stack application that combines portfolio tracking, AI-driven r
 ## Features Overview
 
 ### Portfolio Management
+
 - Create portfolios with custom names and descriptions
 - Add ETF positions with shares, entry price, entry date, and target allocation
+- Sell positions (partial or full close) with sell price, date, notes, and live P&L preview
+- Adding shares to an existing ETF averages into the position; each buy/sell logged as a transaction
+- Closed positions hidden from dashboard; full trade journal in History > Trades tab
 - Organise positions into investment themes (AI Stack, Gold, Defence, Other)
 - Track real-time P&L per position and total portfolio value
 - View allocation vs. target allocation per ETF
 
 ### Interactive Charts (6 modes)
+
 - **Line / Bar** — normalised % growth time series, multi-ETF comparison
 - **Drawdown** — rolling maximum drawdown per ETF
 - **Risk / Return** — scatter plot of annualised return vs. volatility
@@ -41,6 +46,7 @@ ETF IQ is a full-stack application that combines portfolio tracking, AI-driven r
 - **News event overlay** — vertical markers on time-series charts linked to AI-extracted news events
 
 ### ETF Analytics
+
 - Live quote per ETF: last close, day change, 52-week high/low
 - Deep ETF detail: AUM, TER, index name, replication, domicile, legal structure, currency risk, sustainability, inception date
 - Risk metrics: Volatility, Return-per-risk, Max Drawdown across 1Y / 3Y / 5Y windows
@@ -49,6 +55,7 @@ ETF IQ is a full-stack application that combines portfolio tracking, AI-driven r
 - Holding overlap warnings across portfolio ETFs
 
 ### AI Research Agents (dynamic + 4 fixed, weekly cadence)
+
 - **Dynamic Theme Agents** — built at runtime from portfolio themes (e.g., "AI Stack Analyst", "Gold Analyst", "Defence Analyst"); each covers the ETFs assigned to its theme
 - **Macro Analyst** — macroeconomic and broad market research covering the entire portfolio
 - **Risk Assessor** — cross-agent risk synthesis from all research outputs
@@ -59,16 +66,21 @@ ETF IQ is a full-stack application that combines portfolio tracking, AI-driven r
 Agents use a **memory-reflection loop**: before each run, agents load their previous output and Judge score, then acknowledge past mistakes in their prompt before producing new research. Predictions are structured JSON with confidence (1–10) and timeframe.
 
 ### "Charles" — AI Portfolio Assistant (Chat)
+
 - Conversational AI assistant backed by Gemini with real-time SSE streaming
+- Perplexity-style new thread landing page with centered input and placeholder buttons
 - Multi-session conversation history persisted to database
-- Three built-in tools:
+- Five built-in tools:
   - **Web search** — live Google Search grounding via Gemini
   - **Portfolio knowledge search** — semantic search over past agent reports (RAG with pgvector)
   - **Create alert** — creates price alerts directly from the chat
+  - **Close trade** — sell shares from a position via natural language (e.g. "sell 200 shares of ARMG at 25.50")
+  - **Open trade** — buy shares or add to existing position via natural language
 - Source citations rendered as clickable chips
 - Session rename and delete
 
 ### Report Generation
+
 - **Weekly Health Report** — PDF covering all agent outputs, risk summary, and recommendations
 - **Monthly Deep Research Report** — extended thinking mode (Gemini thinking budget: 32,768 tokens)
 - Dynamic sections: Exec Summary + portfolio theme sections + Macro, Risk, Recommendations
@@ -76,17 +88,20 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 - **Agent Memory Explorer** — grid showing Judge scores per agent per week (last 8 runs), colour-coded green/amber/red
 
 ### Price Alerts
+
 - Alert types: `price_above`, `price_below`, `pct_change`, `volatility`
 - Per-ETF thresholds with active/inactive toggle
 - Full trigger history with timestamp, actual value, and message
 - Alert evaluation runs automatically after each daily price sync
 
 ### Notifications
+
 - In-app notification feed (bell icon in top nav)
 - Notification types: `report_ready`, `alert_triggered`, `alert_configured`
 - Mark individual or all notifications as read
 
 ### Onboarding Wizard
+
 - 5-step guided flow for first-time users
 - ETF search by name or ISIN
 - **LLM-powered theme classification** — Gemini analyses selected ETFs and assigns investment themes automatically
@@ -97,11 +112,13 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 - Re-onboarding cleans up existing portfolios for a fresh start
 
 ### Settings
+
 - Display name, base currency (EUR, USD, GBP, CHF, JPY, CAD)
 - Light / Dark / System theme (persisted to DB)
 - Email notifications and weekly digest toggle
 
 ### Authentication & Security
+
 - **Auth0 passwordless email OTP** — no passwords, 6-digit code sent to email
 - **Internal HS256 JWT** session cookies after OTP verification (HttpOnly `access_token` + JS-readable `access_token_js`)
 - **Token revocation** — Redis-backed blocklist; tokens revoked on logout and refresh (fails open if Redis is down)
@@ -118,18 +135,18 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 
 ## Tech Stack
 
-| Layer | Technologies |
-|---|---|
-| **Frontend** | Node 20, TypeScript 5.9, Vite 7, React 19, Tailwind CSS 4, Radix UI / shadcn, TanStack React Query v5, lightweight-charts v5, Recharts, Three.js (3D globe) |
-| **Backend** | Python 3.11, FastAPI, Uvicorn, SQLAlchemy 2.0 async, asyncpg, Alembic |
-| **AI / LLM** | Google Gemini (`google-genai`), LangChain ReAct agent (chat), pgvector RAG (768-dim embeddings) |
-| **Auth** | Auth0 passwordless email OTP + internal HS256 JWT |
-| **Database** | PostgreSQL 15 with pgvector extension |
-| **Data** | Yahoo Finance (`yfinance`), JustETF (`justetf-scraping` + custom HTML scraper) |
-| **Scheduler** | APScheduler (`AsyncIOScheduler`) |
-| **Email** | Resend API (transactional — weekly digests, alert notifications) |
-| **Cache** | Redis 7 (token revocation blocklist, OTP rate limiting, distributed rate limits) |
-| **Containers** | Docker + Docker Compose (4 services: postgres, redis, unified-api, frontend/Nginx) |
+| Layer          | Technologies                                                                                                                                                |
+| -------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Frontend**   | Node 20, TypeScript 5.9, Vite 7, React 19, Tailwind CSS 4, Radix UI / shadcn, TanStack React Query v5, lightweight-charts v5, Recharts, Three.js (3D globe) |
+| **Backend**    | Python 3.11, FastAPI, Uvicorn, SQLAlchemy 2.0 async, asyncpg, Alembic                                                                                       |
+| **AI / LLM**   | Google Gemini (`google-genai`), LangChain ReAct agent (chat), pgvector RAG (768-dim embeddings)                                                             |
+| **Auth**       | Auth0 passwordless email OTP + internal HS256 JWT                                                                                                           |
+| **Database**   | PostgreSQL 15 with pgvector extension                                                                                                                       |
+| **Data**       | Yahoo Finance (`yfinance`), JustETF (`justetf-scraping` + custom HTML scraper)                                                                              |
+| **Scheduler**  | APScheduler (`AsyncIOScheduler`)                                                                                                                            |
+| **Email**      | Resend API (transactional — weekly digests, alert notifications)                                                                                            |
+| **Cache**      | Redis 7 (token revocation blocklist, OTP rate limiting, distributed rate limits)                                                                            |
+| **Containers** | Docker + Docker Compose (4 services: postgres, redis, unified-api, frontend/Nginx)                                                                          |
 
 ---
 
@@ -148,7 +165,7 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 │  - Auth0 OTP + internal JWT + token revocation   │
 │  - APScheduler (3 cron jobs)                     │
 │  - 8 Gemini-powered AI agents                    │
-│  - LangChain ReAct chat agent                    │
+│  - LangChain ReAct chat agent (5 tools)           │
 │  - PDF report generation (ReportLab)             │
 │  - data-connectors package                       │
 └───────────────────┬─────────────────────────────┘
@@ -173,16 +190,18 @@ Agents use a **memory-reflection loop**: before each run, agents load their prev
 
 ## Pages and User Flows
 
-| Route | Page | Description |
-|---|---|---|
-| `/login` | Login | Passwordless email OTP — 2-step flow |
-| `/terms` | Terms | Static Terms of Service |
-| `/privacy` | Privacy | Static Privacy Policy |
-| `/:userId/onboarding` | Onboarding | 5-step wizard to create first portfolio |
-| `/:userId/dashboard` | Dashboard | Portfolio health, value chart, themes, allocation, alerts |
-| `/:userId/analysis` | Analysis | Chart workspace (6 modes) + Quote / ETF Detail / Agent Reports / Alerts tabs |
-| `/:userId/reports` | Reports | Generate reports, view archive, Agent Memory Explorer |
-| `/:userId/settings` | Settings | Profile, appearance, currency, notifications |
+| Route                 | Page       | Description                                                                              |
+| --------------------- | ---------- | ---------------------------------------------------------------------------------------- |
+| `/login`              | Login      | Passwordless email OTP — 2-step flow                                                     |
+| `/terms`              | Terms      | Static Terms of Service                                                                  |
+| `/privacy`            | Privacy    | Static Privacy Policy                                                                    |
+| `/:userId/onboarding` | Onboarding | 5-step wizard to create first portfolio                                                  |
+| `/:userId/dashboard`  | Dashboard  | Portfolio health, value chart, themes, allocation, alerts                                |
+| `/:userId/analysis`   | Analysis   | Chart workspace (6 modes) + Quote / Positions / ETF Detail / Agent Reports / Alerts tabs |
+| `/:userId/reports`    | Reports    | Generate reports, view archive, Agent Memory Explorer                                    |
+| `/:userId/charles`    | Charles    | Perplexity-style new thread or active conversation with AI assistant                     |
+| `/:userId/history`    | History    | Threads, Trades (journal + by ETF), Documents tabs with search and batch delete          |
+| `/:userId/account`    | Account    | Profile, appearance, currency, notifications, legal links                                |
 
 **Route guards:** `ProtectedRoute` (auth), `UserRouteGuard` (own userId only), `OnboardingGuard` (forces wizard if no portfolios), `TosGuard` (blocks all UI until ToS accepted).
 
@@ -232,6 +251,7 @@ The `ReportOrchestrator` (`unified-api/app/agents/report_orchestrator.py`) handl
 ```
 
 **Report types:**
+
 - **Weekly Health Report** (`run_type="standard"`) — standard Gemini config
 - **Monthly Deep Research Report** (`run_type="deep_research"`) — Gemini with `thinking_budget=32768` and `max_output_tokens=16384`
 
@@ -247,125 +267,143 @@ The `ReportOrchestrator` (`unified-api/app/agents/report_orchestrator.py`) handl
 
 All connectors implement the `BaseConnector` ABC: `fetch()` → `normalize()` → `ingest()`.
 
-| Connector | Registry Name | Source | Schedule | Data |
-|---|---|---|---|---|
-| `YFinanceConnector` | `yfinance` | Yahoo Finance | Daily 06:00 UTC | OHLCV price data for all portfolio ETFs |
-| `JustETFConnector` | `justetf` | JustETF (scraper) | Sunday 22:00 UTC | ETF metadata, holdings, allocations, overlap |
-| `JustETFDiscoveryConnector` | `justetf_discovery` | JustETF search API | On-demand | ETF search for onboarding / discovery |
+| Connector                   | Registry Name       | Source             | Schedule         | Data                                         |
+| --------------------------- | ------------------- | ------------------ | ---------------- | -------------------------------------------- |
+| `YFinanceConnector`         | `yfinance`          | Yahoo Finance      | Daily 06:00 UTC  | OHLCV price data for all portfolio ETFs      |
+| `JustETFConnector`          | `justetf`           | JustETF (scraper)  | Sunday 22:00 UTC | ETF metadata, holdings, allocations, overlap |
+| `JustETFDiscoveryConnector` | `justetf_discovery` | JustETF search API | On-demand        | ETF search for onboarding / discovery        |
 
 ---
 
 ## API Reference
 
 ### Authentication (`/auth`)
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/auth/login/passwordless/start` | Send OTP email (rate-limited: 3/hour per email) |
-| POST | `/auth/login/passwordless/verify` | Verify OTP, issue JWT, set session cookies (rate-limited: 5/10min per email) |
-| POST | `/auth/refresh` | Slide token expiry — revokes old token, issues new one |
-| GET | `/auth/get-auth-role` | Get current user id/email/role |
-| POST | `/auth/logout` | Revoke token, clear session cookies |
+
+| Method | Endpoint                          | Description                                                                  |
+| ------ | --------------------------------- | ---------------------------------------------------------------------------- |
+| POST   | `/auth/login/passwordless/start`  | Send OTP email (rate-limited: 3/hour per email)                              |
+| POST   | `/auth/login/passwordless/verify` | Verify OTP, issue JWT, set session cookies (rate-limited: 5/10min per email) |
+| POST   | `/auth/refresh`                   | Slide token expiry — revokes old token, issues new one                       |
+| GET    | `/auth/get-auth-role`             | Get current user id/email/role                                               |
+| POST   | `/auth/logout`                    | Revoke token, clear session cookies                                          |
 
 ### Portfolios (`/portfolios`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/portfolios` | List user's portfolios |
-| POST | `/portfolios` | Create portfolio |
-| GET | `/portfolios/{id}` | Portfolio detail with P&L |
-| POST | `/portfolios/{id}/positions` | Add position |
-| GET | `/portfolios/{id}/snapshot` | Latest daily snapshot |
-| GET | `/portfolios/{id}/overlap` | Holding overlap matrix |
+
+| Method | Endpoint                                  | Description                                                                |
+| ------ | ----------------------------------------- | -------------------------------------------------------------------------- |
+| GET    | `/portfolios`                             | List user's portfolios                                                     |
+| POST   | `/portfolios`                             | Create portfolio                                                           |
+| GET    | `/portfolios/{id}`                        | Portfolio detail with P&L (active positions only)                          |
+| POST   | `/portfolios/{id}/positions`              | Add position (logs buy transaction; adds to existing position if same ETF) |
+| POST   | `/portfolios/{id}/positions/{posId}/sell` | Sell shares (partial or full close with P&L)                               |
+| GET    | `/portfolios/{id}/transactions`           | Full trade journal (all buys and sells with P&L)                           |
+| GET    | `/portfolios/{id}/snapshot`               | Latest daily snapshot                                                      |
+| GET    | `/portfolios/{id}/overlap`                | Holding overlap matrix                                                     |
 
 ### ETFs (`/etfs`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/etfs` | List all ETFs |
-| GET | `/etfs/search?q=` | Search by name/ISIN/ticker |
-| GET | `/etfs/discover?q=` | Live search JustETF universe |
-| GET | `/etfs/{isin}/quote` | Live quote with 52-week range |
-| GET | `/etfs/{isin}` | Full ETF detail with holdings |
+
+| Method | Endpoint             | Description                   |
+| ------ | -------------------- | ----------------------------- |
+| GET    | `/etfs`              | List all ETFs                 |
+| GET    | `/etfs/search?q=`    | Search by name/ISIN/ticker    |
+| GET    | `/etfs/discover?q=`  | Live search JustETF universe  |
+| GET    | `/etfs/{isin}/quote` | Live quote with 52-week range |
+| GET    | `/etfs/{isin}`       | Full ETF detail with holdings |
 
 ### Prices (`/prices`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/prices?etf_id=&from=&to=` | OHLCV price series |
-| POST | `/prices/sync` | Trigger yfinance price sync |
+
+| Method | Endpoint                    | Description                 |
+| ------ | --------------------------- | --------------------------- |
+| GET    | `/prices?etf_id=&from=&to=` | OHLCV price series          |
+| POST   | `/prices/sync`              | Trigger yfinance price sync |
 
 ### Analytics (`/analytics`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/analytics/risk-metrics?portfolio_id=` | Annualised return, volatility, Sharpe, max drawdown, correlation matrix |
+
+| Method | Endpoint                                | Description                                                             |
+| ------ | --------------------------------------- | ----------------------------------------------------------------------- |
+| GET    | `/analytics/risk-metrics?portfolio_id=` | Annualised return, volatility, Sharpe, max drawdown, correlation matrix |
 
 ### Chat (`/chat`)
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/chat` | Send message — returns SSE stream |
-| GET | `/chat/sessions?portfolio_id=` | List sessions |
-| PATCH | `/chat/sessions/{id}` | Rename session |
-| DELETE | `/chat/sessions/{id}` | Delete session |
-| GET | `/chat/sessions/{id}/messages` | Message history |
+
+| Method | Endpoint                       | Description                               |
+| ------ | ------------------------------ | ----------------------------------------- |
+| POST   | `/chat`                        | Send message — returns SSE stream         |
+| GET    | `/chat/sessions?portfolio_id=` | List sessions (with last message snippet) |
+| PATCH  | `/chat/sessions/{id}`          | Rename session                            |
+| DELETE | `/chat/sessions/{id}`          | Delete session                            |
+| POST   | `/chat/sessions/batch-delete`  | Batch delete sessions                     |
+| GET    | `/chat/sessions/{id}/messages` | Message history                           |
 
 ### Reports (`/reports`)
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/reports` | Trigger report generation (async) |
-| GET | `/reports/{id}/status` | Poll status (pending/running/complete/failed) |
-| GET | `/reports/{id}/download` | Download PDF |
-| DELETE | `/reports/{id}` | Delete report and file |
-| GET | `/reports?portfolio_id=` | List reports |
+
+| Method | Endpoint                 | Description                                   |
+| ------ | ------------------------ | --------------------------------------------- |
+| POST   | `/reports`               | Trigger report generation (async)             |
+| GET    | `/reports/{id}/status`   | Poll status (pending/running/complete/failed) |
+| GET    | `/reports/{id}/download` | Download PDF                                  |
+| DELETE | `/reports/{id}`          | Delete report and file                        |
+| GET    | `/reports?portfolio_id=` | List reports                                  |
 
 ### Alerts (`/alerts`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/alerts?portfolio_id=` | List alerts with trigger history |
-| POST | `/alerts` | Create alert |
-| PUT | `/alerts/{id}` | Update threshold or active status |
-| DELETE | `/alerts/{id}` | Deactivate alert |
+
+| Method | Endpoint                | Description                       |
+| ------ | ----------------------- | --------------------------------- |
+| GET    | `/alerts?portfolio_id=` | List alerts with trigger history  |
+| POST   | `/alerts`               | Create alert                      |
+| PUT    | `/alerts/{id}`          | Update threshold or active status |
+| DELETE | `/alerts/{id}`          | Deactivate alert                  |
 
 ### Agent Outputs (`/agent-outputs`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/agent-outputs/scores?portfolio_id=&weeks=` | Judge score time-series per agent |
-| GET | `/agent-outputs?portfolio_id=&agent=` | Full agent output records |
+
+| Method | Endpoint                                     | Description                       |
+| ------ | -------------------------------------------- | --------------------------------- |
+| GET    | `/agent-outputs/scores?portfolio_id=&weeks=` | Judge score time-series per agent |
+| GET    | `/agent-outputs?portfolio_id=&agent=`        | Full agent output records         |
 
 ### Events (`/events`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/events?portfolio_id=&tickers=&from=&to=` | Chart events (news/macro overlay) |
+
+| Method | Endpoint                                   | Description                       |
+| ------ | ------------------------------------------ | --------------------------------- |
+| GET    | `/events?portfolio_id=&tickers=&from=&to=` | Chart events (news/macro overlay) |
 
 ### Notifications (`/notifications`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/notifications` | Last 50 notifications |
-| PATCH | `/notifications/{id}/read` | Mark as read |
-| POST | `/notifications/read-all` | Mark all as read |
+
+| Method | Endpoint                   | Description           |
+| ------ | -------------------------- | --------------------- |
+| GET    | `/notifications`           | Last 50 notifications |
+| PATCH  | `/notifications/{id}/read` | Mark as read          |
+| POST   | `/notifications/read-all`  | Mark all as read      |
 
 ### Users (`/users`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/users/me` | Current user profile |
-| PUT | `/users/me/preferences` | Update display name, currency, theme, notifications, ToS |
+
+| Method | Endpoint                | Description                                              |
+| ------ | ----------------------- | -------------------------------------------------------- |
+| GET    | `/users/me`             | Current user profile                                     |
+| PUT    | `/users/me/preferences` | Update display name, currency, theme, notifications, ToS |
 
 ### Onboarding (`/onboarding`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/onboarding/status` | Check if current user has completed onboarding |
-| POST | `/onboarding/classify-themes` | LLM-powered ETF theme classification |
-| POST | `/onboarding/correlations` | Dual correlation analysis (price + holdings overlap) |
-| POST | `/onboarding/advisor` | LLM-powered rankings and replacement suggestions for correlated pairs |
-| POST | `/onboarding/complete` | Create portfolio with themes and positions, mark user as onboarded |
+
+| Method | Endpoint                      | Description                                                           |
+| ------ | ----------------------------- | --------------------------------------------------------------------- |
+| GET    | `/onboarding/status`          | Check if current user has completed onboarding                        |
+| POST   | `/onboarding/classify-themes` | LLM-powered ETF theme classification                                  |
+| POST   | `/onboarding/correlations`    | Dual correlation analysis (price + holdings overlap)                  |
+| POST   | `/onboarding/advisor`         | LLM-powered rankings and replacement suggestions for correlated pairs |
+| POST   | `/onboarding/complete`        | Create portfolio with themes and positions, mark user as onboarded    |
 
 ### Meta (`/meta`)
-| Method | Endpoint | Description |
-|---|---|---|
-| GET | `/meta/og?url=` | Fetch Open Graph metadata (title, description, image, favicon) for a URL |
+
+| Method | Endpoint        | Description                                                              |
+| ------ | --------------- | ------------------------------------------------------------------------ |
+| GET    | `/meta/og?url=` | Fetch Open Graph metadata (title, description, image, favicon) for a URL |
 
 ### Admin (`/admin`) — requires `admin` role
-| Method | Endpoint | Description |
-|---|---|---|
-| POST | `/admin/connectors/{name}/run` | Run a named data connector |
-| POST | `/admin/agents/run` | Run the full agent pipeline |
-| GET | `/admin/costs?month=&user_id=` | Gemini token cost breakdown |
+
+| Method | Endpoint                       | Description                 |
+| ------ | ------------------------------ | --------------------------- |
+| POST   | `/admin/connectors/{name}/run` | Run a named data connector  |
+| POST   | `/admin/agents/run`            | Run the full agent pipeline |
+| GET    | `/admin/costs?month=&user_id=` | Gemini token cost breakdown |
 
 ---
 
@@ -373,44 +411,45 @@ All connectors implement the `BaseConnector` ABC: `fetch()` → `normalize()` �
 
 20 tables across PostgreSQL 15 + pgvector:
 
-| Table | Purpose |
-|---|---|
-| `users` | User accounts, roles, preferences |
-| `portfolios` | User-owned portfolios |
-| `portfolio_themes` | Investment themes grouping positions |
-| `portfolio_snapshots` | Daily portfolio value snapshots |
-| `etfs` | ETF registry with metadata and risk metrics |
-| `etf_holdings` | Top-10 holdings per ETF |
-| `etf_allocations` | Sector and country allocations per ETF |
-| `positions` | Individual ETF holdings within a portfolio |
-| `transactions` | Buy/sell transaction history per position |
-| `prices` | OHLCV daily price time-series |
-| `agent_outputs` | AI agent research outputs with Judge scores |
-| `chart_events` | News/macro events mapped to chart dates |
-| `alerts` | Price and volatility alerts |
-| `alert_events` | Alert trigger history |
-| `chat_sessions` | Chat conversation sessions |
-| `chat_messages` | Individual chat messages |
-| `reports` | Generated PDF report metadata |
-| `rag_chunks` | Vector embeddings (768-dim) for semantic search |
-| `notifications` | In-app notification feed |
-| `auth_audit_log` | Security audit events (login, logout, rate limits, token revocation) |
+| Table                 | Purpose                                                              |
+| --------------------- | -------------------------------------------------------------------- |
+| `users`               | User accounts, roles, preferences                                    |
+| `portfolios`          | User-owned portfolios                                                |
+| `portfolio_themes`    | Investment themes grouping positions                                 |
+| `portfolio_snapshots` | Daily portfolio value snapshots                                      |
+| `etfs`                | ETF registry with metadata and risk metrics                          |
+| `etf_holdings`        | Top-10 holdings per ETF                                              |
+| `etf_allocations`     | Sector and country allocations per ETF                               |
+| `positions`           | Individual ETF holdings within a portfolio                           |
+| `transactions`        | Buy/sell transaction history per position                            |
+| `prices`              | OHLCV daily price time-series                                        |
+| `agent_outputs`       | AI agent research outputs with Judge scores                          |
+| `chart_events`        | News/macro events mapped to chart dates                              |
+| `alerts`              | Price and volatility alerts                                          |
+| `alert_events`        | Alert trigger history                                                |
+| `chat_sessions`       | Chat conversation sessions                                           |
+| `chat_messages`       | Individual chat messages                                             |
+| `reports`             | Generated PDF report metadata                                        |
+| `rag_chunks`          | Vector embeddings (768-dim) for semantic search                      |
+| `notifications`       | In-app notification feed                                             |
+| `auth_audit_log`      | Security audit events (login, logout, rate limits, token revocation) |
 
 ---
 
 ## Scheduled Jobs
 
-| Job | Schedule | Action |
-|---|---|---|
-| Daily price sync | Every day 06:00 UTC | Fetch 5 days of prices via yfinance → evaluate all active alerts |
-| Weekly ETF metadata | Sunday 22:00 UTC | Full JustETF scrape → update ETF metadata, holdings, allocations, overlap |
-| Weekly AI agents | Monday 08:00 UTC | Run all 8 agents for every portfolio → send weekly digest emails |
+| Job                 | Schedule            | Action                                                                    |
+| ------------------- | ------------------- | ------------------------------------------------------------------------- |
+| Daily price sync    | Every day 06:00 UTC | Fetch 5 days of prices via yfinance → evaluate all active alerts          |
+| Weekly ETF metadata | Sunday 22:00 UTC    | Full JustETF scrape → update ETF metadata, holdings, allocations, overlap |
+| Weekly AI agents    | Monday 08:00 UTC    | Run all 8 agents for every portfolio → send weekly digest emails          |
 
 ---
 
 ## Getting Started
 
 ### Prerequisites
+
 - Docker and Docker Compose
 - Auth0 account (passwordless email OTP connection enabled)
 - Google AI API key (Gemini)
@@ -432,6 +471,7 @@ docker compose up --build
 ```
 
 This will:
+
 1. Start PostgreSQL with pgvector and Redis 7
 2. Run Alembic migrations (`alembic upgrade head`)
 3. Seed 7 default ETFs
@@ -452,29 +492,29 @@ The app uses Auth0 passwordless email OTP. Users must be pre-created in the `use
 
 ## Environment Variables
 
-| Variable | Required | Description |
-|---|---|---|
-| `POSTGRES_USER` | Yes | PostgreSQL username |
-| `POSTGRES_PASSWORD` | Yes | PostgreSQL password |
-| `POSTGRES_DB` | Yes | PostgreSQL database name |
-| `DATABASE_URL` | Yes | Full asyncpg connection string |
-| `GOOGLE_API_KEY` | Yes | Gemini API key |
-| `GEMINI_MODEL` | No | Model name (default: `models/gemini-3.1-pro-preview`) |
-| `AUTH0_DOMAIN` | Yes | Auth0 tenant domain (e.g. `your-tenant.auth0.com`) |
-| `AUTH0_CLIENT_ID` | Yes | Auth0 application client ID |
-| `AUTH0_CLIENT_SECRET` | Yes | Auth0 application client secret |
-| `AUTH0_AUDIENCE` | Yes | Auth0 API identifier |
-| `AUTH0_MGMT_CLIENT_ID` | No | Auth0 Management API M2M client ID (for admin user CRUD) |
-| `AUTH0_MGMT_CLIENT_SECRET` | No | Auth0 Management API M2M client secret |
-| `JWT_SECRET_KEY` | Yes | Secret for internal HS256 JWT signing — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
-| `ACCESS_TOKEN_EXPIRE_MINUTES` | No | Session duration in minutes (default: 600) |
-| `REDIS_URL` | No | Redis connection URL (default: `redis://localhost:6379/0`; auto-set in Docker Compose) |
-| `USE_REDIS` | No | Enable Redis for token blocklist and OTP rate limiting (default: `false`; auto-set to `true` in Docker Compose) |
-| `PERSIST_AUDIT_LOG` | No | Persist auth audit events to `auth_audit_log` DB table (default: `false`; always logged to stdout) |
-| `RESEND_API_KEY` | No | Resend API key for transactional email |
-| `EMAIL_FROM` | No | Sender address for digest/alert emails |
-| `GATEWAY_PORT` | No | Backend port mapping (default: 8000) |
-| `FRONTEND_PORT` | No | Frontend port mapping (default: 3000) |
+| Variable                      | Required | Description                                                                                                      |
+| ----------------------------- | -------- | ---------------------------------------------------------------------------------------------------------------- |
+| `POSTGRES_USER`               | Yes      | PostgreSQL username                                                                                              |
+| `POSTGRES_PASSWORD`           | Yes      | PostgreSQL password                                                                                              |
+| `POSTGRES_DB`                 | Yes      | PostgreSQL database name                                                                                         |
+| `DATABASE_URL`                | Yes      | Full asyncpg connection string                                                                                   |
+| `GOOGLE_API_KEY`              | Yes      | Gemini API key                                                                                                   |
+| `GEMINI_MODEL`                | No       | Model name (default: `models/gemini-3.1-pro-preview`)                                                            |
+| `AUTH0_DOMAIN`                | Yes      | Auth0 tenant domain (e.g. `your-tenant.auth0.com`)                                                               |
+| `AUTH0_CLIENT_ID`             | Yes      | Auth0 application client ID                                                                                      |
+| `AUTH0_CLIENT_SECRET`         | Yes      | Auth0 application client secret                                                                                  |
+| `AUTH0_AUDIENCE`              | Yes      | Auth0 API identifier                                                                                             |
+| `AUTH0_MGMT_CLIENT_ID`        | No       | Auth0 Management API M2M client ID (for admin user CRUD)                                                         |
+| `AUTH0_MGMT_CLIENT_SECRET`    | No       | Auth0 Management API M2M client secret                                                                           |
+| `JWT_SECRET_KEY`              | Yes      | Secret for internal HS256 JWT signing — generate with `python -c "import secrets; print(secrets.token_hex(32))"` |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | No       | Session duration in minutes (default: 600)                                                                       |
+| `REDIS_URL`                   | No       | Redis connection URL (default: `redis://localhost:6379/0`; auto-set in Docker Compose)                           |
+| `USE_REDIS`                   | No       | Enable Redis for token blocklist and OTP rate limiting (default: `false`; auto-set to `true` in Docker Compose)  |
+| `PERSIST_AUDIT_LOG`           | No       | Persist auth audit events to `auth_audit_log` DB table (default: `false`; always logged to stdout)               |
+| `RESEND_API_KEY`              | No       | Resend API key for transactional email                                                                           |
+| `EMAIL_FROM`                  | No       | Sender address for digest/alert emails                                                                           |
+| `GATEWAY_PORT`                | No       | Backend port mapping (default: 8000)                                                                             |
+| `FRONTEND_PORT`               | No       | Frontend port mapping (default: 3000)                                                                            |
 
 Optional data source keys: `FRED_API_KEY`, `METALS_API_KEY`, `NEWSDATA_API_KEY`, `FIRECRAWL_API_KEY`
 
@@ -581,6 +621,8 @@ erDiagram
         numeric shares
         numeric invested_amount
         boolean is_active
+        date exit_date
+        numeric exit_price
         timestamptz created_at
     }
     TRANSACTIONS {
@@ -765,8 +807,10 @@ graph TD
     R_PORT --> P2["POST /portfolios"]
     R_PORT --> P3["GET  /portfolios/:id"]
     R_PORT --> P4["POST /portfolios/:id/positions"]
-    R_PORT --> P5["GET  /portfolios/:id/snapshot"]
-    R_PORT --> P6["GET  /portfolios/:id/overlap"]
+    R_PORT --> P5["POST /portfolios/:id/positions/:posId/sell"]
+    R_PORT --> P6["GET  /portfolios/:id/transactions"]
+    R_PORT --> P7["GET  /portfolios/:id/snapshot"]
+    R_PORT --> P8["GET  /portfolios/:id/overlap"]
 
     R_ETF --> E1["GET  /etfs"]
     R_ETF --> E2["GET  /etfs/search?q="]
@@ -783,7 +827,8 @@ graph TD
     R_CHAT --> C2["GET  /chat/sessions"]
     R_CHAT --> C3["PATCH /chat/sessions/:id"]
     R_CHAT --> C4["DELETE /chat/sessions/:id"]
-    R_CHAT --> C5["GET  /chat/sessions/:id/messages"]
+    R_CHAT --> C5["POST /chat/sessions/batch-delete"]
+    R_CHAT --> C6["GET  /chat/sessions/:id/messages"]
 
     R_REP --> RE1["POST /reports"]
     R_REP --> RE2["GET  /reports/:id/status"]
@@ -924,6 +969,8 @@ flowchart TD
     LLM_REACT --> TOOL1["Tool: web_search\n→ Gemini + Google Search grounding"]
     LLM_REACT --> TOOL2["Tool: search_portfolio_knowledge\n→ cosine similarity on rag_chunks"]
     LLM_REACT --> TOOL3["Tool: create_alert\n→ POST /alerts + Notification"]
+    LLM_REACT --> TOOL4["Tool: close_trade\n→ sell shares + log transaction"]
+    LLM_REACT --> TOOL5["Tool: open_trade\n→ buy shares + log transaction"]
     LLM_REACT -->|"stream text"| CHAT_UI["Chat panel renders\nstreaming text + source chips"]
     CHAT --> SESS["Session management\nGET /chat/sessions\nPATCH rename / DELETE"]
 
@@ -967,9 +1014,9 @@ ETF_IQ/
 ├── frontend/                    # React SPA
 │   ├── src/
 │   │   ├── App.tsx              # Routes and guards
-│   │   ├── pages/               # Login, Dashboard, Analysis, Reports, Settings, Onboarding
-│   │   ├── components/          # UI components (analysis, charts, dashboard, chat, reports)
-│   │   ├── hooks/               # React Query hooks (portfolios, prices, chat, alerts, etc.)
+│   │   ├── pages/               # Login, Dashboard, Analysis, Reports, Charles, History, Account, Onboarding
+│   │   ├── components/          # UI components (analysis, charts, dashboard, chat, reports, trade)
+│   │   ├── hooks/               # React Query hooks (portfolios, prices, chat, alerts, transactions, etc.)
 │   │   ├── contexts/            # UserContext (auth state), ThemeContext
 │   │   └── lib/                 # API client, utilities
 │   └── Dockerfile
@@ -984,7 +1031,7 @@ ETF_IQ/
 │   │   │   ├── orchestrator.py  # WeeklyOrchestrator (4-phase pipeline)
 │   │   │   ├── report_orchestrator.py  # ReportOrchestrator (on-demand PDF)
 │   │   │   ├── report_writer.py # PDF generation (ReportLab)
-│   │   │   ├── chat_agent.py    # LangChain ReAct chatbot (3 tools)
+│   │   │   ├── chat_agent.py    # LangChain ReAct chatbot (5 tools: web, RAG, alerts, trade open/close)
 │   │   │   ├── judge.py         # JudgeAgent (evaluates predictions)
 │   │   │   ├── risk_assessor.py # Risk synthesis agent
 │   │   │   ├── recommender.py   # Action recommendations agent

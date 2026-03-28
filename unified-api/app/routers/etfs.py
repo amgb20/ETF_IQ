@@ -1,4 +1,5 @@
 import logging
+import re
 from datetime import date, timedelta
 
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -76,13 +77,16 @@ async def discover_etfs(
 
     try:
         for item in normalized:
+            raw_currency = item.get("currency") or ""
+            clean_currency = re.sub(r"<[^>]+>", " ", raw_currency).strip()[:3] or None
+
             stmt = (
                 pg_insert(ETF.__table__)
                 .values(
                     isin=item["isin"],
                     name=item["name"],
                     ticker_yf=item.get("ticker_yf"),
-                    currency=item.get("currency"),
+                    currency=clean_currency,
                     exchange=item.get("exchange"),
                     ter=item.get("ter"),
                     aum_eur=item.get("aum_eur"),

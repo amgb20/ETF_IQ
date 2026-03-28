@@ -1,20 +1,31 @@
 import { Link, useLocation } from "react-router-dom";
 import {
-  Plus, Clock, LayoutDashboard, LineChart, FileText, Bell,
-  CheckCheck, AlertTriangle, MessageSquare,
+  Plus,
+  Clock,
+  LayoutDashboard,
+  LineChart,
+  FileText,
+  Bell,
+  CheckCheck,
+  AlertTriangle,
+  MessageSquare,
 } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { useUserContext } from "@/contexts/UserContext";
 import { usePortfolios } from "@/hooks/use-portfolios";
 import { useChatSessions } from "@/hooks/use-chat-sessions";
 import {
-  useNotifications, useMarkRead, useMarkAllRead,
+  useNotifications,
+  useMarkRead,
+  useMarkAllRead,
 } from "@/hooks/use-notifications";
 import type { AppNotification } from "@/hooks/use-notifications";
 import { downloadReportUrl } from "@/hooks/use-reports";
 import { ProfileMenu } from "./profile-menu";
 import {
-  Popover, PopoverTrigger, PopoverContent,
+  Popover,
+  PopoverTrigger,
+  PopoverContent,
 } from "@/components/ui/popover";
 import { useNavigate } from "react-router-dom";
 
@@ -81,7 +92,12 @@ function NotificationBell() {
           )}
         </button>
       </PopoverTrigger>
-      <PopoverContent side="top" align="end" sideOffset={8} className="w-80 p-0 rounded-xl">
+      <PopoverContent
+        side="top"
+        align="end"
+        sideOffset={8}
+        className="w-80 p-0 rounded-xl"
+      >
         <div className="flex items-center justify-between border-b border-border px-3 py-2">
           <span className="text-sm font-medium">Notifications</span>
           {unreadCount > 0 && (
@@ -95,7 +111,7 @@ function NotificationBell() {
           )}
         </div>
         <div className="max-h-72 overflow-y-auto">
-          {(!notifications || notifications.length === 0) ? (
+          {!notifications || notifications.length === 0 ? (
             <p className="px-3 py-6 text-center text-sm text-muted-foreground">
               No notifications yet.
             </p>
@@ -105,17 +121,24 @@ function NotificationBell() {
                 key={n.id}
                 className={cn(
                   "flex w-full items-start gap-3 px-3 py-2.5 text-left sidebar-transition hover:bg-secondary/60",
-                  !n.is_read && "bg-secondary/40",
+                  !n.is_read && "bg-secondary/40"
                 )}
                 onClick={() => handleNotifClick(n)}
               >
                 {notifIcon(n.type)}
                 <div className="flex-1 min-w-0">
-                  <p className={cn("text-sm leading-tight", !n.is_read && "font-medium")}>
+                  <p
+                    className={cn(
+                      "text-sm leading-tight",
+                      !n.is_read && "font-medium"
+                    )}
+                  >
                     {n.title}
                   </p>
                   {n.message && (
-                    <p className="text-xs text-muted-foreground mt-0.5 truncate">{n.message}</p>
+                    <p className="text-xs text-muted-foreground mt-0.5 truncate">
+                      {n.message}
+                    </p>
                   )}
                 </div>
                 <span className="text-[10px] text-muted-foreground shrink-0 mt-0.5">
@@ -148,6 +171,12 @@ export function PerplexitySidebar({ onNavClick }: PerplexitySidebarProps) {
   const prefix = user ? `/${user.id}` : "";
   const recentThreads = (sessions ?? []).slice(0, 4);
 
+  /* Detect if we're viewing an existing session (not "new thread") */
+  const urlParams = new URLSearchParams(location.search);
+  const activeSessionId = urlParams.get("session");
+  const isNewThread =
+    location.pathname.endsWith("/charles") && !activeSessionId;
+
   return (
     <div className="flex h-full w-full flex-col bg-sidebar border-r border-sidebar-border">
       {/* ── Logo ── */}
@@ -164,15 +193,15 @@ export function PerplexitySidebar({ onNavClick }: PerplexitySidebarProps) {
 
       {/* ── Primary nav ── */}
       <nav className="flex flex-col gap-0.5 px-3">
-        {/* New thread */}
+        {/* New thread — only highlighted when /charles without ?session= */}
         <Link
           to={`${prefix}/charles`}
           onClick={onNavClick}
           className={cn(
             "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium sidebar-transition",
-            location.pathname.endsWith("/charles")
+            isNewThread
               ? "bg-secondary text-foreground"
-              : "text-sidebar-muted hover:bg-secondary/60 hover:text-foreground",
+              : "text-sidebar-muted hover:bg-secondary/60 hover:text-foreground"
           )}
         >
           <Plus className="h-4 w-4" />
@@ -187,7 +216,7 @@ export function PerplexitySidebar({ onNavClick }: PerplexitySidebarProps) {
             "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium sidebar-transition",
             location.pathname.includes("/history")
               ? "bg-secondary text-foreground"
-              : "text-sidebar-muted hover:bg-secondary/60 hover:text-foreground",
+              : "text-sidebar-muted hover:bg-secondary/60 hover:text-foreground"
           )}
         >
           <Clock className="h-4 w-4" />
@@ -210,7 +239,7 @@ export function PerplexitySidebar({ onNavClick }: PerplexitySidebarProps) {
                 "flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm font-medium sidebar-transition",
                 active
                   ? "bg-secondary text-foreground"
-                  : "text-sidebar-muted hover:bg-secondary/60 hover:text-foreground",
+                  : "text-sidebar-muted hover:bg-secondary/60 hover:text-foreground"
               )}
             >
               <Icon className="h-4 w-4" />
@@ -227,17 +256,27 @@ export function PerplexitySidebar({ onNavClick }: PerplexitySidebarProps) {
             Recent
           </p>
           <div className="space-y-0.5 overflow-y-auto max-h-full chat-scrollbar">
-            {recentThreads.map((s) => (
-              <Link
-                key={s.id}
-                to={`${prefix}/charles?session=${s.id}`}
-                onClick={onNavClick}
-                className="flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm text-sidebar-muted hover:bg-secondary/60 hover:text-foreground sidebar-transition truncate"
-              >
-                <MessageSquare className="h-3.5 w-3.5 shrink-0" />
-                <span className="truncate text-xs">{s.title || "New conversation"}</span>
-              </Link>
-            ))}
+            {recentThreads.map((s) => {
+              const isActive = activeSessionId === s.id;
+              return (
+                <Link
+                  key={s.id}
+                  to={`${prefix}/charles?session=${s.id}`}
+                  onClick={onNavClick}
+                  className={cn(
+                    "flex items-center gap-2 rounded-lg px-3 py-1.5 text-sm sidebar-transition truncate",
+                    isActive
+                      ? "bg-secondary/80 text-foreground"
+                      : "text-sidebar-muted hover:bg-secondary/60 hover:text-foreground"
+                  )}
+                >
+                  <MessageSquare className="h-3.5 w-3.5 shrink-0" />
+                  <span className="truncate text-xs">
+                    {s.title || "New conversation"}
+                  </span>
+                </Link>
+              );
+            })}
           </div>
         </div>
       )}
