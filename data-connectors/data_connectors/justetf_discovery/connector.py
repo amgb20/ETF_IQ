@@ -91,8 +91,21 @@ def _qualify_ticker_for_yf(ticker: str | None, exchange: str | None) -> str | No
 class JustETFDiscoveryConnector(BaseConnector):
     name = "justetf_discovery"
 
+    @staticmethod
+    def _sanitize_query(query: str) -> str:
+        """Trim and strip characters that break the Wicket AJAX endpoint."""
+        q = re.sub(r"[()&]", " ", query).strip()
+        q = re.sub(r"\s+", " ", q)
+        if len(q) > 80:
+            q = q[:80].rsplit(" ", 1)[0]
+        return q
+
     async def _wicket_search(self, client: httpx.AsyncClient, query: str) -> list[dict]:
         """Two-step Wicket AJAX search: GET page → POST for JSON data."""
+        query = self._sanitize_query(query)
+        if not query:
+            return []
+
         page_resp = await client.get(
             JUSTETF_BASE_URL,
             params={"search": "ETFS"},
@@ -135,6 +148,15 @@ class JustETFDiscoveryConnector(BaseConnector):
             follow_redirects=True,
         )
         data_resp.raise_for_status()
+
+        content_type = data_resp.headers.get("content-type", "")
+        if "json" not in content_type:
+            logger.warning(
+                "Wicket search returned non-JSON response (content-type=%s) for query=%r",
+                content_type, query,
+            )
+            return []
+
         return data_resp.json().get("data", [])
 
     async def fetch(self, **params) -> list[dict]:

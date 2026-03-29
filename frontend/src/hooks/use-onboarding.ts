@@ -6,6 +6,7 @@ import type {
   CorrelatedPairInput,
   AdvisorResponse,
   OnboardingStatusResponse,
+  HydrateETFsResponse,
 } from "@/types/onboarding";
 
 export function useOnboardingStatus() {
@@ -13,6 +14,16 @@ export function useOnboardingStatus() {
     queryKey: ["onboarding-status"],
     queryFn: () => apiFetch("/onboarding/status"),
     staleTime: 60_000,
+  });
+}
+
+export function useHydrateETFs() {
+  return useMutation<HydrateETFsResponse, Error, { etf_ids: string[] }>({
+    mutationFn: (body) =>
+      apiFetch("/onboarding/hydrate-etfs", {
+        method: "POST",
+        body: JSON.stringify(body),
+      }),
   });
 }
 
