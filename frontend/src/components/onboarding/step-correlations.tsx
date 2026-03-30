@@ -2,7 +2,7 @@ import { AlertTriangle, CheckCircle, ArrowRight, Info } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import type { CorrelationsResponse, PairOverlap, PairCorrelation } from "@/types/onboarding";
+import type { CorrelationsResponse, PairOverlap } from "@/types/onboarding";
 
 const FLAG_THRESHOLD = 80;
 

@@ -168,18 +168,20 @@ async def hydrate_etfs(
 
     # Determine which ETFs are missing prices / holdings
     price_counts = dict(
-        (await db.execute(
-            select(Price.etf_id, func.count())
-            .where(Price.etf_id.in_(body.etf_ids))
-            .group_by(Price.etf_id)
-        )).all()
+        (
+            await db.execute(
+                select(Price.etf_id, func.count()).where(Price.etf_id.in_(body.etf_ids)).group_by(Price.etf_id)
+            )
+        ).all()
     )
     holdings_counts = dict(
-        (await db.execute(
-            select(ETFHolding.etf_id, func.count())
-            .where(ETFHolding.etf_id.in_(body.etf_ids))
-            .group_by(ETFHolding.etf_id)
-        )).all()
+        (
+            await db.execute(
+                select(ETFHolding.etf_id, func.count())
+                .where(ETFHolding.etf_id.in_(body.etf_ids))
+                .group_by(ETFHolding.etf_id)
+            )
+        ).all()
     )
 
     needs_prices: list[str] = []
@@ -191,7 +193,11 @@ async def hydrate_etfs(
         resolvable = bool(etf.ticker_yf and "." in etf.ticker_yf)
         logger.info(
             "Hydrate check: isin=%s ticker_yf=%s prices=%d holdings=%d resolvable=%s",
-            etf.isin, etf.ticker_yf, price_counts.get(eid, 0), holdings_counts.get(eid, 0), resolvable,
+            etf.isin,
+            etf.ticker_yf,
+            price_counts.get(eid, 0),
+            holdings_counts.get(eid, 0),
+            resolvable,
         )
         if not has_prices and resolvable:
             needs_prices.append(etf.ticker_yf)
@@ -200,7 +206,8 @@ async def hydrate_etfs(
 
     logger.info(
         "Hydrate plan: needs_prices=%s needs_holdings=%s",
-        needs_prices, needs_holdings,
+        needs_prices,
+        needs_holdings,
     )
 
     already_populated = len(body.etf_ids) - len(set(needs_prices) | set(needs_holdings))
@@ -208,6 +215,7 @@ async def hydrate_etfs(
         already_populated = 0
 
     from data_connectors.registry import get_registry
+
     registry = get_registry()
 
     async def _fetch_prices() -> None:
@@ -247,7 +255,9 @@ async def hydrate_etfs(
     hydrated = len(needs_prices) + len(needs_holdings)
     logger.info(
         "Hydrate complete: hydrated=%d already_populated=%d errors=%d",
-        hydrated, already_populated, len(errors),
+        hydrated,
+        already_populated,
+        len(errors),
     )
 
     return HydrateETFsResponse(

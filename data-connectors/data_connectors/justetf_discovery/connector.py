@@ -153,7 +153,8 @@ class JustETFDiscoveryConnector(BaseConnector):
         if "json" not in content_type:
             logger.warning(
                 "Wicket search returned non-JSON response (content-type=%s) for query=%r",
-                content_type, query,
+                content_type,
+                query,
             )
             return []
 
@@ -202,21 +203,23 @@ class JustETFDiscoveryConnector(BaseConnector):
             raw_ticker = item.get("ticker") or item.get("tickerSymbol")
             exchange = item.get("exchange") or item.get("listingExchange")
             ticker_yf = _qualify_ticker_for_yf(raw_ticker, exchange)
-            results.append({
-                "isin": isin,
-                "name": item.get("name") or item.get("fundName", isin),
-                "ticker_yf": ticker_yf,
-                "currency": item.get("fundCurrency") or item.get("currency"),
-                "exchange": exchange,
-                "ter": self._parse_ter(
-                    item.get("ter") or item.get("totalExpenseRatio")
-                ),
-                "aum_eur": self._parse_aum(
-                    item.get("fundSize") or item.get("fundSizeEUR")
-                ),
-                "domicile": item.get("domicile") or item.get("fundDomicile"),
-                "asset_class": item.get("assetClass"),
-            })
+            results.append(
+                {
+                    "isin": isin,
+                    "name": item.get("name") or item.get("fundName", isin),
+                    "ticker_yf": ticker_yf,
+                    "currency": item.get("fundCurrency") or item.get("currency"),
+                    "exchange": exchange,
+                    "ter": self._parse_ter(
+                        item.get("ter") or item.get("totalExpenseRatio")
+                    ),
+                    "aum_eur": self._parse_aum(
+                        item.get("fundSize") or item.get("fundSizeEUR")
+                    ),
+                    "domicile": item.get("domicile") or item.get("fundDomicile"),
+                    "asset_class": item.get("assetClass"),
+                }
+            )
         return results
 
     async def ingest(self, session: AsyncSession, **params) -> None:
@@ -226,16 +229,20 @@ class JustETFDiscoveryConnector(BaseConnector):
         from app.models.etf import ETF
 
         for item in normalized:
-            stmt = pg_insert(ETF.__table__).values(
-                isin=item["isin"],
-                name=item["name"],
-                ticker_yf=item.get("ticker_yf"),
-                currency=item.get("currency"),
-                exchange=item.get("exchange"),
-                ter=item.get("ter"),
-                aum_eur=item.get("aum_eur"),
-                domicile=item.get("domicile"),
-            ).on_conflict_do_nothing(index_elements=["isin"])
+            stmt = (
+                pg_insert(ETF.__table__)
+                .values(
+                    isin=item["isin"],
+                    name=item["name"],
+                    ticker_yf=item.get("ticker_yf"),
+                    currency=item.get("currency"),
+                    exchange=item.get("exchange"),
+                    ter=item.get("ter"),
+                    aum_eur=item.get("aum_eur"),
+                    domicile=item.get("domicile"),
+                )
+                .on_conflict_do_nothing(index_elements=["isin"])
+            )
             await session.execute(stmt)
 
         await session.commit()

@@ -141,9 +141,7 @@ async def compute_holdings_overlap(
             )
             continue
 
-        weighted_overlap = sum(
-            min(holdings_a[k], holdings_b[k]) for k in shared_keys
-        )
+        weighted_overlap = sum(min(holdings_a[k], holdings_b[k]) for k in shared_keys)
         overlap_pct = round(weighted_overlap * 100, 2)
 
         overlaps.append(

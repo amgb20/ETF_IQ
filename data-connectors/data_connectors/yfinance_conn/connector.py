@@ -21,7 +21,14 @@ TRADING_DAYS_PER_YEAR = 252
 class YFinanceConnector(BaseConnector):
     name = "yfinance"
 
-    async def fetch(self, *, tickers: list[str] | None = None, period: str = "5d", interval: str = "1d", **_: Any) -> list[dict]:
+    async def fetch(
+        self,
+        *,
+        tickers: list[str] | None = None,
+        period: str = "5d",
+        interval: str = "1d",
+        **_: Any,
+    ) -> list[dict]:
         """Download OHLCV data for given tickers via yfinance.
 
         Returns a list of dicts, one per ticker, each containing the ticker
@@ -34,8 +41,19 @@ class YFinanceConnector(BaseConnector):
         if EURUSD_TICKER not in all_tickers:
             all_tickers.append(EURUSD_TICKER)
 
-        logger.info("yfinance fetch: tickers=%s period=%s interval=%s", all_tickers, period, interval)
-        df = yf.download(all_tickers, period=period, interval=interval, group_by="ticker", threads=True)
+        logger.info(
+            "yfinance fetch: tickers=%s period=%s interval=%s",
+            all_tickers,
+            period,
+            interval,
+        )
+        df = yf.download(
+            all_tickers,
+            period=period,
+            interval=interval,
+            group_by="ticker",
+            threads=True,
+        )
 
         results: list[dict] = []
         if len(all_tickers) == 1:
@@ -76,7 +94,14 @@ class YFinanceConnector(BaseConnector):
                 )
         return rows
 
-    async def ingest(self, session: AsyncSession, *, tickers: list[str] | None = None, period: str = "5d", **_: Any) -> None:
+    async def ingest(
+        self,
+        session: AsyncSession,
+        *,
+        tickers: list[str] | None = None,
+        period: str = "5d",
+        **_: Any,
+    ) -> None:
         if not tickers:
             tickers = await self._db_tickers(session)
         logger.info("yfinance ingest: tickers=%s  period=%s", tickers, period)
@@ -84,7 +109,9 @@ class YFinanceConnector(BaseConnector):
         raw = await self.fetch(tickers=tickers, period=period)
         rows = await self.normalize(raw)
         if not rows:
-            logger.warning("yfinance ingest: no rows to insert (raw had %d items)", len(raw))
+            logger.warning(
+                "yfinance ingest: no rows to insert (raw had %d items)", len(raw)
+            )
             return
 
         logger.info("yfinance ingest: normalized %d price rows", len(rows))
@@ -118,14 +145,22 @@ class YFinanceConnector(BaseConnector):
             )
             inserted += result.rowcount
         await session.commit()
-        logger.info("yfinance ingest: inserted %d price rows, skipped %d (no etf_id match)", inserted, skipped)
+        logger.info(
+            "yfinance ingest: inserted %d price rows, skipped %d (no etf_id match)",
+            inserted,
+            skipped,
+        )
 
     # ------------------------------------------------------------------
     # On-demand intraday fetch (no DB persistence)
     # ------------------------------------------------------------------
 
     async def fetch_intraday(
-        self, *, tickers: list[str], period: str = "1d", interval: str = "5m",
+        self,
+        *,
+        tickers: list[str],
+        period: str = "1d",
+        interval: str = "5m",
     ) -> list[dict]:
         """Fetch intraday OHLCV data and return normalized rows (not persisted).
 
@@ -152,7 +187,13 @@ class YFinanceConnector(BaseConnector):
                         "volume": _safe_int(row.get("Volume")),
                     }
                 )
-        logger.info("yfinance fetch_intraday: %d rows for %s (%s/%s)", len(rows), tickers, period, interval)
+        logger.info(
+            "yfinance fetch_intraday: %d rows for %s (%s/%s)",
+            len(rows),
+            tickers,
+            period,
+            interval,
+        )
         return rows
 
     # ------------------------------------------------------------------
@@ -191,7 +232,10 @@ class YFinanceConnector(BaseConnector):
             field_map: dict[str, tuple[str, Any]] = {
                 "aum_eur": ("totalAssets", lambda v: int(v) if v else None),
                 "description": ("longBusinessSummary", lambda v: v),
-                "holdings_count": ("holdings", lambda v: len(v) if isinstance(v, list) else None),
+                "holdings_count": (
+                    "holdings",
+                    lambda v: len(v) if isinstance(v, list) else None,
+                ),
             }
 
             for col, (info_key, transform) in field_map.items():
@@ -212,7 +256,8 @@ class YFinanceConnector(BaseConnector):
         await session.commit()
         logger.info(
             "yfinance enrich_metadata: updated %d ETFs, skipped %d (unresolvable ticker)",
-            updated, skipped,
+            updated,
+            skipped,
         )
         return updated
 
@@ -234,8 +279,7 @@ class YFinanceConnector(BaseConnector):
         for etf_id, isin in etfs:
             prices_result = await session.execute(
                 text(
-                    "SELECT date, close FROM prices "
-                    "WHERE etf_id = :eid ORDER BY date"
+                    "SELECT date, close FROM prices WHERE etf_id = :eid ORDER BY date"
                 ),
                 {"eid": str(etf_id)},
             )
@@ -263,7 +307,7 @@ class YFinanceConnector(BaseConnector):
                     continue
 
                 window_ret = daily_ret[-days:]
-                window_closes = closes[-(days + 1):]
+                window_closes = closes[-(days + 1) :]
 
                 vol = float(np.std(window_ret, ddof=1) * np.sqrt(TRADING_DAYS_PER_YEAR))
                 ann_ret = float((1 + np.mean(window_ret)) ** TRADING_DAYS_PER_YEAR - 1)
@@ -307,30 +351,48 @@ class YFinanceConnector(BaseConnector):
         Filters out bare tickers without an exchange suffix since
         Yahoo Finance cannot resolve them.
         """
-        result = await session.execute(text("SELECT ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL"))
+        result = await session.execute(
+            text("SELECT ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL")
+        )
         all_tickers = [row[0] for row in result.all()]
         tickers = [t for t in all_tickers if _is_yf_resolvable(t)]
         if len(tickers) < len(all_tickers):
             logger.info(
                 "yfinance _db_tickers: filtered %d/%d tickers (skipped bare symbols)",
-                len(tickers), len(all_tickers),
+                len(tickers),
+                len(all_tickers),
             )
         if not tickers:
-            tickers = ["XAIX.L", "SMGB.L", "VPNG.L", "URNG.L", "AUCP.L", "SGLN.L", "ARMG.L"]
+            tickers = [
+                "XAIX.L",
+                "SMGB.L",
+                "VPNG.L",
+                "URNG.L",
+                "AUCP.L",
+                "SGLN.L",
+                "ARMG.L",
+            ]
             logger.info("yfinance _db_tickers: using hardcoded fallback tickers")
         return tickers
 
     async def _default_tickers(self) -> list[str]:
         """Fallback when fetch() is called without a session — hardcoded tickers."""
         return [
-            "XAIX.L", "SMGB.L", "VPNG.L", "URNG.L",
-            "AUCP.L", "SGLN.L", "ARMG.L",
+            "XAIX.L",
+            "SMGB.L",
+            "VPNG.L",
+            "URNG.L",
+            "AUCP.L",
+            "SGLN.L",
+            "ARMG.L",
         ]
 
     @staticmethod
     async def _resolve_etf_ids(session: AsyncSession) -> dict[str, str]:
         """Build a ticker_yf -> etf_id mapping from the etfs table."""
-        result = await session.execute(text("SELECT id, ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL"))
+        result = await session.execute(
+            text("SELECT id, ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL")
+        )
         return {row.ticker_yf: str(row.id) for row in result}
 
 
