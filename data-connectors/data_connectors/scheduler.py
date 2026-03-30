@@ -27,7 +27,9 @@ async def _daily_job() -> None:
     try:
         async with async_session() as session:
             triggered = await AlertEngine.evaluate_all(session)
-            logger.info("CRON: alert evaluation complete, %d alerts triggered", triggered)
+            logger.info(
+                "CRON: alert evaluation complete, %d alerts triggered", triggered
+            )
     except Exception:
         logger.exception("CRON: alert evaluation failed")
 
@@ -66,9 +68,15 @@ async def _weekly_agent_job() -> None:
         for portfolio in portfolios:
             try:
                 result = await WeeklyOrchestrator.run(portfolio.id, date.today())
-                logger.info("CRON: agent cycle complete for portfolio %s: %s", portfolio.id, result)
+                logger.info(
+                    "CRON: agent cycle complete for portfolio %s: %s",
+                    portfolio.id,
+                    result,
+                )
             except Exception:
-                logger.exception("CRON: agent cycle failed for portfolio %s", portfolio.id)
+                logger.exception(
+                    "CRON: agent cycle failed for portfolio %s", portfolio.id
+                )
     except Exception:
         logger.exception("CRON: weekly agent job failed")
     logger.info("CRON: weekly agent cycle finished")
@@ -90,8 +98,7 @@ async def _send_weekly_digests() -> None:
     logger.info("CRON: sending weekly digest emails")
     async with async_session() as session:
         result = await session.execute(
-            select(Portfolio, User)
-            .join(User, Portfolio.user_id == User.id)
+            select(Portfolio, User).join(User, Portfolio.user_id == User.id)
         )
         rows = result.all()
         sent = 0
@@ -109,9 +116,24 @@ async def start_scheduler() -> AsyncIOScheduler:
     global _scheduler
     _scheduler = AsyncIOScheduler(timezone="UTC")
 
-    _scheduler.add_job(_daily_job, CronTrigger(hour=6, minute=0), id="daily_yfinance", replace_existing=True)
-    _scheduler.add_job(_weekly_justetf_job, CronTrigger(day_of_week="sun", hour=22, minute=0), id="weekly_justetf", replace_existing=True)
-    _scheduler.add_job(_weekly_agent_job, CronTrigger(day_of_week="mon", hour=8, minute=0), id="weekly_agents", replace_existing=True)
+    _scheduler.add_job(
+        _daily_job,
+        CronTrigger(hour=6, minute=0),
+        id="daily_yfinance",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        _weekly_justetf_job,
+        CronTrigger(day_of_week="sun", hour=22, minute=0),
+        id="weekly_justetf",
+        replace_existing=True,
+    )
+    _scheduler.add_job(
+        _weekly_agent_job,
+        CronTrigger(day_of_week="mon", hour=8, minute=0),
+        id="weekly_agents",
+        replace_existing=True,
+    )
 
     _scheduler.start()
     logger.info("Scheduler started with %d jobs", len(_scheduler.get_jobs()))

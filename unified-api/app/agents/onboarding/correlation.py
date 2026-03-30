@@ -92,21 +92,34 @@ async def compute_holdings_overlap(
 ) -> list[dict]:
     """Compute weighted holdings overlap for each ETF pair.
 
-    overlap_pct = sum(min(weight_a, weight_b)) for shared holdings (by ISIN).
+    overlap_pct = sum(min(weight_a, weight_b)) for shared holdings.
+    Matches by holding_isin when available, falls back to normalised
+    holding_name so that scraped data without ISINs still gets compared.
     Returns list of dicts: {etf_id_a, etf_id_b, overlap_pct, shared_count}.
     """
     result = await db.execute(
-        select(ETFHolding.etf_id, ETFHolding.holding_isin, ETFHolding.weight).where(
-            ETFHolding.etf_id.in_(etf_ids), ETFHolding.holding_isin.isnot(None)
-        )
+        select(
+            ETFHolding.etf_id,
+            ETFHolding.holding_isin,
+            ETFHolding.holding_name,
+            ETFHolding.weight,
+        ).where(ETFHolding.etf_id.in_(etf_ids))
     )
     rows = result.all()
 
-    # Build per-ETF weights: {etf_id: {holding_isin: weight}}
+    def _holding_key(isin: str | None, name: str | None) -> str | None:
+        """Return ISIN if available, otherwise a lowercased name."""
+        if isin:
+            return isin
+        if name:
+            return name.strip().lower()
+        return None
+
     holdings_map: dict[uuid.UUID, dict[str, float]] = defaultdict(dict)
-    for etf_id, isin, weight in rows:
-        if isin and weight is not None:
-            holdings_map[etf_id][isin] = float(weight)
+    for etf_id, isin, name, weight in rows:
+        key = _holding_key(isin, name)
+        if key and weight is not None:
+            holdings_map[etf_id][key] = float(weight)
 
     overlaps: list[dict] = []
     for id_a, id_b in combinations(etf_ids, 2):
@@ -115,9 +128,9 @@ async def compute_holdings_overlap(
 
         holdings_a = holdings_map[id_a]
         holdings_b = holdings_map[id_b]
-        shared_isins = set(holdings_a.keys()) & set(holdings_b.keys())
+        shared_keys = set(holdings_a.keys()) & set(holdings_b.keys())
 
-        if not shared_isins:
+        if not shared_keys:
             overlaps.append(
                 {
                     "etf_id_a": id_a,
@@ -128,8 +141,7 @@ async def compute_holdings_overlap(
             )
             continue
 
-        weighted_overlap = sum(min(holdings_a[isin], holdings_b[isin]) for isin in shared_isins)
-        # Weight is typically 0-1 (fraction), multiply by 100 for percentage
+        weighted_overlap = sum(min(holdings_a[k], holdings_b[k]) for k in shared_keys)
         overlap_pct = round(weighted_overlap * 100, 2)
 
         overlaps.append(
@@ -137,7 +149,7 @@ async def compute_holdings_overlap(
                 "etf_id_a": id_a,
                 "etf_id_b": id_b,
                 "overlap_pct": overlap_pct,
-                "shared_count": len(shared_isins),
+                "shared_count": len(shared_keys),
             }
         )
 

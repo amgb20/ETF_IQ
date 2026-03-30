@@ -13,6 +13,7 @@ import { StepOptimization } from "@/components/onboarding/step-optimization";
 import { StepAllocations } from "@/components/onboarding/step-allocations";
 import { StepReview } from "@/components/onboarding/step-review";
 import {
+  useHydrateETFs,
   useClassifyThemes,
   useComputeCorrelations,
   useCorrelationAdvisor,
@@ -53,23 +54,28 @@ export default function OnboardingPage() {
   const [portfolioName, setPortfolioName] = useState("");
 
   // ── Mutations ──────────────────────────────────────────────────
+  const hydrateETFs = useHydrateETFs();
   const classifyThemes = useClassifyThemes();
   const computeCorrelations = useComputeCorrelations();
   const correlationAdvisor = useCorrelationAdvisor();
   const completeOnboarding = useCompleteOnboarding();
 
-  // ── Step 2→3: Analyze themes ──────────────────────────────────
+  // ── Step 2→3: Hydrate data then analyze themes ────────────────
   const handleAnalyzeThemes = useCallback(async () => {
+    const ids = etfs.map((e) => e.id);
     try {
-      const result = await classifyThemes.mutateAsync({
-        etf_ids: etfs.map((e) => e.id),
-      });
+      await hydrateETFs.mutateAsync({ etf_ids: ids });
+    } catch (err) {
+      console.error("ETF data hydration failed (continuing):", err);
+    }
+    try {
+      const result = await classifyThemes.mutateAsync({ etf_ids: ids });
       setThemes(result.themes);
       setStep(3);
     } catch (err) {
       console.error("Theme classification failed:", err);
     }
-  }, [etfs, classifyThemes]);
+  }, [etfs, hydrateETFs, classifyThemes]);
 
   // ── Step 3→4: Compute correlations ────────────────────────────
   const handleCheckCorrelations = useCallback(async () => {
@@ -274,7 +280,7 @@ export default function OnboardingPage() {
             etfs={etfs}
             setEtfs={setEtfs}
             onAnalyze={handleAnalyzeThemes}
-            isAnalyzing={classifyThemes.isPending}
+            isAnalyzing={hydrateETFs.isPending || classifyThemes.isPending}
           />
         )}
 

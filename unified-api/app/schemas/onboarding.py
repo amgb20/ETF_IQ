@@ -141,3 +141,13 @@ class AdvisorResponse(BaseModel):
 
 class OnboardingStatusResponse(BaseModel):
     is_onboarded: bool
+
+
+class HydrateETFsRequest(BaseModel):
+    etf_ids: list[uuid.UUID]
+
+
+class HydrateETFsResponse(BaseModel):
+    hydrated: int
+    already_populated: int
+    errors: list[str]

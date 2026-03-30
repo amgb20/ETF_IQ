@@ -42,7 +42,15 @@ async def test_normalize_maps_columns(connector):
 @pytest.mark.asyncio
 async def test_normalize_handles_nan(connector):
     df = _make_df(
-        [{"Open": float("nan"), "High": None, "Low": 9.0, "Close": 10.0, "Volume": float("nan")}],
+        [
+            {
+                "Open": float("nan"),
+                "High": None,
+                "Low": 9.0,
+                "Close": 10.0,
+                "Volume": float("nan"),
+            }
+        ],
         ["2026-03-06"],
     )
     raw = [{"ticker": "XAIX.L", "df": df}]

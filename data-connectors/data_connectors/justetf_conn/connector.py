@@ -46,7 +46,11 @@ class JustETFConnector(BaseConnector):
             try:
                 overview = justetf_scraping.get_etf_overview(isin)
             except Exception as e:
-                logger.warning("get_etf_overview failed for %s (%s), continuing with profile scrape", isin, e)
+                logger.warning(
+                    "get_etf_overview failed for %s (%s), continuing with profile scrape",
+                    isin,
+                    e,
+                )
             try:
                 chart = justetf_scraping.load_chart(isin)
             except Exception:
@@ -56,12 +60,14 @@ class JustETFConnector(BaseConnector):
             except Exception:
                 logger.warning("profile scrape failed for %s", isin)
                 profile_meta = {}
-            results.append({
-                "isin": isin,
-                "overview": overview,
-                "chart": chart,
-                "profile_meta": profile_meta,
-            })
+            results.append(
+                {
+                    "isin": isin,
+                    "overview": overview,
+                    "chart": chart,
+                    "profile_meta": profile_meta,
+                }
+            )
         return results
 
     async def normalize(self, raw: list[dict]) -> list[dict]:
@@ -80,7 +86,9 @@ class JustETFConnector(BaseConnector):
                 rows.append(a)
         return rows
 
-    async def ingest(self, session: AsyncSession, *, isins: list[str] | None = None, **_: Any) -> None:
+    async def ingest(
+        self, session: AsyncSession, *, isins: list[str] | None = None, **_: Any
+    ) -> None:
         raw = await self.fetch(isins=isins)
         rows = await self.normalize(raw)
         now = datetime.utcnow()
@@ -145,7 +153,7 @@ class JustETFConnector(BaseConnector):
                         meta[key] = val
 
             if "ter_raw" in meta:
-                m = re.search(r'([\d.]+)%', meta.pop("ter_raw"))
+                m = re.search(r"([\d.]+)%", meta.pop("ter_raw"))
                 if m:
                     meta["ter"] = float(m.group(1)) / 100
 
@@ -157,14 +165,15 @@ class JustETFConnector(BaseConnector):
                     pass
 
             if "volatility_raw" in meta:
-                m = re.search(r'([\d.]+)%', meta.pop("volatility_raw"))
+                m = re.search(r"([\d.]+)%", meta.pop("volatility_raw"))
                 if m:
                     meta["vol_1y"] = float(m.group(1))
 
             # holdings_count — "etf-profile-header_holdings-value" → "36"
             m = re.search(
                 r'data-testid="etf-profile-header_holdings-value"[^>]*>([^<]+)<',
-                html, re.IGNORECASE,
+                html,
+                re.IGNORECASE,
             )
             if m:
                 val = m.group(1).strip()
@@ -174,17 +183,18 @@ class JustETFConnector(BaseConnector):
             # aum_eur — "etf-profile-header_fund-size-value" → "€123m" (when present)
             m = re.search(
                 r'data-testid="etf-profile-header_fund-size-value"[^>]*>([^<]+)<',
-                html, re.IGNORECASE,
+                html,
+                re.IGNORECASE,
             )
             if m:
                 raw_size = html_mod.unescape(m.group(1).strip())
                 # formats seen: "€123m", "€1.2b", "123,456,789"
-                num = re.sub(r'[€$,\s]', '', raw_size.lower())
+                num = re.sub(r"[€$,\s]", "", raw_size.lower())
                 multiplier = 1
-                if num.endswith('b'):
+                if num.endswith("b"):
                     multiplier = 1_000_000_000
                     num = num[:-1]
-                elif num.endswith('m'):
+                elif num.endswith("m"):
                     multiplier = 1_000_000
                     num = num[:-1]
                 aum = _safe_decimal(num)
@@ -196,7 +206,9 @@ class JustETFConnector(BaseConnector):
             meta["_sectors"] = _extract_allocation_block(html, "sectors")
 
         except Exception:
-            logger.warning("Failed to scrape profile metadata for %s", isin, exc_info=True)
+            logger.warning(
+                "Failed to scrape profile metadata for %s", isin, exc_info=True
+            )
         return meta
 
     # ------------------------------------------------------------------
@@ -252,14 +264,23 @@ class JustETFConnector(BaseConnector):
     # ------------------------------------------------------------------
 
     @staticmethod
-    def _normalize_overview(isin: str, overview: dict, profile_meta: dict | None = None) -> dict:
+    def _normalize_overview(
+        isin: str, overview: dict, profile_meta: dict | None = None
+    ) -> dict:
         profile_meta = profile_meta or {}
 
         holdings = overview.get("top_holdings") or overview.get("holdings") or []
-        top10_weights = [_safe_decimal(h.get("weight") or h.get("share") or h.get("percentage")) for h in holdings[:10]]
+        top10_weights = [
+            _safe_decimal(h.get("weight") or h.get("share") or h.get("percentage"))
+            for h in holdings[:10]
+        ]
         if not top10_weights:
             profile_holdings = profile_meta.get("_holdings") or []
-            top10_weights = [h.get("weight") for h in profile_holdings[:10] if h.get("weight") is not None]
+            top10_weights = [
+                h.get("weight")
+                for h in profile_holdings[:10]
+                if h.get("weight") is not None
+            ]
         top10_sum = sum(w for w in top10_weights if w is not None) or None
         if top10_sum and top10_sum > 1:
             top10_sum = top10_sum / 100
@@ -268,15 +289,26 @@ class JustETFConnector(BaseConnector):
             "type": "etf_update",
             "isin": isin,
             "ter": _safe_decimal(overview.get("ter")) or profile_meta.get("ter"),
-            "aum_eur": _safe_int(overview.get("fund_size_eur") or overview.get("fund_size")) or profile_meta.get("aum_eur"),
+            "aum_eur": _safe_int(
+                overview.get("fund_size_eur") or overview.get("fund_size")
+            )
+            or profile_meta.get("aum_eur"),
             "description": overview.get("description"),
-            "domicile": overview.get("fund_domicile") or overview.get("domicile") or profile_meta.get("domicile"),
-            "replication": overview.get("replication") or profile_meta.get("replication"),
-            "distribution": overview.get("distribution_policy") or overview.get("distribution") or profile_meta.get("distribution"),
-            "holdings_count": _safe_int(overview.get("number_of_holdings")) or profile_meta.get("holdings_count"),
-            "inception_date": overview.get("inception_date") or profile_meta.get("inception_date"),
+            "domicile": overview.get("fund_domicile")
+            or overview.get("domicile")
+            or profile_meta.get("domicile"),
+            "replication": overview.get("replication")
+            or profile_meta.get("replication"),
+            "distribution": overview.get("distribution_policy")
+            or overview.get("distribution")
+            or profile_meta.get("distribution"),
+            "holdings_count": _safe_int(overview.get("number_of_holdings"))
+            or profile_meta.get("holdings_count"),
+            "inception_date": overview.get("inception_date")
+            or profile_meta.get("inception_date"),
             "index_name": overview.get("index") or profile_meta.get("index_name"),
-            "fund_currency": overview.get("fund_currency") or profile_meta.get("fund_currency"),
+            "fund_currency": overview.get("fund_currency")
+            or profile_meta.get("fund_currency"),
             "top10_weight": top10_sum,
             "vol_1y": profile_meta.get("vol_1y"),
             "index_description": profile_meta.get("index_description"),
@@ -290,7 +322,9 @@ class JustETFConnector(BaseConnector):
         }
 
     @staticmethod
-    def _normalize_holdings(isin: str, overview: dict, profile_meta: dict | None = None) -> list[dict]:
+    def _normalize_holdings(
+        isin: str, overview: dict, profile_meta: dict | None = None
+    ) -> list[dict]:
         holdings = overview.get("top_holdings") or overview.get("holdings") or []
         rows: list[dict] = []
         if holdings:
@@ -320,7 +354,9 @@ class JustETFConnector(BaseConnector):
         return rows
 
     @staticmethod
-    def _normalize_allocations(isin: str, overview: dict, profile_meta: dict | None = None) -> list[dict]:
+    def _normalize_allocations(
+        isin: str, overview: dict, profile_meta: dict | None = None
+    ) -> list[dict]:
         rows: list[dict] = []
         seen: set[tuple[str, str]] = set()
         for alloc_type, key in [("country", "countries"), ("sector", "sectors")]:
@@ -328,7 +364,9 @@ class JustETFConnector(BaseConnector):
             if not items and profile_meta:
                 items = profile_meta.get(f"_{key}") or []
             for item in items:
-                name = item.get("name") or item.get("country") or item.get("sector") or ""
+                name = (
+                    item.get("name") or item.get("country") or item.get("sector") or ""
+                )
                 dedup_key = (alloc_type, name)
                 if dedup_key in seen:
                     continue
@@ -339,7 +377,9 @@ class JustETFConnector(BaseConnector):
                         "etf_isin": isin,
                         "allocation_type": alloc_type,
                         "name": name,
-                        "percentage": _safe_decimal(item.get("share") or item.get("percentage")),
+                        "percentage": _safe_decimal(
+                            item.get("share") or item.get("percentage")
+                        ),
                     }
                 )
         return rows
@@ -385,7 +425,9 @@ class JustETFConnector(BaseConnector):
 
     @staticmethod
     async def _upsert_holding(session: AsyncSession, row: dict, now: datetime) -> None:
-        etf_id_row = await session.execute(text("SELECT id FROM etfs WHERE isin = :isin"), {"isin": row["etf_isin"]})
+        etf_id_row = await session.execute(
+            text("SELECT id FROM etfs WHERE isin = :isin"), {"isin": row["etf_isin"]}
+        )
         etf_id = etf_id_row.scalar_one_or_none()
         if not etf_id:
             return
@@ -408,8 +450,12 @@ class JustETFConnector(BaseConnector):
         )
 
     @staticmethod
-    async def _upsert_allocation(session: AsyncSession, row: dict, now: datetime) -> None:
-        etf_id_row = await session.execute(text("SELECT id FROM etfs WHERE isin = :isin"), {"isin": row["etf_isin"]})
+    async def _upsert_allocation(
+        session: AsyncSession, row: dict, now: datetime
+    ) -> None:
+        etf_id_row = await session.execute(
+            text("SELECT id FROM etfs WHERE isin = :isin"), {"isin": row["etf_isin"]}
+        )
         etf_id = etf_id_row.scalar_one_or_none()
         if not etf_id:
             return
@@ -435,14 +481,18 @@ class JustETFConnector(BaseConnector):
 def _extract_top_holdings(html: str) -> list[dict]:
     """Extract top-10 holdings from profile page HTML using data-testid markers."""
     names = re.findall(
-        r'data-testid="tl_etf-holdings_top-holdings_link_name"[^>]*title="([^"]+)"', html
+        r'data-testid="tl_etf-holdings_top-holdings_link_name"[^>]*title="([^"]+)"',
+        html,
     )
     pcts = re.findall(
-        r'data-testid="tl_etf-holdings_top-holdings_value_percentage"[^>]*>([^<]+)<', html
+        r'data-testid="tl_etf-holdings_top-holdings_value_percentage"[^>]*>([^<]+)<',
+        html,
     )
     holdings = []
     for i, name in enumerate(names):
-        weight = _safe_decimal(pcts[i].replace("%", "").strip()) if i < len(pcts) else None
+        weight = (
+            _safe_decimal(pcts[i].replace("%", "").strip()) if i < len(pcts) else None
+        )
         if weight is not None:
             weight /= 100
         holdings.append({"name": html_mod.unescape(name.strip()), "weight": weight})
@@ -452,10 +502,12 @@ def _extract_top_holdings(html: str) -> list[dict]:
 def _extract_allocation_block(html: str, block_type: str) -> list[dict]:
     """Extract country or sector allocations from profile page HTML."""
     names = re.findall(
-        rf'data-testid="tl_etf-holdings_{re.escape(block_type)}_value_name"[^>]*>([^<]+)<', html
+        rf'data-testid="tl_etf-holdings_{re.escape(block_type)}_value_name"[^>]*>([^<]+)<',
+        html,
     )
     pcts = re.findall(
-        rf'data-testid="tl_etf-holdings_{re.escape(block_type)}_value_percentage"[^>]*>([^<]+)<', html
+        rf'data-testid="tl_etf-holdings_{re.escape(block_type)}_value_percentage"[^>]*>([^<]+)<',
+        html,
     )
     items = []
     for i, name in enumerate(names):

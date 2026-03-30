@@ -87,6 +87,12 @@ export interface OnboardingStatusResponse {
   is_onboarded: boolean;
 }
 
+export interface HydrateETFsResponse {
+  hydrated: number;
+  already_populated: number;
+  errors: string[];
+}
+
 // ── Local Wizard State Types ───────────────────────────────────────
 
 export interface DraftETF {

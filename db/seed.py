@@ -10,13 +10,55 @@ from sqlalchemy import text
 from app.database import engine
 
 SEED_ETFS = [
-    {"isin": "IE00BGV5VN51", "ticker_yf": "XAIX.L", "name": "Xtrackers Artificial Intelligence & Big Data UCITS ETF 1C", "currency": "USD", "exchange": "LSE"},
-    {"isin": "IE00BMC38736", "ticker_yf": "SMGB.L", "name": "iShares MSCI Global Semiconductors UCITS ETF USD (Acc)", "currency": "USD", "exchange": "LSE"},
-    {"isin": "IE00BMH5Y327", "ticker_yf": "VPNG.L", "name": "Global X Data Center REITs & Digital Infrastructure UCITS ETF", "currency": "USD", "exchange": "LSE"},
-    {"isin": "IE000NDWFGA5", "ticker_yf": "URNG.L", "name": "Global X Uranium UCITS ETF USD Accumulating", "currency": "USD", "exchange": "LSE"},
-    {"isin": "IE00B3CNHG25", "ticker_yf": "AUCP.L", "name": "L&G Gold Mining UCITS ETF", "currency": "USD", "exchange": "LSE"},
-    {"isin": "IE00B4ND3602", "ticker_yf": "SGLN.L", "name": "iShares Physical Gold ETC", "currency": "USD", "exchange": "LSE"},
-    {"isin": "IE000JCW3DZ3", "ticker_yf": "ARMG.L", "name": "Global X Defence Tech UCITS ETF USD Accumulating", "currency": "USD", "exchange": "LSE"},
+    {
+        "isin": "IE00BGV5VN51",
+        "ticker_yf": "XAIX.L",
+        "name": "Xtrackers Artificial Intelligence & Big Data UCITS ETF 1C",
+        "currency": "USD",
+        "exchange": "LSE",
+    },
+    {
+        "isin": "IE00BMC38736",
+        "ticker_yf": "SMGB.L",
+        "name": "iShares MSCI Global Semiconductors UCITS ETF USD (Acc)",
+        "currency": "USD",
+        "exchange": "LSE",
+    },
+    {
+        "isin": "IE00BMH5Y327",
+        "ticker_yf": "VPNG.L",
+        "name": "Global X Data Center REITs & Digital Infrastructure UCITS ETF",
+        "currency": "USD",
+        "exchange": "LSE",
+    },
+    {
+        "isin": "IE000NDWFGA5",
+        "ticker_yf": "URNG.L",
+        "name": "Global X Uranium UCITS ETF USD Accumulating",
+        "currency": "USD",
+        "exchange": "LSE",
+    },
+    {
+        "isin": "IE00B3CNHG25",
+        "ticker_yf": "AUCP.L",
+        "name": "L&G Gold Mining UCITS ETF",
+        "currency": "USD",
+        "exchange": "LSE",
+    },
+    {
+        "isin": "IE00B4ND3602",
+        "ticker_yf": "SGLN.L",
+        "name": "iShares Physical Gold ETC",
+        "currency": "USD",
+        "exchange": "LSE",
+    },
+    {
+        "isin": "IE000JCW3DZ3",
+        "ticker_yf": "ARMG.L",
+        "name": "Global X Defence Tech UCITS ETF USD Accumulating",
+        "currency": "USD",
+        "exchange": "LSE",
+    },
 ]
 
 
