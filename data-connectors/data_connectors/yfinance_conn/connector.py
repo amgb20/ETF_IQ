@@ -17,6 +17,10 @@ logger = logging.getLogger(__name__)
 EURUSD_TICKER = "EURUSD=X"
 TRADING_DAYS_PER_YEAR = 252
 
+YF_EXCHANGE_SUFFIXES = [".L", ".DE", ".PA", ".AS", ".MI", ".SW"]
+
+_resolved_cache: dict[str, str | None] = {}
+
 
 class YFinanceConnector(BaseConnector):
     name = "yfinance"
@@ -304,21 +308,75 @@ class YFinanceConnector(BaseConnector):
     async def _db_tickers(self, session: AsyncSession) -> list[str]:
         """Pull all ticker_yf values from the etfs table.
 
-        Filters out bare tickers without an exchange suffix since
-        Yahoo Finance cannot resolve them.
+        Qualified tickers (with exchange suffix) pass through directly.
+        Bare tickers are auto-resolved by probing common exchange suffixes
+        against Yahoo Finance, and the resolved value is persisted back.
         """
-        result = await session.execute(text("SELECT ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL"))
-        all_tickers = [row[0] for row in result.all()]
-        tickers = [t for t in all_tickers if _is_yf_resolvable(t)]
-        if len(tickers) < len(all_tickers):
+        result = await session.execute(
+            text("SELECT isin, ticker_yf FROM etfs WHERE ticker_yf IS NOT NULL")
+        )
+        rows = result.all()
+
+        tickers: list[str] = []
+        bare: list[tuple[str, str]] = []  # (isin, bare_ticker)
+
+        for isin, ticker_yf in rows:
+            if _is_yf_resolvable(ticker_yf):
+                tickers.append(ticker_yf)
+            else:
+                bare.append((isin, ticker_yf))
+
+        if bare:
             logger.info(
-                "yfinance _db_tickers: filtered %d/%d tickers (skipped bare symbols)",
-                len(tickers), len(all_tickers),
+                "yfinance _db_tickers: %d bare tickers found, attempting resolution",
+                len(bare),
             )
+            for isin, ticker in bare:
+                resolved = await self._resolve_bare_ticker(session, ticker, isin)
+                if resolved:
+                    tickers.append(resolved)
+
         if not tickers:
             tickers = ["XAIX.L", "SMGB.L", "VPNG.L", "URNG.L", "AUCP.L", "SGLN.L", "ARMG.L"]
             logger.info("yfinance _db_tickers: using hardcoded fallback tickers")
         return tickers
+
+    @staticmethod
+    async def _resolve_bare_ticker(
+        session: AsyncSession, ticker: str, isin: str,
+    ) -> str | None:
+        """Try common exchange suffixes to find a working Yahoo Finance ticker.
+
+        On success, persists the qualified ticker back to the DB and returns it.
+        Results are cached in-memory so probing only happens once per process.
+        """
+        if ticker in _resolved_cache:
+            return _resolved_cache[ticker]
+
+        for suffix in YF_EXCHANGE_SUFFIXES:
+            candidate = f"{ticker}{suffix}"
+            try:
+                hist = yf.Ticker(candidate).history(period="5d")
+                if hist is not None and not hist.empty:
+                    logger.info(
+                        "yfinance resolved bare ticker %s → %s (isin=%s)",
+                        ticker, candidate, isin,
+                    )
+                    await session.execute(
+                        text("UPDATE etfs SET ticker_yf = :t WHERE isin = :isin"),
+                        {"t": candidate, "isin": isin},
+                    )
+                    await session.commit()
+                    _resolved_cache[ticker] = candidate
+                    return candidate
+            except Exception:
+                continue
+
+        logger.warning(
+            "yfinance could not resolve bare ticker %s for isin=%s", ticker, isin,
+        )
+        _resolved_cache[ticker] = None
+        return None
 
     async def _default_tickers(self) -> list[str]:
         """Fallback when fetch() is called without a session — hardcoded tickers."""

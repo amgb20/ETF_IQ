@@ -70,6 +70,10 @@ export interface QuoteData {
   day_change_pct: number | null;
   week_52_high: number | null;
   week_52_low: number | null;
+  volume: number | null;
+  ytd_return_pct: number | null;
+  dividend_yield: number | null;
+  ter: number | null;
 }
 
 export interface ETFRiskMetric {
@@ -114,7 +118,8 @@ export function useETFQuote(isin: string | undefined) {
 export function useRiskMetrics(portfolioId: string | undefined) {
   return useQuery<RiskMetricsData>({
     queryKey: ["risk-metrics", portfolioId],
-    queryFn: () => apiFetch(`/analytics/risk-metrics?portfolio_id=${portfolioId}`),
+    queryFn: () =>
+      apiFetch(`/analytics/risk-metrics?portfolio_id=${portfolioId}`),
     enabled: !!portfolioId,
   });
 }

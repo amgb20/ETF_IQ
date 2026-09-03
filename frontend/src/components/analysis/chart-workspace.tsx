@@ -1,8 +1,14 @@
 import { useState, useMemo, useEffect } from "react";
 import { useQueries, type UseQueryResult } from "@tanstack/react-query";
 import {
-  subDays, subMonths, subYears, startOfYear,
-  format, parseISO, getISOWeek, getISOWeekYear,
+  subDays,
+  subMonths,
+  subYears,
+  startOfYear,
+  format,
+  parseISO,
+  getISOWeek,
+  getISOWeekYear,
 } from "date-fns";
 import { Button } from "@/components/ui/button";
 import { AnalysisChart } from "@/components/charts/analysis-chart";
@@ -18,37 +24,78 @@ import type { PriceSeries, IntradaySeries } from "@/hooks/use-prices";
 import { CHART_COLORS, tickerLabel } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 
-export type ChartMode = "line" | "bar" | "drawdown" | "risk-return" | "correlation" | "heatmap";
+export type ChartMode =
+  | "line"
+  | "bar"
+  | "drawdown"
+  | "risk-return"
+  | "correlation"
+  | "heatmap";
 
-type TimeRange = "1D" | "1W" | "1M" | "3M" | "6M" | "YTD" | "1Y" | "3Y" | "5Y" | "MAX";
-const TIME_RANGES: TimeRange[] = ["1D", "1W", "1M", "3M", "6M", "YTD", "1Y", "3Y", "5Y", "MAX"];
+type TimeRange =
+  | "1D"
+  | "1W"
+  | "1M"
+  | "3M"
+  | "6M"
+  | "YTD"
+  | "1Y"
+  | "3Y"
+  | "5Y"
+  | "MAX";
+const TIME_RANGES: TimeRange[] = [
+  "1D",
+  "1W",
+  "1M",
+  "3M",
+  "6M",
+  "YTD",
+  "1Y",
+  "3Y",
+  "5Y",
+  "MAX",
+];
 
 type DataInterval = "1m" | "5m" | "15m" | "1h" | "1d" | "1wk" | "1mo";
 
 const INTERVALS_FOR_RANGE: Record<TimeRange, DataInterval[]> = {
-  "1D":  ["1m", "5m", "15m", "1h"],
-  "1W":  ["15m", "1h", "1d"],
-  "1M":  ["1d", "1wk"],
-  "3M":  ["1d", "1wk", "1mo"],
-  "6M":  ["1d", "1wk", "1mo"],
-  "YTD": ["1d", "1wk", "1mo"],
-  "1Y":  ["1d", "1wk", "1mo"],
-  "3Y":  ["1wk", "1mo"],
-  "5Y":  ["1wk", "1mo"],
-  "MAX": ["1wk", "1mo"],
+  "1D": ["1m", "5m", "15m", "1h"],
+  "1W": ["15m", "1h", "1d"],
+  "1M": ["1d", "1wk"],
+  "3M": ["1d", "1wk", "1mo"],
+  "6M": ["1d", "1wk", "1mo"],
+  YTD: ["1d", "1wk", "1mo"],
+  "1Y": ["1d", "1wk", "1mo"],
+  "3Y": ["1wk", "1mo"],
+  "5Y": ["1wk", "1mo"],
+  MAX: ["1wk", "1mo"],
 };
 
 const DEFAULT_INTERVAL: Record<TimeRange, DataInterval> = {
-  "1D": "5m", "1W": "1h", "1M": "1d", "3M": "1d",
-  "6M": "1d", "YTD": "1d", "1Y": "1d", "3Y": "1wk",
-  "5Y": "1wk", "MAX": "1mo",
+  "1D": "5m",
+  "1W": "1h",
+  "1M": "1d",
+  "3M": "1d",
+  "6M": "1d",
+  YTD: "1d",
+  "1Y": "1d",
+  "3Y": "1wk",
+  "5Y": "1wk",
+  MAX: "1mo",
 };
 
 /** yfinance period string for each time range (used by intraday endpoint). */
 const PERIOD_FOR_RANGE: Record<TimeRange, string> = {
-  "1D": "1d", "1W": "5d", "1M": "1mo", "3M": "3mo",
-  "6M": "6mo", "YTD": "ytd", "1Y": "1y", "3Y": "3y",
-  "5Y": "5y", "MAX": "max",
+  "1D": "1d",
+  "1W": "5d",
+  "1M": "1mo",
+  "3M": "3mo",
+  "6M": "6mo",
+  YTD: "ytd",
+  "1Y": "1y",
+  "3Y": "3y",
+  "5Y": "5y",
+  MAX: "max",
 };
 
 const INTRADAY_INTERVALS = new Set<DataInterval>(["1m", "5m", "15m", "1h"]);
@@ -56,21 +103,31 @@ const INTRADAY_INTERVALS = new Set<DataInterval>(["1m", "5m", "15m", "1h"]);
 function computeFromDate(range: TimeRange): string | undefined {
   const now = new Date();
   switch (range) {
-    case "1D": return format(subDays(now, 1), "yyyy-MM-dd");
-    case "1W": return format(subDays(now, 7), "yyyy-MM-dd");
-    case "1M": return format(subMonths(now, 1), "yyyy-MM-dd");
-    case "3M": return format(subMonths(now, 3), "yyyy-MM-dd");
-    case "6M": return format(subMonths(now, 6), "yyyy-MM-dd");
-    case "YTD": return format(startOfYear(now), "yyyy-MM-dd");
-    case "1Y": return format(subYears(now, 1), "yyyy-MM-dd");
-    case "3Y": return format(subYears(now, 3), "yyyy-MM-dd");
-    case "5Y": return format(subYears(now, 5), "yyyy-MM-dd");
-    case "MAX": return undefined;
+    case "1D":
+      return format(subDays(now, 1), "yyyy-MM-dd");
+    case "1W":
+      return format(subDays(now, 7), "yyyy-MM-dd");
+    case "1M":
+      return format(subMonths(now, 1), "yyyy-MM-dd");
+    case "3M":
+      return format(subMonths(now, 3), "yyyy-MM-dd");
+    case "6M":
+      return format(subMonths(now, 6), "yyyy-MM-dd");
+    case "YTD":
+      return format(startOfYear(now), "yyyy-MM-dd");
+    case "1Y":
+      return format(subYears(now, 1), "yyyy-MM-dd");
+    case "3Y":
+      return format(subYears(now, 3), "yyyy-MM-dd");
+    case "5Y":
+      return format(subYears(now, 5), "yyyy-MM-dd");
+    case "MAX":
+      return undefined;
   }
 }
 
 function aggregateWeekly(
-  prices: { date: string; close: number }[],
+  prices: { date: string; close: number }[]
 ): { date: string; close: number }[] {
   if (prices.length === 0) return [];
   const byWeek = new Map<string, { date: string; close: number }>();
@@ -83,7 +140,7 @@ function aggregateWeekly(
 }
 
 function aggregateMonthly(
-  prices: { date: string; close: number }[],
+  prices: { date: string; close: number }[]
 ): { date: string; close: number }[] {
   if (prices.length === 0) return [];
   const byMonth = new Map<string, { date: string; close: number }>();
@@ -108,7 +165,7 @@ function toPercentGrowth(prices: { date: string; close: number }[]) {
   if (base === 0) return prices.map((p) => ({ time: p.date, value: 0 }));
   return prices.map((p) => ({
     time: p.date,
-    value: ((p.close / base) - 1) * 100,
+    value: (p.close / base - 1) * 100,
   }));
 }
 
@@ -117,16 +174,23 @@ function toDrawdown(prices: { date: string; close: number }[]) {
   let peak = prices[0].close;
   return prices.map((p) => {
     if (p.close > peak) peak = p.close;
-    const dd = peak > 0 ? ((p.close / peak) - 1) * 100 : 0;
+    const dd = peak > 0 ? (p.close / peak - 1) * 100 : 0;
     return { time: p.date, value: dd };
   });
 }
 
-export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, onAddETF }: Props) {
+export function ChartWorkspace({
+  etfs,
+  selectedIsins,
+  onToggleETF,
+  portfolioId,
+  onAddETF,
+}: Props) {
   const [chartType, setChartType] = useState<ChartMode>("line");
   const [showEvents, setShowEvents] = useState(false);
-  const [timeRange, setTimeRange] = useState<TimeRange>("1Y");
-  const [interval, setInterval] = useState<DataInterval>("1d");
+  const [timeRange, setTimeRange] = useState<TimeRange>("1D");
+  const [interval, setInterval] = useState<DataInterval>("5m");
+  const [priceMode, setPriceMode] = useState<"growth" | "price">("growth");
 
   const isIntraday = INTRADAY_INTERVALS.has(interval);
   const fromDate = useMemo(() => computeFromDate(timeRange), [timeRange]);
@@ -138,22 +202,24 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
 
   const selectedEtfs = useMemo(
     () => etfs.filter((e) => selectedIsins.includes(e.isin)),
-    [etfs, selectedIsins],
+    [etfs, selectedIsins]
   );
 
   const eventTickers = useMemo(
     () => selectedEtfs.map((e) => e.ticker_yf).filter(Boolean) as string[],
-    [selectedEtfs],
+    [selectedEtfs]
   );
 
   const { data: events } = useEvents(
     showEvents ? portfolioId : undefined,
     eventTickers.length > 0 ? eventTickers : undefined,
-    fromDate,
+    fromDate
   );
 
   const { data: riskMetrics, isLoading: riskLoading } = useRiskMetrics(
-    (chartType === "risk-return" || chartType === "correlation") ? portfolioId : undefined,
+    chartType === "risk-return" || chartType === "correlation"
+      ? portfolioId
+      : undefined
   );
 
   const priceQueries = useQueries({
@@ -166,7 +232,9 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
             period: PERIOD_FOR_RANGE[timeRange],
             interval,
           });
-          return apiFetch<IntradaySeries>(`/prices/intraday?${params.toString()}`);
+          return apiFetch<IntradaySeries>(
+            `/prices/intraday?${params.toString()}`
+          );
         }
         const params = new URLSearchParams({ etf_id: e.id });
         if (fromDate) params.set("from", fromDate);
@@ -203,24 +271,45 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
           if (interval === "1mo") daily = aggregateMonthly(daily);
           rawPrices = daily;
         }
-        const transformed = isDrawdown ? toDrawdown(rawPrices) : toPercentGrowth(rawPrices);
+        const transformed = isDrawdown
+          ? toDrawdown(rawPrices)
+          : priceMode === "price"
+            ? rawPrices.map((p) => ({ time: p.date, value: p.close }))
+            : toPercentGrowth(rawPrices);
         return {
           label: tickerLabel(etf.ticker_yf, etf.isin),
           data: transformed,
         };
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priceQueries.map((q) => q.dataUpdatedAt).join(","), selectedEtfs, chartType, interval, isIntraday]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [
+    priceQueries.map((q) => q.dataUpdatedAt).join(","),
+    selectedEtfs,
+    chartType,
+    interval,
+    isIntraday,
+    priceMode,
+  ]);
 
   const loading = priceQueries.some((q) => q.isLoading);
 
-  const isTimeSeriesChart = chartType === "line" || chartType === "bar" || chartType === "drawdown";
+  const isTimeSeriesChart =
+    chartType === "line" || chartType === "bar" || chartType === "drawdown";
 
   return (
     <div className="space-y-4">
       <div className="flex flex-wrap items-center gap-3">
         <div className="flex border-b border-border gap-0">
-          {(["line", "bar", "drawdown", "risk-return", "correlation", "heatmap"] as ChartMode[]).map((mode) => (
+          {(
+            [
+              "line",
+              "bar",
+              "drawdown",
+              "risk-return",
+              "correlation",
+              "heatmap",
+            ] as ChartMode[]
+          ).map((mode) => (
             <button
               key={mode}
               onClick={() => setChartType(mode)}
@@ -231,13 +320,46 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
                   : "text-muted-foreground hover:text-foreground"
               )}
             >
-              {mode === "risk-return" ? "Risk-Return" : mode.charAt(0).toUpperCase() + mode.slice(1)}
+              {mode === "risk-return"
+                ? "Risk-Return"
+                : mode.charAt(0).toUpperCase() + mode.slice(1)}
             </button>
           ))}
         </div>
 
         {isTimeSeriesChart && (
           <>
+            {/* Growth / Price toggle */}
+            {chartType === "line" && (
+              <>
+                <div className="h-6 w-px bg-border" />
+                <div className="flex items-center rounded-lg border border-border overflow-hidden text-xs">
+                  <button
+                    onClick={() => setPriceMode("growth")}
+                    className={cn(
+                      "px-2.5 py-1 sidebar-transition",
+                      priceMode === "growth"
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Growth %
+                  </button>
+                  <button
+                    onClick={() => setPriceMode("price")}
+                    className={cn(
+                      "px-2.5 py-1 sidebar-transition",
+                      priceMode === "price"
+                        ? "bg-foreground text-background"
+                        : "text-muted-foreground hover:text-foreground"
+                    )}
+                  >
+                    Price
+                  </button>
+                </div>
+              </>
+            )}
+
             <div className="h-6 w-px bg-border" />
             <span className="text-xs text-muted-foreground mr-1">Events:</span>
             <Button
@@ -261,7 +383,7 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
                 "px-2.5 py-1 text-xs rounded-md font-medium transition-colors",
                 timeRange === r
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
               {r}
@@ -276,7 +398,7 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
                 "px-2.5 py-1 text-xs rounded-md font-medium transition-colors",
                 interval === intv
                   ? "bg-primary text-primary-foreground"
-                  : "text-muted-foreground hover:text-foreground hover:bg-muted",
+                  : "text-muted-foreground hover:text-foreground hover:bg-muted"
               )}
             >
               {intv}
@@ -298,14 +420,21 @@ export function ChartWorkspace({ etfs, selectedIsins, onToggleETF, portfolioId, 
             >
               <span
                 className="inline-block w-2 h-2 rounded-full mr-1.5 shrink-0"
-                style={{ backgroundColor: CHART_COLORS[idx % CHART_COLORS.length] }}
+                style={{
+                  backgroundColor: CHART_COLORS[idx % CHART_COLORS.length],
+                }}
               />
               {ticker}
             </Button>
           );
         })}
         {onAddETF && (
-          <Button variant="outline" size="sm" onClick={onAddETF} className="gap-1">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={onAddETF}
+            className="gap-1"
+          >
             <Plus className="h-3.5 w-3.5" /> Add ETF
           </Button>
         )}

@@ -39,6 +39,10 @@ Thumbs.db
 # Alembic
 unified-api/alembic/versions/__pycache__/
 
+# Compiled agent-skill binaries (rebuilt by .claude/skills/gstack/setup)
+.claude/skills/**/bin/*.exe
+.claude/skills/**/dist/
+
 # pytest
 .pytest_cache/
 .coverage

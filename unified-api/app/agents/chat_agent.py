@@ -519,7 +519,7 @@ class ChatAgent:
             await self._maybe_generate_title(session, user_text)
 
     async def _maybe_generate_title(self, session: AsyncSession, first_msg: str) -> None:
-        """Generate a short title for the session based on the first user message."""
+        """Generate a short title for the session using Gemini Flash."""
         try:
             row = await session.get(ChatSession, self.session_id)
             if not row or row.title:
@@ -540,7 +540,8 @@ class ChatAgent:
                 contents=(
                     "Rephrase the following user message as a concise chat title "
                     "(3-6 words) that captures the main topic and intent. "
-                    "Do not extract a single keyword.\n\n"
+                    "Do not extract a single keyword. "
+                    "Return ONLY the title text, nothing else.\n\n"
                     "Examples:\n"
                     'User: "hello"\n'
                     "Title: New Conversation\n"
@@ -550,15 +551,24 @@ class ChatAgent:
                     "Title: Portfolio Changes Last Friday\n"
                     'User: "Can you compare my ETF performance over 6 months?"\n'
                     "Title: ETF Performance 6-Month Comparison\n\n"
-                    f'User: "{first_msg}"\nTitle:'
+                    f'User: "{first_msg[:200]}"\nTitle:'
                 ),
                 config=GenerateContentConfig(
-                    temperature=0.0,
-                    max_output_tokens=30,
+                    temperature=0.3,
+                    max_output_tokens=60,
                 ),
             )
-            title = (resp.text or first_msg.strip()[:100]).strip().strip('"').strip("'")[:120]
 
+            title_text = (resp.text or "").strip().strip('"').strip("'").strip()
+            if not title_text or len(title_text) < 2:
+                logger.warning(
+                    "Title generation returned empty for session %s (input: %r)",
+                    self.session_id,
+                    first_msg[:80],
+                )
+                return
+
+            title = title_text[:120]
             logger.info(
                 "Title generated for session %s: %r (from: %r)",
                 self.session_id,

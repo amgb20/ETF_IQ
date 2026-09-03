@@ -10,19 +10,17 @@ import { ChartWorkspace } from "@/components/analysis/chart-workspace";
 import { ETFDetailTab } from "@/components/analysis/etf-detail-tab";
 import { AgentReportsTab } from "@/components/analysis/agent-reports-tab";
 import { AlertsTab } from "@/components/analysis/alerts-tab";
-import { QuoteTab } from "@/components/analysis/quote-tab";
+import { PortfolioTab } from "@/components/analysis/portfolio-tab";
 import { AddPositionModal } from "@/components/analysis/add-position-modal";
 import { SellModal } from "@/components/trade/sell-modal";
 import { RefreshCw } from "lucide-react";
 import { PageHeader } from "@/components/layout/page-header";
 import { Button } from "@/components/ui/button";
-import { tickerLabel } from "@/lib/constants";
 import type { PositionBrief } from "@/hooks/use-portfolios";
 import type { ETFListItem } from "@/hooks/use-etfs";
 
 const VALID_TABS = [
-  "quote",
-  "positions",
+  "portfolio",
   "etf-detail",
   "agent-reports",
   "alerts",
@@ -44,11 +42,11 @@ export default function AnalysisPage() {
     lastSegment
   )
     ? (lastSegment as TabValue)
-    : "quote";
+    : "portfolio";
 
   useEffect(() => {
     if (!(VALID_TABS as readonly string[]).includes(lastSegment)) {
-      navigate(`/${userId}/analysis/quote`, { replace: true });
+      navigate(`/${userId}/analysis/portfolio`, { replace: true });
     }
   }, [lastSegment, navigate, userId]);
 
@@ -59,13 +57,6 @@ export default function AnalysisPage() {
   const { data: overlap } = useOverlap(portfolioId);
 
   const positions = portfolio?.positions ?? [];
-
-  console.log(
-    "[analysis] portfolioId=%s  positions=%d  portfolio=",
-    portfolioId,
-    positions.length,
-    portfolio
-  );
 
   const portfolioEtfs: ETFListItem[] = useMemo(
     () =>
@@ -78,13 +69,6 @@ export default function AnalysisPage() {
         exchange: null,
       })),
     [positions]
-  );
-
-  console.log(
-    "[analysis] portfolioEtfs=",
-    portfolioEtfs,
-    " selectedIsins=",
-    selectedIsins
   );
 
   useEffect(() => {
@@ -111,12 +95,8 @@ export default function AnalysisPage() {
         tickers_synced: string[];
         total_price_rows: number;
       }>("/prices/sync", { method: "POST" }),
-    onSuccess: (data) => {
-      console.log("[analysis] price sync complete:", data);
+    onSuccess: () => {
       qc.invalidateQueries({ queryKey: ["prices"] });
-    },
-    onError: (err) => {
-      console.error("[analysis] price sync failed:", err);
     },
   });
 
@@ -174,108 +154,19 @@ export default function AnalysisPage() {
 
         <Tabs value={activeTab} onValueChange={handleTabChange}>
           <TabsList>
-            <TabsTrigger value="quote">Quote</TabsTrigger>
-            <TabsTrigger value="positions">Positions</TabsTrigger>
+            <TabsTrigger value="portfolio">Portfolio</TabsTrigger>
             <TabsTrigger value="etf-detail">ETF Detail</TabsTrigger>
             <TabsTrigger value="agent-reports">Agent Reports</TabsTrigger>
             <TabsTrigger value="alerts">Alerts</TabsTrigger>
           </TabsList>
 
-          <TabsContent value="quote">
-            <QuoteTab
-              etfs={
-                selectedIsins.length > 0
-                  ? portfolioEtfs.filter((e) => selectedIsins.includes(e.isin))
-                  : portfolioEtfs
-              }
+          <TabsContent value="portfolio">
+            <PortfolioTab
+              positions={positions}
+              etfs={portfolioEtfs}
+              selectedIsins={selectedIsins}
+              onSell={(p) => setSellTarget(p)}
             />
-          </TabsContent>
-
-          <TabsContent value="positions">
-            {positions.length === 0 ? (
-              <p className="text-sm text-muted-foreground text-center py-8">
-                No active positions.
-              </p>
-            ) : (
-              <div className="rounded-lg border border-border overflow-hidden">
-                <table className="w-full text-sm">
-                  <thead className="bg-muted/50">
-                    <tr className="text-xs text-muted-foreground">
-                      <th className="text-left px-4 py-2 font-medium">ETF</th>
-                      <th className="text-right px-4 py-2 font-medium">
-                        Shares
-                      </th>
-                      <th className="text-right px-4 py-2 font-medium">
-                        Entry
-                      </th>
-                      <th className="text-right px-4 py-2 font-medium">
-                        Current
-                      </th>
-                      <th className="text-right px-4 py-2 font-medium">
-                        Value
-                      </th>
-                      <th className="text-right px-4 py-2 font-medium">P&L</th>
-                      <th className="text-right px-4 py-2 font-medium"></th>
-                    </tr>
-                  </thead>
-                  <tbody className="divide-y divide-border">
-                    {positions.map((p) => {
-                      const pnlPositive = (p.pnl ?? 0) >= 0;
-                      return (
-                        <tr key={p.id} className="hover:bg-muted/30">
-                          <td className="px-4 py-3">
-                            <div className="font-medium">
-                              {tickerLabel(p.ticker_yf, p.etf_isin)}
-                            </div>
-                            <div className="text-xs text-muted-foreground truncate max-w-[200px]">
-                              {p.etf_name}
-                            </div>
-                          </td>
-                          <td className="text-right px-4 py-3 tabular-nums">
-                            {p.shares}
-                          </td>
-                          <td className="text-right px-4 py-3 tabular-nums">
-                            {p.entry_price.toFixed(2)}
-                          </td>
-                          <td className="text-right px-4 py-3 tabular-nums">
-                            {p.current_price?.toFixed(2) ?? "—"}
-                          </td>
-                          <td className="text-right px-4 py-3 tabular-nums">
-                            {p.current_value?.toLocaleString(undefined, {
-                              minimumFractionDigits: 2,
-                              maximumFractionDigits: 2,
-                            }) ?? "—"}
-                          </td>
-                          <td
-                            className={`text-right px-4 py-3 tabular-nums font-medium ${pnlPositive ? "text-green-600" : "text-red-500"}`}
-                          >
-                            {p.pnl != null
-                              ? `${pnlPositive ? "+" : ""}${p.pnl.toFixed(2)}`
-                              : "—"}
-                            {p.pnl_pct != null && (
-                              <span className="text-xs ml-1">
-                                ({pnlPositive ? "+" : ""}
-                                {p.pnl_pct.toFixed(1)}%)
-                              </span>
-                            )}
-                          </td>
-                          <td className="text-right px-4 py-3">
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="h-7 text-xs"
-                              onClick={() => setSellTarget(p)}
-                            >
-                              Sell
-                            </Button>
-                          </td>
-                        </tr>
-                      );
-                    })}
-                  </tbody>
-                </table>
-              </div>
-            )}
           </TabsContent>
 
           <TabsContent value="etf-detail">

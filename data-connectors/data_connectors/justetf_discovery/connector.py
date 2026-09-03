@@ -85,6 +85,16 @@ def _qualify_ticker_for_yf(ticker: str | None, exchange: str | None) -> str | No
         suffix = EXCHANGE_TO_YF_SUFFIX.get(exchange)
         if suffix:
             return f"{ticker}{suffix}"
+        logger.warning(
+            "Cannot map exchange %r to Yahoo Finance suffix for ticker %s "
+            "(add it to EXCHANGE_TO_YF_SUFFIX)",
+            exchange, ticker,
+        )
+    else:
+        logger.warning(
+            "No exchange provided for ticker %s — cannot build Yahoo Finance symbol",
+            ticker,
+        )
     return None
 
 

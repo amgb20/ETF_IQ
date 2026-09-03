@@ -378,6 +378,8 @@ export default function CharlesPage() {
     switchSession,
   } = useChat(portfolioId);
 
+  const prevSessionIdRef = useRef<string | null>(null);
+
   /* Load a specific session from URL */
   useEffect(() => {
     if (urlSessionId) {
@@ -390,16 +392,20 @@ export default function CharlesPage() {
   /* Reset to clean state when navigating to /charles without ?session= */
   useEffect(() => {
     if (!urlSessionId) {
+      prevSessionIdRef.current = null;
       newSession();
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [urlSessionId]);
 
-  /* When a new session is created (first message sent), update the URL */
+  /* When a new session is created (first message sent), update the URL.
+     Only fires when sessionId transitions from falsy → truthy, preventing
+     the stale old sessionId from being pushed back into the URL. */
   useEffect(() => {
-    if (sessionId && !urlSessionId) {
+    if (sessionId && !urlSessionId && !prevSessionIdRef.current) {
       setSearchParams({ session: sessionId }, { replace: true });
     }
+    prevSessionIdRef.current = sessionId;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionId]);
 

@@ -2,6 +2,7 @@ import logging
 import re
 from datetime import date, timedelta
 
+import sqlalchemy as sa
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import and_, func, or_, select
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -80,12 +81,28 @@ async def discover_etfs(
             raw_currency = item.get("currency") or ""
             clean_currency = re.sub(r"<[^>]+>", " ", raw_currency).strip()[:3] or None
 
+            new_ticker = item.get("ticker_yf")
+            new_is_qualified = bool(new_ticker and "." in new_ticker)
+
+            update_set: dict = {"name": item["name"]}
+            if new_is_qualified:
+                update_set["ticker_yf"] = sa.case(
+                    (
+                        sa.or_(
+                            ETF.__table__.c.ticker_yf.is_(None),
+                            ~ETF.__table__.c.ticker_yf.contains("."),
+                        ),
+                        new_ticker,
+                    ),
+                    else_=ETF.__table__.c.ticker_yf,
+                )
+
             stmt = (
                 pg_insert(ETF.__table__)
                 .values(
                     isin=item["isin"],
                     name=item["name"],
-                    ticker_yf=item.get("ticker_yf"),
+                    ticker_yf=new_ticker,
                     currency=clean_currency,
                     exchange=item.get("exchange"),
                     ter=item.get("ter"),
@@ -94,7 +111,7 @@ async def discover_etfs(
                 )
                 .on_conflict_do_update(
                     index_elements=["isin"],
-                    set_={"name": item["name"]},
+                    set_=update_set,
                 )
             )
             await db.execute(stmt)
@@ -148,6 +165,23 @@ async def get_etf_quote(isin: str, db: AsyncSession = Depends(get_db)):
     w52_high = round(float(row[0]), 4) if row and row[0] else None
     w52_low = round(float(row[1]), 4) if row and row[1] else None
 
+    # Volume from the latest price row
+    volume = int(last.volume) if last.volume else None
+
+    # YTD return: compare last close to first close of the year
+    ytd_return_pct = None
+    jan1 = date(date.today().year, 1, 1)
+    ytd_row = await db.execute(
+        select(Price.close).where(and_(Price.etf_id == etf.id, Price.date >= jan1)).order_by(Price.date.asc()).limit(1)
+    )
+    ytd_first = ytd_row.scalar_one_or_none()
+    if ytd_first and float(ytd_first) > 0:
+        ytd_return_pct = round((float(last.close) / float(ytd_first) - 1) * 100, 2)
+
+    # TER + dividend yield from ETF detail fields (JustETF data)
+    ter = round(float(etf.ter), 4) if etf.ter is not None else None
+    dividend_yield = round(float(etf.distribution_yield), 4) if getattr(etf, "distribution_yield", None) is not None else None
+
     return QuoteResponse(
         isin=isin,
         last_close=round(float(last.close), 4),
@@ -157,6 +191,10 @@ async def get_etf_quote(isin: str, db: AsyncSession = Depends(get_db)):
         day_change_pct=day_change_pct,
         week_52_high=w52_high,
         week_52_low=w52_low,
+        volume=volume,
+        ytd_return_pct=ytd_return_pct,
+        dividend_yield=dividend_yield,
+        ter=ter,
     )
 
 

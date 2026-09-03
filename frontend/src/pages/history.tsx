@@ -191,7 +191,7 @@ function ThreadRow({
       onKeyDown={(e) => {
         if (e.key === "Enter") handleRowClick();
       }}
-      className="border-b border-border/40 last:border-0 cursor-pointer"
+      className="border-b border-border/40 last:border-0 cursor-pointer hover:bg-muted/40 transition-colors"
     >
       <div className="flex items-start gap-3 py-5 group">
         {selectMode && (
@@ -205,7 +205,7 @@ function ThreadRow({
           </div>
         )}
         <div className="flex-1 min-w-0">
-          <p className="text-sm font-semibold text-foreground line-clamp-1">
+          <p className="text-sm font-semibold text-foreground group-hover:text-emerald-400 line-clamp-1 transition-colors">
             {session.title || "New conversation"}
           </p>
           {session.last_message_snippet && (
@@ -330,7 +330,7 @@ function ThreadsList() {
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           placeholder="Search your threads..."
-          className="w-full rounded-xl border border-border bg-card pl-9 pr-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60"
+          className="w-full rounded-xl border border-border bg-transparent pl-9 pr-4 py-2.5 text-sm outline-none focus:ring-1 focus:ring-ring placeholder:text-muted-foreground/60"
         />
       </div>
 
@@ -572,9 +572,9 @@ function TradesList() {
       </div>
 
       {view === "journal" ? (
-        <div className="rounded-xl border border-border bg-card overflow-hidden">
+        <div className="rounded-xl border border-border overflow-hidden">
           <table className="w-full text-sm">
-            <thead className="bg-muted/50">
+            <thead className="bg-muted/30">
               <tr className="text-xs text-muted-foreground">
                 <th className="text-left px-4 py-2 font-medium">Type</th>
                 <th className="text-left px-4 py-2 font-medium">ETF</th>
@@ -667,7 +667,10 @@ function TradesList() {
             );
 
             return (
-              <Card key={key} className="overflow-hidden">
+              <div
+                key={key}
+                className="rounded-xl border border-border overflow-hidden"
+              >
                 <div className="px-4 py-3 border-b border-border bg-muted/30">
                   <div className="flex items-center justify-between">
                     <div>
@@ -752,7 +755,7 @@ function TradesList() {
                     </div>
                   ))}
                 </div>
-              </Card>
+              </div>
             );
           })}
         </div>

@@ -55,6 +55,10 @@ class QuoteResponse(BaseModel):
     day_change_pct: float | None
     week_52_high: float | None
     week_52_low: float | None
+    volume: int | None = None
+    ytd_return_pct: float | None = None
+    dividend_yield: float | None = None
+    ter: float | None = None
 
 
 class ETFDetailResponse(BaseModel):
